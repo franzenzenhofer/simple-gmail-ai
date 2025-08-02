@@ -34,34 +34,34 @@ namespace AppLogger {
   
   export function initSpreadsheet(): void {
     try {
-      console.log('🔧 INITIALIZING SPREADSHEET LOGGING...');
+      Logger.log('🔧 INITIALIZING SPREADSHEET LOGGING...');
       
       const disabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
       if (disabled) {
-        console.log('⚠️ Spreadsheet logging is DISABLED');
+        Logger.log('⚠️ Spreadsheet logging is DISABLED');
         return;
       }
       
-      console.log('📁 Setting up log folder...');
+      Logger.log('📁 Setting up log folder...');
       let folderId = PropertiesService.getUserProperties().getProperty('LOG_FOLDER_ID');
       let folder: GoogleAppsScript.Drive.Folder;
       
       if (!folderId) {
-        console.log('📁 Creating new log folder...');
+        Logger.log('📁 Creating new log folder...');
         folder = DriveApp.createFolder('Gmail AI Logs');
         folderId = folder.getId();
         PropertiesService.getUserProperties().setProperty('LOG_FOLDER_ID', folderId);
-        console.log('✅ Created log folder:', folderId);
+        Logger.log('✅ Created log folder:', folderId);
       } else {
         try {
           folder = DriveApp.getFolderById(folderId);
-          console.log('✅ Found existing log folder:', folderId);
+          Logger.log('✅ Found existing log folder:', folderId);
         } catch (folderError) {
-          console.log('❌ Existing folder not found, creating new one...');
+          Logger.log('❌ Existing folder not found, creating new one...');
           folder = DriveApp.createFolder('Gmail AI Logs');
           folderId = folder.getId();
           PropertiesService.getUserProperties().setProperty('LOG_FOLDER_ID', folderId);
-          console.log('✅ Created replacement log folder:', folderId);
+          Logger.log('✅ Created replacement log folder:', folderId);
         }
       }
       
@@ -69,17 +69,17 @@ namespace AppLogger {
       const todayKey = 'LOG_SPREADSHEET_' + dateString.replace(/-/g, '_');
       let todayId = PropertiesService.getUserProperties().getProperty(todayKey);
       
-      console.log('📊 Setting up today\'s spreadsheet for', dateString);
+      Logger.log('📊 Setting up today\'s spreadsheet for', dateString);
       
       if (!todayId) {
-        console.log('📊 Creating new spreadsheet for today...');
+        Logger.log('📊 Creating new spreadsheet for today...');
         const spreadsheet = SpreadsheetApp.create('Logs ' + dateString);
         todayId = spreadsheet.getId();
         
-        console.log('📊 Moving spreadsheet to log folder...');
+        Logger.log('📊 Moving spreadsheet to log folder...');
         DriveApp.getFileById(todayId).moveTo(folder);
         
-        console.log('📊 Setting up spreadsheet headers...');
+        Logger.log('📊 Setting up spreadsheet headers...');
         const sheet = spreadsheet.getActiveSheet();
         sheet.setName('Logs');
         const headers = ['Timestamp', 'Execution ID', 'Level', 'Message', 'Context'];
@@ -88,9 +88,9 @@ namespace AppLogger {
         sheet.setFrozenRows(1);
         
         PropertiesService.getUserProperties().setProperty(todayKey, todayId);
-        console.log('✅ Created new spreadsheet:', todayId);
+        Logger.log('✅ Created new spreadsheet:', todayId);
       } else {
-        console.log('✅ Found existing spreadsheet for today:', todayId);
+        Logger.log('✅ Found existing spreadsheet for today:', todayId);
       }
       
       spreadsheetConfig = {
@@ -101,14 +101,14 @@ namespace AppLogger {
         dateString
       };
       
-      console.log('🎯 SPREADSHEET CONFIG ESTABLISHED:', {
+      Logger.log('🎯 SPREADSHEET CONFIG ESTABLISHED:', {
         folderId,
         todaySpreadsheetId: todayId,
         dateString
       });
       
     } catch (e) {
-      console.error('🚨 CRITICAL: Spreadsheet initialization failed:', String(e));
+      Logger.log('🚨 CRITICAL: Spreadsheet initialization failed:', String(e));
       // Don't silently fail - this is critical!
       spreadsheetConfig = null;
     }
@@ -189,7 +189,7 @@ namespace AppLogger {
       };
       
       // ALWAYS log to console
-      console.log(JSON.stringify(entry));
+      Logger.log(JSON.stringify(entry));
       
       // ALSO log to CacheService for live view (FAST and LARGER!)
       try {
@@ -222,7 +222,7 @@ namespace AppLogger {
         PropertiesService.getUserProperties().setProperty('CURRENT_EXECUTION_ID', executionId);
         
       } catch (cacheError) {
-        console.error('Failed to write to cache:', String(cacheError));
+        Logger.log('Failed to write to cache:', String(cacheError));
         // Fallback to PropertiesService if cache fails
         try {
           const props = PropertiesService.getUserProperties();
@@ -245,7 +245,7 @@ namespace AppLogger {
           
           props.setProperty(logKey, JSON.stringify(logs));
         } catch (fallbackError) {
-          console.error('Fallback to properties also failed:', String(fallbackError));
+          Logger.log('Fallback to properties also failed:', String(fallbackError));
         }
       }
       
@@ -261,13 +261,13 @@ namespace AppLogger {
             context ? JSON.stringify(entry.context) : ''
           ]);
         } catch (spreadsheetError) {
-          console.error('CRITICAL: Spreadsheet logging failed:', String(spreadsheetError));
+          Logger.log('CRITICAL: Spreadsheet logging failed:', String(spreadsheetError));
           // Try to reinitialize spreadsheet on next call
           spreadsheetConfig = null;
         }
       } else {
         // Force reinitialize if config is missing
-        console.warn('Spreadsheet config missing, trying to reinitialize...');
+        Logger.log('Spreadsheet config missing, trying to reinitialize...');
         initSpreadsheet();
         const config = spreadsheetConfig; // Capture after init
         if (config && config.todaySpreadsheetId) {
@@ -281,7 +281,7 @@ namespace AppLogger {
               context ? JSON.stringify(entry.context) : ''
             ]);
           } catch (spreadsheetError) {
-            console.error('CRITICAL: Spreadsheet logging failed after reinit:', String(spreadsheetError));
+            Logger.log('CRITICAL: Spreadsheet logging failed after reinit:', String(spreadsheetError));
           }
         }
       }
