@@ -39,6 +39,26 @@ function handleGlobalError(error: any): GoogleAppsScript.Card_Service.Card {
 function onHomepage(): GoogleAppsScript.Card_Service.Card {
   try {
     AppLogger.initSpreadsheet();
+    
+    // Clear any stale processing flags on add-on load
+    const props = PropertiesService.getUserProperties();
+    const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
+    if (isProcessing) {
+      const lastStartTime = props.getProperty('ANALYSIS_START_TIME');
+      if (lastStartTime) {
+        const elapsed = Date.now() - parseInt(lastStartTime);
+        // Clear if older than 2 minutes (processing should never take that long)
+        if (elapsed > 120000) {
+          props.setProperty('ANALYSIS_RUNNING', 'false');
+          AppLogger.info('Cleared stale ANALYSIS_RUNNING flag on startup', { elapsed });
+        }
+      } else {
+        // No start time recorded, clear the flag
+        props.setProperty('ANALYSIS_RUNNING', 'false');
+        AppLogger.info('Cleared ANALYSIS_RUNNING flag (no start time)');
+      }
+    }
+    
     AppLogger.info('Gmail Add-on started', {
       version: Config.VERSION,
       executionId: AppLogger.executionId
@@ -170,16 +190,15 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
     
     // Mark analysis as starting with timestamp for stale flag detection
-    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'true');
-    PropertiesService.getUserProperties().setProperty('ANALYSIS_START_TIME', Date.now().toString());
+    userProps.setProperty('ANALYSIS_RUNNING', 'true');
+    userProps.setProperty('ANALYSIS_START_TIME', Date.now().toString());
     
     // Initialize real-time stats tracking
-    const properties = PropertiesService.getUserProperties();
-    properties.setProperty('CURRENT_SCANNED', '0');
-    properties.setProperty('CURRENT_SUPPORTS', '0');
-    properties.setProperty('CURRENT_DRAFTED', '0');
-    properties.setProperty('CURRENT_SENT', '0');
-    properties.setProperty('CURRENT_ERRORS', '0');
+    userProps.setProperty('CURRENT_SCANNED', '0');
+    userProps.setProperty('CURRENT_SUPPORTS', '0');
+    userProps.setProperty('CURRENT_DRAFTED', '0');
+    userProps.setProperty('CURRENT_SENT', '0');
+    userProps.setProperty('CURRENT_ERRORS', '0');
     
     AppLogger.info('🚀 ANALYSIS STARTED', {
       mode: mode,
@@ -232,6 +251,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       }
       
       // Update real-time stats after each thread is processed
+      const properties = PropertiesService.getUserProperties();
       properties.setProperty('CURRENT_SCANNED', stats.scanned.toString());
       properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
       properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
