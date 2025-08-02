@@ -40,7 +40,14 @@ function createBundle() {
   const packageJson = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
   const fullVersion = packageJson.version || '1.0.0';
   const appVersion = fullVersion.split('.').slice(0, 2).join('.');
-  const deployTime = new Date().toISOString().replace('T', ' ').split('.')[0] + ' UTC';
+  const deployTime = new Date().toLocaleString('de-AT', {
+    year: 'numeric',
+    month: '2-digit', 
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Vienna'
+  });
   
   console.log('🔨 Creating modular bundle...');
   
