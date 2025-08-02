@@ -103,7 +103,9 @@ namespace UI {
       .setText('Analyze Inbox')
       .setBackgroundColor('#1a73e8')
       .setOnClickAction(
-        CardService.newAction().setFunctionName('runAnalysis')
+        CardService.newAction()
+          .setFunctionName('runAnalysis')
+          .setLoadIndicator(CardService.LoadIndicator.SPINNER)
       );
     
     if (!hasApiKey) {
@@ -303,7 +305,7 @@ namespace UI {
   
   export function navigateTo(card: GoogleAppsScript.Card_Service.Card): GoogleAppsScript.Card_Service.ActionResponse {
     return CardService.newActionResponseBuilder()
-      .setNavigation(CardService.newNavigation().updateCard(card))
+      .setNavigation(CardService.newNavigation().pushCard(card))
       .build();
   }
 

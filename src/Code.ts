@@ -112,6 +112,8 @@ function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
 
 function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   try {
+    AppLogger.info('🔥 RUNANALYSIS CALLED - Button click received!');
+    
     const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
     if (!apiKey) {
       throw new Error('Please configure your API key first');
@@ -121,6 +123,8 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     const autoReply = Utils.getFormValue(e, 'autoReply') === 'send';
     const prompt1 = Utils.getFormValue(e, 'prompt1', Config.PROMPTS.CLASSIFICATION);
     const prompt2 = Utils.getFormValue(e, 'prompt2', Config.PROMPTS.RESPONSE);
+    
+    AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
     
     // Mark analysis as starting 
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'true');
@@ -220,6 +224,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     AppLogger.info(message);
     
     // Navigate to live log view to show results
+    AppLogger.info('🚀 NAVIGATING TO LIVE LOG VIEW - using pushCard() now');
     return UI.navigateTo(UI.buildLiveLogView());
     
   } catch (err) {
