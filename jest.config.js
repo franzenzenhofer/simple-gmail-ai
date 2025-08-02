@@ -10,7 +10,11 @@ module.exports = {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/**/index.ts',
-    '!src/**/*.test.ts'
+    '!src/**/*.test.ts',
+    '!src/**/*.spec.ts',
+    '!src/**/*.test.*.ts',
+    '!src/integration-test.ts',
+    '!src/test-*.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
