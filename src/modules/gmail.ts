@@ -53,7 +53,7 @@ namespace GmailService {
   export function processThread(
     thread: GoogleAppsScript.Gmail.GmailThread,
     apiKey: string,
-    mode: string,
+    createDrafts: boolean,
     autoReply: boolean,
     classificationPrompt: string,
     responsePrompt: string
@@ -97,7 +97,7 @@ namespace GmailService {
         thread.addLabel(supportLabel);
         thread.removeLabel(notSupportLabel);
         
-        if (mode === 'draft' || autoReply) {
+        if (createDrafts || autoReply) {
           AppLogger.info('✍️ GENERATING REPLY', {
             subject: subject,
             mode: autoReply ? 'AUTO-SEND' : 'DRAFT',

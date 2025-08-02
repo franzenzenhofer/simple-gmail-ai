@@ -122,11 +122,17 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     }
     
     const mode = Utils.getFormValue(e, 'mode', 'label');
-    const autoReply = Utils.getFormValue(e, 'autoReply') === 'send';
     const prompt1 = Utils.getFormValue(e, 'prompt1', Config.PROMPTS.CLASSIFICATION);
     const prompt2 = Utils.getFormValue(e, 'prompt2', Config.PROMPTS.RESPONSE);
     
-    AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
+    // Save mode selection for persistence
+    PropertiesService.getUserProperties().setProperty('PROCESSING_MODE', mode);
+    
+    // Determine processing flags based on mode
+    const createDrafts = (mode === 'draft' || mode === 'send');
+    const autoReply = (mode === 'send');
+    
+    AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
     
     // Mark analysis as starting 
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'true');
@@ -141,6 +147,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     
     AppLogger.info('🚀 ANALYSIS STARTED', {
       mode: mode,
+      createDrafts: createDrafts,
       autoReply: autoReply,
       promptsConfigured: true
     });
@@ -158,6 +165,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     AppLogger.info('📊 Starting analysis', {
       threadCount: threads.length,
       mode,
+      createDrafts,
       autoReply
     });
     
@@ -176,7 +184,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       const result = GmailService.processThread(
         thread,
         apiKey,
-        mode,
+        createDrafts,
         autoReply,
         prompt1,
         prompt2
@@ -190,7 +198,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
         stats.supports++;
         properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
         AppLogger.info(`✅ Thread ${stats.scanned}: SUPPORT DETECTED`);
-        if (mode === 'draft') {
+        if (createDrafts) {
           stats.drafted++;
           properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
         }

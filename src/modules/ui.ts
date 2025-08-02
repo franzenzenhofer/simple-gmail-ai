@@ -35,45 +35,43 @@ namespace UI {
     // Main Controls
     const mainSection = CardService.newCardSection();
     
-    // Mode Selection
+    // Mode Selection - 3 clear radio buttons with persistence
+    const savedMode = PropertiesService.getUserProperties().getProperty('PROCESSING_MODE') || 'label';
+    
     mainSection.addWidget(
       CardService.newSelectionInput()
         .setFieldName('mode')
         .setTitle('Processing Mode')
         .setType(CardService.SelectionInputType.RADIO_BUTTON)
-        .addItem('Label emails only', 'label', true)
-        .addItem('Label + Create drafts', 'draft', false)
+        .addItem('Labels only', 'label', savedMode === 'label')
+        .addItem('Labels + Draft', 'draft', savedMode === 'draft')
+        .addItem('Labels + Draft + Send', 'send', savedMode === 'send')
     );
     
-    // Auto-reply
-    mainSection.addWidget(
-      CardService.newSelectionInput()
-        .setFieldName('autoReply')
-        .setType(CardService.SelectionInputType.CHECK_BOX)
-        .addItem('🚨 Auto-send replies', 'send', false)
-    );
+    card.addSection(mainSection);
     
-    // Classification Prompt
-    mainSection.addWidget(
+    // Classification Prompt - Large editor
+    const promptSection = CardService.newCardSection();
+    promptSection.addWidget(
       CardService.newTextInput()
         .setFieldName('prompt1')
-        .setTitle('Classification Prompt')
-        .setHint('How to identify support emails')
+        .setTitle('🎯 Classification Prompt (How to identify support emails)')
+        .setHint('Tell the AI how to classify emails as "support" or "undefined"')
         .setValue(PropertiesService.getUserProperties().getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION)
         .setMultiline(true)
     );
     
-    // Response Prompt
-    mainSection.addWidget(
+    // Response Prompt - Large editor  
+    promptSection.addWidget(
       CardService.newTextInput()
         .setFieldName('prompt2')
-        .setTitle('Response Prompt')
-        .setHint('How to draft replies')
+        .setTitle('✍️ Response Prompt (How to draft replies)')
+        .setHint('Tell the AI how to write helpful customer support responses')
         .setValue(PropertiesService.getUserProperties().getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE)
         .setMultiline(true)
     );
     
-    card.addSection(mainSection);
+    card.addSection(promptSection);
     
     // Last Execution section
     const lastExecSection = CardService.newCardSection();
