@@ -7,7 +7,23 @@ namespace UI {
   export function buildHomepage(): GoogleAppsScript.Card_Service.Card {
     const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
     const hasApiKey = savedKey.trim() !== '';
-    const isProcessing = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
+    
+    // Check if processing, with failsafe for stale flags (clear after 5 minutes)
+    const props = PropertiesService.getUserProperties();
+    let isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
+    
+    if (isProcessing) {
+      const lastStartTime = props.getProperty('ANALYSIS_START_TIME');
+      if (lastStartTime) {
+        const elapsed = Date.now() - parseInt(lastStartTime);
+        if (elapsed > 300000) { // 5 minutes
+          // Clear stale flag
+          props.setProperty('ANALYSIS_RUNNING', 'false');
+          isProcessing = false;
+          AppLogger.info('Cleared stale ANALYSIS_RUNNING flag', { elapsed });
+        }
+      }
+    }
     
     const card = CardService.newCardBuilder()
       .setHeader(
@@ -104,7 +120,7 @@ namespace UI {
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('runAnalysis')
-          .setLoadIndicator(CardService.LoadIndicator.SPINNER)
+          .setLoadIndicator(CardService.LoadIndicator.NONE) // No spinner - we'll show live stats immediately
       );
     
     if (!hasApiKey || isProcessing) {
@@ -361,38 +377,39 @@ namespace UI {
           .setText('<b>📋 ACTIVITY FEED:</b>')
       );
       
-      relevantLogs.forEach((logEntry) => {
+      relevantLogs.forEach((logEntry: any) => {
         const timeOnly = logEntry.timestamp.substring(11, 19);
         
-        // Enhanced message formatting
-        let displayMessage = logEntry.message;
+        // Use shortMessage if available, otherwise fall back to full message
+        let displayMessage = logEntry.shortMessage || logEntry.message;
         let icon = '•';
         let importance = 'normal';
         
-        // Categorize and format messages
+        // Simple icon mapping based on message content
         if (logEntry.message.includes('📧 PROCESSING EMAIL')) {
           icon = '📧';
           importance = 'high';
-          displayMessage = logEntry.message.replace('📧 PROCESSING EMAIL', 'Processing email');
-        } else if (logEntry.message.includes('📤 PROMPT SENT')) {
-          icon = '📤';
-          displayMessage = 'AI prompt sent → ' + logEntry.message.split('PROMPT SENT')[1];
-        } else if (logEntry.message.includes('📥 RAW RESPONSE')) {
-          icon = '📥';
-          displayMessage = 'AI response received ← ' + (logEntry.message.length > 80 ? 
-            logEntry.message.substring(0, 80) + '...' : logEntry.message);
         } else if (logEntry.message.includes('🎯 EMAIL CLASSIFIED')) {
           icon = '🎯';
           importance = 'high';
-          displayMessage = logEntry.message.replace('🎯 EMAIL CLASSIFIED', 'Classified as');
         } else if (logEntry.message.includes('✍️ DRAFT CREATED')) {
           icon = '✍️';
           importance = 'high';
-          displayMessage = logEntry.message.replace('✍️ DRAFT CREATED', 'Draft reply created');
         } else if (logEntry.message.includes('📤 EMAIL SENT')) {
           icon = '📤';
           importance = 'high';
-          displayMessage = logEntry.message.replace('📤 EMAIL SENT', 'Reply sent');
+        } else if (logEntry.message.includes('❌')) {
+          icon = '❌';
+          importance = 'high';
+        } else if (logEntry.message.includes('✅ BATCH CLASSIFICATION COMPLETE')) {
+          icon = '🏁';
+          importance = 'high';
+        } else if (logEntry.message.includes('📤 PROMPT SENT')) {
+          // Skip these - too verbose
+          return;
+        } else if (logEntry.message.includes('📥 RAW RESPONSE')) {
+          // Skip these - too verbose
+          return;
         } else if (logEntry.message.includes('✅ COMPLETED')) {
           icon = '🏁';
           importance = 'high';

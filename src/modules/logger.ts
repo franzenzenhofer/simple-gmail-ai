@@ -12,6 +12,7 @@ namespace AppLogger {
   }
   
   interface LogContext {
+    shortMessage?: string; // Optional short message for UI display
     [key: string]: any;
   }
   
@@ -199,6 +200,7 @@ namespace AppLogger {
           timestamp: entry.timestamp,
           level: entry.level,
           message: message,
+          shortMessage: context?.shortMessage || '', // Include shortMessage for UI
           context: context ? JSON.stringify(entry.context) : ''
         });
         
@@ -226,6 +228,7 @@ namespace AppLogger {
             timestamp: entry.timestamp,
             level: entry.level,
             message: message,
+            shortMessage: context?.shortMessage || '', // Include shortMessage for UI
             context: context ? JSON.stringify(entry.context) : ''
           });
           

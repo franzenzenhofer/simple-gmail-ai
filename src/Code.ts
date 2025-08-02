@@ -169,8 +169,9 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     
     AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
     
-    // Mark analysis as starting 
+    // Mark analysis as starting with timestamp for stale flag detection
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'true');
+    PropertiesService.getUserProperties().setProperty('ANALYSIS_START_TIME', Date.now().toString());
     
     // Initialize real-time stats tracking
     const properties = PropertiesService.getUserProperties();

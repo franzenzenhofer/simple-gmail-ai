@@ -40,14 +40,18 @@ namespace GmailService {
   }
   
   export function getUnprocessedThreads(): GoogleAppsScript.Gmail.GmailThread[] {
+    // CRITICAL: Exclude BOTH AI_PROCESSED and AI_ERROR labels to prevent reprocessing
     const escapedProcessedLabel = escapeLabelForSearch(Config.LABELS.AI_PROCESSED);
-    const recentQuery = 'in:inbox -label:' + escapedProcessedLabel;
-    const unreadQuery = 'in:inbox is:unread -label:' + escapedProcessedLabel;
+    const escapedErrorLabel = escapeLabelForSearch(Config.LABELS.AI_ERROR);
+    
+    // Build query to exclude any email that has been touched by AI
+    const recentQuery = 'in:inbox -label:' + escapedProcessedLabel + ' -label:' + escapedErrorLabel;
+    const unreadQuery = 'in:inbox is:unread -label:' + escapedProcessedLabel + ' -label:' + escapedErrorLabel;
     
     AppLogger.info('🔍 SEARCHING FOR UNPROCESSED EMAILS', {
       recentQuery: recentQuery,
       unreadQuery: unreadQuery,
-      aiProcessedLabel: Config.LABELS.AI_PROCESSED
+      excludedLabels: [Config.LABELS.AI_PROCESSED, Config.LABELS.AI_ERROR]
     });
     
     const recent = GmailApp.search(recentQuery, 0, 50);
@@ -221,6 +225,7 @@ namespace GmailService {
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {
+                shortMessage: 'Sent reply to "' + subject + '" → ' + sender,
                 subject: subject,
                 to: sender,
                 replyLength: replyBody.length,
@@ -229,6 +234,7 @@ namespace GmailService {
             } else {
               thread.createDraftReply(replyBody, { htmlBody: replyBody });
               AppLogger.info('✍️ DRAFT CREATED', {
+                shortMessage: 'Draft created for: ' + subject,
                 subject: subject,
                 draftLength: replyBody.length,
                 threadId: threadId
@@ -249,10 +255,17 @@ namespace GmailService {
       });
     }
     
-    AppLogger.info('✅ BATCH PROCESSING COMPLETE', {
+    const successCount = Array.from(results.values()).filter(r => !r.error).length;
+    const supportCount = Array.from(results.values()).filter(r => r.isSupport).length;
+    const errorCount = Array.from(results.values()).filter(r => r.error).length;
+    
+    AppLogger.info('✅ BATCH CLASSIFICATION COMPLETE', {
+      shortMessage: 'Batch complete: ' + successCount + '/' + threads.length + ' emails classified',
       totalThreads: threads.length,
-      supportCount: Array.from(results.values()).filter(r => r.isSupport).length,
-      errorCount: Array.from(results.values()).filter(r => r.error).length
+      totalEmails: threads.length,
+      successCount: successCount,
+      supportCount: supportCount,
+      errorCount: errorCount
     });
     
     return results;
@@ -280,6 +293,7 @@ namespace GmailService {
       const sender = msg.getFrom();
       
       AppLogger.info('📧 PROCESSING EMAIL', {
+        shortMessage: 'Processing: ' + subject,
         subject: subject,
         from: sender,
         messageLength: body.length,
@@ -297,7 +311,8 @@ namespace GmailService {
       
       const isSupport = classification.indexOf('support') === 0;
       
-      AppLogger.info('🎯 CLASSIFICATION RESULT', {
+      AppLogger.info('🎯 EMAIL CLASSIFIED', {
+        shortMessage: 'Classified "' + subject + '" as ' + classification.toUpperCase(),
         subject: subject,
         classification: classification,
         isSupport: isSupport,
