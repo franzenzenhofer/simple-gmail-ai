@@ -17,7 +17,6 @@ coverage/
 dist/
 build/
 out/
-bundle.js
 
 # Environment variables
 .env
