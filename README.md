@@ -58,17 +58,27 @@ npm run build
 
 ### First Time Setup
 
-1. Login to Google:
+1. Configure your Google Apps Script project:
+```bash
+# Copy the template to create your own configuration
+cp .clasp.json.template .clasp.json
+
+# Edit .clasp.json with your project details:
+# - scriptId: Get this from your Apps Script project URL
+# - projectId: Get this from Google Cloud Console
+```
+
+2. Login to Google:
 ```bash
 npm run login
 ```
 
-2. Deploy the add-on:
+3. Deploy the add-on:
 ```bash
 ./deploy.sh
 ```
 
-3. The script will:
+4. The script will:
    - Create a new Apps Script project
    - Push the code
    - Provide you with URLs to access the project
