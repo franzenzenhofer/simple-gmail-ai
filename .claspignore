@@ -1,0 +1,28 @@
+# Ignore everything except the bundled file
+**/**
+
+# Only allow these specific files
+!Code.gs
+!appsscript.json
+!.clasp.json
+
+# Explicitly exclude test files
+tests/**
+*.test.js
+*.spec.js
+setup.js
+**/setup.js
+
+# Exclude source maps
+*.map
+
+# Exclude TypeScript source
+*.ts
+
+# Exclude node modules
+node_modules/**
+
+# Exclude other build artifacts
+src/**
+dist/src/**
+dist/tests/**

@@ -104,6 +104,15 @@ rm -rf src/ 2>/dev/null  # Remove any src subdirectory completely
 echo "📋 Files to deploy:"
 ls -la
 
+# CRITICAL: Remove ANY test files that might exist from previous deployments
+echo "🧹 Ensuring NO test files exist..."
+rm -rf tests/ 2>/dev/null || true
+rm -f *.test.js *.spec.js setup.js 2>/dev/null || true
+
+# List what we're deploying (should ONLY be Code.gs and appsscript.json)
+echo "📋 Files being deployed (MUST be only 2 files!):"
+ls -la | grep -E '\.(gs|json)$'
+
 # Force push the single bundled file
 echo "📤 Pushing single-file bundle to Google Apps Script..."
 clasp push --force

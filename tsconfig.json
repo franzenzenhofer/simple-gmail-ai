@@ -34,12 +34,13 @@
     "noUncheckedIndexedAccess": true
   },
   "include": [
-    "src/**/*",
-    "tests/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "tests/**/*"
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }
