@@ -4,14 +4,7 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        target: 'ES2019',
-        module: 'commonjs',
-        lib: ['ES2019'],
-        types: ['jest', 'google-apps-script'],
-      },
-    }],
+    '^.+\\.ts$': ['ts-jest', require('./ts-jest.config.js')],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
