@@ -146,8 +146,10 @@ namespace AI {
       
       // Create a single prompt for the entire batch
       let batchPrompt = classificationPrompt + '\n\n';
-      batchPrompt += 'Classify each of the following emails as "support" or "not". ';
-      batchPrompt += 'Respond with ONLY a JSON array where each element has "id" and "classification" fields.\n\n';
+      batchPrompt += 'CRITICAL: You must classify each email and respond with ONLY a valid JSON array. ';
+      batchPrompt += 'Each array element must have exactly two fields: "id" (string) and "classification" (either "support" or "not"). ';
+      batchPrompt += 'Do NOT include any other text, explanations, or markdown formatting. ';
+      batchPrompt += 'Example format: [{"id":"email1","classification":"support"},{"id":"email2","classification":"not"}]\n\n';
       
       batch.forEach((email, index) => {
         batchPrompt += '--- EMAIL ' + (index + 1) + ' (ID: ' + email.id + ') ---\n';
@@ -156,7 +158,7 @@ namespace AI {
         batchPrompt += '--- END EMAIL ' + (index + 1) + ' ---\n\n';
       });
       
-      batchPrompt += 'Response format: [{"id": "<email_id>", "classification": "support" or "not"}]';
+      batchPrompt += 'REMEMBER: Respond ONLY with the JSON array, nothing else! Format: [{"id": "<email_id>", "classification": "support" or "not"}]';
       
       const response = callGemini(apiKey, batchPrompt);
       
