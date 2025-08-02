@@ -13,8 +13,23 @@ namespace GmailService {
   }
   
   export function getUnprocessedThreads(): GoogleAppsScript.Gmail.GmailThread[] {
-    const recent = GmailApp.search('in:inbox -label:' + Config.LABELS.AI_PROCESSED, 0, 50);
-    const unread = GmailApp.search('in:inbox is:unread -label:' + Config.LABELS.AI_PROCESSED);
+    const recentQuery = 'in:inbox -label:' + Config.LABELS.AI_PROCESSED;
+    const unreadQuery = 'in:inbox is:unread -label:' + Config.LABELS.AI_PROCESSED;
+    
+    AppLogger.info('🔍 SEARCHING FOR UNPROCESSED EMAILS', {
+      recentQuery: recentQuery,
+      unreadQuery: unreadQuery,
+      aiProcessedLabel: Config.LABELS.AI_PROCESSED
+    });
+    
+    const recent = GmailApp.search(recentQuery, 0, 50);
+    const unread = GmailApp.search(unreadQuery);
+    
+    AppLogger.info('📊 SEARCH RESULTS', {
+      recentCount: recent.length,
+      unreadCount: unread.length,
+      totalBeforeDedup: recent.length + unread.length
+    });
     
     const threadIds = new Set<string>();
     const threads: GoogleAppsScript.Gmail.GmailThread[] = [];
@@ -25,6 +40,11 @@ namespace GmailService {
         threadIds.add(id);
         threads.push(thread);
       }
+    });
+    
+    AppLogger.info('✅ FINAL THREAD LIST', {
+      uniqueThreads: threads.length,
+      threadIds: threads.slice(0, 5).map(t => t.getId()) // Show first 5 IDs
     });
     
     return threads;

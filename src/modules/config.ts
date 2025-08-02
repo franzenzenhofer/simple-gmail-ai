@@ -7,8 +7,8 @@ namespace Config {
   export const LABELS = {
     SUPPORT: 'Support Request',
     NOT_SUPPORT: 'Not Support Request', 
-    AI_PROCESSED: 'AI Processed',
-    AI_ERROR: 'AI Error'
+    AI_PROCESSED: 'ai✓',
+    AI_ERROR: 'ai✗'
   };
   
   export const VERSION = '__VERSION__';
