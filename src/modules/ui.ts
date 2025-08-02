@@ -116,7 +116,7 @@ namespace UI {
     // Fixed action button at bottom
     const analyzeBtn = CardService.newTextButton()
       .setText(isProcessing ? 'Processing...' : 'Analyze Inbox')
-      .setBackgroundColor(isProcessing ? '#999999' : '#1a73e8')
+      .setBackgroundColor(isProcessing ? Config.COLORS.PRIMARY_DISABLED : Config.COLORS.PRIMARY)
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('runAnalysis')
@@ -180,7 +180,7 @@ namespace UI {
     mainSection.addWidget(
       CardService.newTextButton()
         .setText('🔍 Validate Format')
-        .setBackgroundColor('#1a73e8')
+        .setBackgroundColor(Config.COLORS.PRIMARY)
         .setOnClickAction(
           CardService.newAction().setFunctionName('validateApiKeyFormat')
         )
@@ -189,7 +189,7 @@ namespace UI {
     mainSection.addWidget(
       CardService.newTextButton()
         .setText('💾 Save API Key')
-        .setBackgroundColor('#34a853')
+        .setBackgroundColor(Config.COLORS.SUCCESS)
         .setOnClickAction(
           CardService.newAction().setFunctionName('saveApiKey')
         )
@@ -516,7 +516,7 @@ namespace UI {
       quickActionsSection.addWidget(
         CardService.newTextButton()
           .setText('🛑 Cancel Processing')
-          .setBackgroundColor('#dc3545')
+          .setBackgroundColor(Config.COLORS.DANGER)
           .setOnClickAction(
             CardService.newAction().setFunctionName('cancelProcessing')
           )

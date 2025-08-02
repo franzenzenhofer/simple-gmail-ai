@@ -47,7 +47,7 @@ namespace ProcessingOverlay {
         .setPrimaryButton(
           CardService.newTextButton()
             .setText('Start')
-            .setBackgroundColor('#1a73e8')
+            .setBackgroundColor(Config.COLORS.PRIMARY)
             .setOnClickAction(
               CardService.newAction()
                 .setFunctionName('continueProcessing')
