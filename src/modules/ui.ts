@@ -472,11 +472,19 @@ namespace UI {
 
   function getCurrentExecutionLogs(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
     try {
-      // Read from PropertiesService - FAST and reliable!
+      // Read from CacheService first - FAST and has more space!
+      const cache = CacheService.getUserCache();
       const props = PropertiesService.getUserProperties();
       const currentExecutionId = props.getProperty('CURRENT_EXECUTION_ID') || AppLogger.executionId;
       const logKey = 'LIVE_LOG_' + currentExecutionId;
-      const logsJson = props.getProperty(logKey);
+      
+      // Try cache first
+      let logsJson = cache.get(logKey);
+      
+      // Fallback to PropertiesService if cache miss
+      if (!logsJson) {
+        logsJson = props.getProperty(logKey);
+      }
       
       if (!logsJson) {
         return [];
@@ -495,7 +503,7 @@ namespace UI {
       return entries.slice(0, limit);
       
     } catch (error) {
-      console.error('Failed to get current execution logs from properties:', String(error));
+      console.error('Failed to get current execution logs:', String(error));
       return [];
     }
   }
@@ -504,6 +512,7 @@ namespace UI {
     try {
       // Find the last execution ID from properties
       const props = PropertiesService.getUserProperties();
+      const cache = CacheService.getUserCache();
       const lastExecutionId = props.getProperty('LAST_EXECUTION_ID');
       
       if (!lastExecutionId) {
@@ -511,7 +520,14 @@ namespace UI {
       }
       
       const logKey = 'LIVE_LOG_' + lastExecutionId;
-      const logsJson = props.getProperty(logKey);
+      
+      // Try cache first
+      let logsJson = cache.get(logKey);
+      
+      // Fallback to PropertiesService if cache miss
+      if (!logsJson) {
+        logsJson = props.getProperty(logKey);
+      }
       
       if (!logsJson) {
         return [];
@@ -530,7 +546,7 @@ namespace UI {
       return entries.slice(0, limit);
       
     } catch (error) {
-      console.error('Failed to get last execution logs from properties:', String(error));
+      console.error('Failed to get last execution logs:', String(error));
       return [];
     }
   }
