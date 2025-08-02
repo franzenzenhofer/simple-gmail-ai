@@ -280,10 +280,10 @@ function createBundle() {
     .replace(/const\s+([^=]+)\s*=\s*require\([^)]+\);?/g, '')
     .trim();
   
-  // Replace version placeholders
-  const finalContent = (modulesContent + '\n\n' + mainContent)
-    .replace(/__VERSION__/g, appVersion)
-    .replace(/__DEPLOY_TIME__/g, deployTime);
+  // Replace version placeholders using robust injection
+  const { injectVersionInfo } = require('./inject-version.js');
+  const contentToInject = modulesContent + '\n\n' + mainContent;
+  const finalContent = injectVersionInfo(contentToInject, appVersion, deployTime);
   
   // Add header
   const header = `/**
