@@ -26,6 +26,10 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   resetMocks: true, // Clear all mocks between tests to avoid pollution
+  reporters: [
+    'default',
+    '<rootDir>/jest-json-reporter.js'
+  ],
   // coverageThreshold: {
   //   global: {
   //     branches: 100,

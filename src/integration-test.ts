@@ -25,7 +25,7 @@ async function testBatchProcessing() {
 
     testStartTime = Date.now();
     console.log('🧪 INTEGRATION TEST: Batch Processing with Real Gemini API');
-    console.log('API Key:', API_KEY.substring(0, 10) + '...' + API_KEY.substring(API_KEY.length - 5));
+    console.log('API Key:', JSON.stringify(API_KEY.substring(0, 10) + '...' + API_KEY.substring(API_KEY.length - 5)));
     console.log('Test started at:', new Date(testStartTime).toISOString());
 
   // Test emails similar to what we'd get from Gmail
@@ -73,7 +73,7 @@ async function testBatchProcessing() {
 
     console.log('\n📤 SENDING PROMPT TO GEMINI:');
     console.log('Length:', batchPrompt.length, 'characters');
-    console.log('First 200 chars:', batchPrompt.substring(0, 200) + '...');
+    console.log('First 200 chars:', JSON.stringify(batchPrompt.substring(0, 200) + '...'));
 
     // API call section with nested try/catch for proper error handling
     try {
@@ -105,7 +105,7 @@ async function testBatchProcessing() {
 
     console.log('\n📥 GEMINI RESPONSE:');
     console.log('Status:', responseCode);
-    console.log('Raw response:', responseText);
+    console.log('Raw response:', JSON.stringify(responseText));
 
     if (responseCode !== 200) {
       console.error('❌ API ERROR:', responseCode, responseText);
@@ -127,13 +127,13 @@ async function testBatchProcessing() {
 
     const result = candidate.content.parts[0].text.trim();
     console.log('\n🎯 EXTRACTED RESULT:');
-    console.log('Result:', result);
+    console.log('Result:', JSON.stringify(result));
 
     // Test JSON parsing - this is the critical part that was failing
     console.log('\n🧪 TESTING JSON PARSING:');
     try {
       const cleanResponse = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      console.log('Cleaned response:', cleanResponse);
+      console.log('Cleaned response:', JSON.stringify(cleanResponse));
       
       const batchResults = JSON.parse(cleanResponse);
       console.log('✅ JSON PARSING SUCCESS!');
@@ -143,16 +143,16 @@ async function testBatchProcessing() {
       if (Array.isArray(batchResults)) {
         console.log('✅ Response is an array');
         batchResults.forEach((item, index) => {
-          console.log(`Email ${index + 1}:`, item.id, '->', item.classification);
+          console.log(`Email ${index + 1}:`, JSON.stringify({ id: item.id, classification: item.classification }));
           
           if (item.id && (item.classification === 'support' || item.classification === 'not')) {
             console.log('✅ Valid format');
           } else {
-            console.log('❌ Invalid format:', item);
+            console.log('❌ Invalid format:', JSON.stringify(item));
           }
         });
       } else {
-        console.log('❌ Response is not an array:', typeof batchResults);
+        console.log('❌ Response is not an array:', JSON.stringify({ type: typeof batchResults, value: batchResults }));
       }
 
       } catch (parseError) {

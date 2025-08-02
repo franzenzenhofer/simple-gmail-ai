@@ -4,6 +4,7 @@
  */
 
 import { withMockedServices, clearMockedServices } from './mocked-services';
+import './json-matchers';
 
 // Global Google Apps Script types and services setup
 declare global {
