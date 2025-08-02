@@ -23,6 +23,8 @@ module.exports = {
     'default',
     '<rootDir>/jest-json-reporter.js'
   ],
+  // Increase timeout for Google Apps Script mock stability
+  testTimeout: 15000,
   // coverageThreshold: {
   //   global: {
   //     branches: 100,
