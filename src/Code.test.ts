@@ -4,6 +4,7 @@
  */
 
 import { setupMinimalEnvironment } from '../tests/setup';
+import { ProcessingMode } from '../tests/config-constants';
 
 // Import functions to test (we'll need to refactor Code.ts to export them)
 describe('Gmail Support Triage AI - Core Functions', () => {
@@ -238,26 +239,26 @@ describe('Gmail Support Triage AI - Core Functions', () => {
 
   describe('Mode Processing', () => {
     it('should handle label-only mode', () => {
-      const mode: string = 'label';
+      const mode: string = ProcessingMode.LABEL_ONLY;
       const autoReply = false;
       
-      const shouldCreateReply = mode === 'draft' || autoReply;
+      const shouldCreateReply = mode === ProcessingMode.CREATE_DRAFTS || autoReply;
       expect(shouldCreateReply).toBe(false);
     });
 
     it('should handle draft mode', () => {
-      const mode: string = 'draft';
+      const mode: string = ProcessingMode.CREATE_DRAFTS;
       const autoReply = false;
       
-      const shouldCreateReply = mode === 'draft' || autoReply;
+      const shouldCreateReply = mode === ProcessingMode.CREATE_DRAFTS || autoReply;
       expect(shouldCreateReply).toBe(true);
     });
 
     it('should handle auto-reply mode', () => {
-      const mode: string = 'label';
+      const mode: string = ProcessingMode.LABEL_ONLY;
       const autoReply = true;
       
-      const shouldCreateReply = mode === 'draft' || autoReply;
+      const shouldCreateReply = mode === ProcessingMode.CREATE_DRAFTS || autoReply;
       expect(shouldCreateReply).toBe(true);
     });
   });

@@ -53,16 +53,16 @@ namespace UI {
     const mainSection = CardService.newCardSection();
     
     // Mode Selection - 3 clear radio buttons with persistence
-    const savedMode = PropertiesService.getUserProperties().getProperty('PROCESSING_MODE') || 'label';
+    const savedMode = PropertiesService.getUserProperties().getProperty('PROCESSING_MODE') || Config.ProcessingMode.LABEL_ONLY;
     
     mainSection.addWidget(
       CardService.newSelectionInput()
         .setFieldName('mode')
         .setTitle('Processing Mode')
         .setType(CardService.SelectionInputType.RADIO_BUTTON)
-        .addItem('Labels only', 'label', savedMode === 'label')
-        .addItem('Labels + Draft', 'draft', savedMode === 'draft')
-        .addItem('Labels + Send', 'send', savedMode === 'send')
+        .addItem('Labels only', Config.ProcessingMode.LABEL_ONLY, savedMode === Config.ProcessingMode.LABEL_ONLY)
+        .addItem('Labels + Draft', Config.ProcessingMode.CREATE_DRAFTS, savedMode === Config.ProcessingMode.CREATE_DRAFTS)
+        .addItem('Labels + Send', Config.ProcessingMode.AUTO_SEND, savedMode === Config.ProcessingMode.AUTO_SEND)
     );
     
     card.addSection(mainSection);
@@ -156,17 +156,39 @@ namespace UI {
       );
     }
     
+    // Add API key format validation info
+    if (!hasApiKey) {
+      mainSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>📋 API Key Format:</b><br/>' +
+                   '• Must start with "AIza"<br/>' +
+                   '• Exactly 39 characters total<br/>' +
+                   '• Contains letters, numbers, hyphens, or underscores<br/>' +
+                   '• Example: AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q')
+      );
+    }
+    
     mainSection.addWidget(
       CardService.newTextInput()
         .setFieldName('apiKey')
         .setTitle('Gemini API Key')
-        .setHint('Your Gemini 2.5 Flash API key')
+        .setHint(hasApiKey ? 'Current key: ...' + savedKey.slice(-8) : 'Format: AIzaSy... (39 chars total)')
         .setValue(savedKey)
+    );
+    
+    // Add validation button
+    mainSection.addWidget(
+      CardService.newTextButton()
+        .setText('🔍 Validate Format')
+        .setBackgroundColor('#1a73e8')
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('validateApiKeyFormat')
+        )
     );
     
     mainSection.addWidget(
       CardService.newTextButton()
-        .setText('Save API Key')
+        .setText('💾 Save API Key')
         .setBackgroundColor('#34a853')
         .setOnClickAction(
           CardService.newAction().setFunctionName('saveApiKey')
@@ -329,6 +351,12 @@ namespace UI {
     AppLogger.initSpreadsheet();
     const config = AppLogger.getSpreadsheetConfig();
     
+    AppLogger.info('🔧 BUILDING LIVE LOG VIEW', {
+      spreadsheetId: config?.todaySpreadsheetId || 'none',
+      hasConfig: !!config,
+      timestamp: new Date().toISOString()
+    });
+    
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
@@ -336,12 +364,21 @@ namespace UI {
           .setSubtitle('Real-time Email Processing')
       );
     
+    AppLogger.info('✅ Live log view card header created');
+    
     // === REAL-TIME STATS SECTION ===
     const statsSection = CardService.newCardSection();
     const isRunning = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
     
+    AppLogger.info('📊 BUILDING STATS SECTION', {
+      isRunning: isRunning,
+      analysisRunning: PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING')
+    });
+    
     // Get current stats from properties
     const currentStats = getCurrentProcessingStats();
+    
+    AppLogger.info('📈 CURRENT STATS RETRIEVED', currentStats);
     
     // Stats display with live counters
     statsSection.addWidget(
@@ -364,13 +401,26 @@ namespace UI {
     
     card.addSection(statsSection);
     
+    AppLogger.info('✅ Stats section added to card');
+    
     // === LIVE ACTIVITY FEED ===
     const activitySection = CardService.newCardSection();
+    
+    AppLogger.info('🔄 BUILDING ACTIVITY FEED', {
+      isRunning: isRunning,
+      executionId: AppLogger.executionId,
+      lastExecutionId: PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_ID')
+    });
     
     // Get filtered, relevant log entries - current execution if running, otherwise last execution
     const relevantLogs = isRunning ? 
       getCurrentExecutionLogs(15) : 
       getLastExecutionLogs(15);
+    
+    AppLogger.info('📋 LOG ENTRIES RETRIEVED', {
+      logCount: relevantLogs.length,
+      source: isRunning ? 'current_execution' : 'last_execution'
+    });
     
     if (relevantLogs.length > 0) {
       activitySection.addWidget(
@@ -482,6 +532,12 @@ namespace UI {
     );
     
     card.addSection(quickActionsSection);
+    
+    AppLogger.info('🎯 LIVE LOG VIEW CONSTRUCTION COMPLETE', {
+      sectionsAdded: ['stats', 'activity', 'quickActions'],
+      cardBuilt: true,
+      timestamp: new Date().toISOString()
+    });
     
     return card.build();
   }

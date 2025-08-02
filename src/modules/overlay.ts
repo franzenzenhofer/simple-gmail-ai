@@ -13,7 +13,7 @@ namespace ProcessingOverlay {
     
     // Get current processing stats
     const props = PropertiesService.getUserProperties();
-    const mode = props.getProperty('PROCESSING_MODE') || 'label';
+    const mode = props.getProperty('PROCESSING_MODE') || Config.ProcessingMode.LABEL_ONLY;
     
     // Main status section
     const statusSection = CardService.newCardSection()
@@ -21,8 +21,8 @@ namespace ProcessingOverlay {
         CardService.newKeyValue()
           .setTopLabel('MODE')
           .setContent(
-            mode === 'send' ? '🚨 Auto-Reply' :
-            mode === 'draft' ? '✍️ Create Drafts' :
+            mode === Config.ProcessingMode.AUTO_SEND ? '🚨 Auto-Reply' :
+            mode === Config.ProcessingMode.CREATE_DRAFTS ? '✍️ Create Drafts' :
             '🏷️ Label Only'
           )
       );
@@ -33,7 +33,8 @@ namespace ProcessingOverlay {
         CardService.newTextParagraph()
           .setText(
             'Will scan emails and apply Support/undefined labels' +
-            (mode !== 'label' ? '\n+ ' + (mode === 'draft' ? 'create drafts' : 'send replies') : '')
+            (mode !== Config.ProcessingMode.LABEL_ONLY ? '\n+ ' + 
+              (mode === Config.ProcessingMode.CREATE_DRAFTS ? 'create drafts' : 'send replies') : '')
           )
       );
     

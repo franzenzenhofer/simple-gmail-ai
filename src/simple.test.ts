@@ -3,19 +3,21 @@
  * Tests core logic without Google Apps Script dependencies
  */
 
+import { ProcessingMode } from '../tests/config-constants';
+
 describe('Gmail Support Triage AI - Simple Tests', () => {
   describe('Form Value Extraction', () => {
     it('should extract value from form inputs', () => {
       const formInputs = {
         apiKey: { stringValues: ['test-key-123'] },
-        mode: { stringValues: ['draft'] }
+        mode: { stringValues: [ProcessingMode.CREATE_DRAFTS] }
       };
       
       const apiKeyValue = formInputs.apiKey?.stringValues?.[0] || '';
-      const modeValue = formInputs.mode?.stringValues?.[0] || 'label';
+      const modeValue = formInputs.mode?.stringValues?.[0] || ProcessingMode.LABEL_ONLY;
       
       expect(apiKeyValue).toBe('test-key-123');
-      expect(modeValue).toBe('draft');
+      expect(modeValue).toBe(ProcessingMode.CREATE_DRAFTS);
     });
   });
 

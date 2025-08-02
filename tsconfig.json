@@ -29,6 +29,7 @@
     "inlineSources": true,
     "declaration": false,
     "downlevelIteration": true,
+    "importHelpers": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true
@@ -41,6 +42,7 @@
     "dist",
     "tests",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/integration-test.ts"
   ]
 }

@@ -1,44 +1,72 @@
 module.exports = {
-  extends: [
-    'eslint:recommended'
-  ],
+  parser: '@typescript-eslint/parser',
   parserOptions: {
-    ecmaVersion: 2019,
-    sourceType: 'module'
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    project: './tsconfig.json',
   },
+  plugins: ['@typescript-eslint'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+  ],
   env: {
-    es6: true,
     node: true,
+    es2022: true,
     jest: true
+  },
+  rules: {
+    // Style consistency
+    'quotes': ['error', 'single'],
+    'semi': ['error', 'always'],
+    'comma-dangle': ['error', 'never'],
+    
+    // TypeScript specific - be more lenient
+    '@typescript-eslint/no-unused-vars': ['warn', { 
+      'argsIgnorePattern': '^_',
+      'varsIgnorePattern': '^(Config|AppLogger|AI|GmailService|UI|Utils|Types|EntryPoints|ActionHandlers|ProcessingHandlers|NavigationHandlers|UniversalActions|ErrorHandling|ProcessingOverlay)$'
+    }],
+    '@typescript-eslint/explicit-function-return-type': 'off', // Too strict for this codebase
+    '@typescript-eslint/no-explicit-any': 'warn',
+    
+    // Code quality
+    'no-console': 'off', // We use console.log for Apps Script logging
+    'no-debugger': 'error',
+    'prefer-const': 'error',
+    'no-var': 'error',
+    'eqeqeq': 'error',
+    'no-inner-declarations': 'off', // Allow function declarations inside namespaces
+    
+    // Security
+    'no-eval': 'error',
+    'no-implied-eval': 'error', 
+    'no-new-func': 'error',
+    
+    // Google Apps Script specific allowances
+    '@typescript-eslint/no-namespace': 'off', // We use namespaces for module organization
+    '@typescript-eslint/no-unused-expressions': 'off', // GAS sometimes requires side effects
   },
   globals: {
     // Google Apps Script globals
-    'CardService': 'readonly',
-    'GmailApp': 'readonly',
     'PropertiesService': 'readonly',
+    'CardService': 'readonly', 
+    'GmailApp': 'readonly',
     'UrlFetchApp': 'readonly',
+    'SpreadsheetApp': 'readonly',
+    'DriveApp': 'readonly',
+    'Session': 'readonly',
+    'Utilities': 'readonly',
     'GoogleAppsScript': 'readonly',
     'console': 'readonly',
     'Logger': 'readonly'
   },
-  rules: {
-    // Prevent common errors
-    'no-console': 'off', // We use console.log for Apps Script logging
-    'prefer-const': 'error',
-    'no-var': 'error',
-    'eqeqeq': 'error',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    
-    // Security
-    'no-eval': 'error',
-    'no-implied-eval': 'error',
-    'no-new-func': 'error'
-  },
   ignorePatterns: [
     'dist/',
     'node_modules/',
-    '*.js',
+    '*.js', // Ignore JS files like bundle.js, test-post-bundle.js
+    'jest.config.js',
+    '.eslintrc.js',
     '.gmail-processor-reference/',
-    '**/*.test.ts' // Ignore test files for now
+    '**/*.test.ts' // Ignore test files
   ]
 };

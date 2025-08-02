@@ -139,10 +139,10 @@ namespace AppLogger {
       masked = masked.replace(/Basic\s+[A-Za-z0-9+/]+=*/gi, 'Basic ***MASKED***');
       
       // JWT tokens (xxx.yyy.zzz format)
-      masked = masked.replace(/\b[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\b/g, 'JWT***MASKED***');
+      masked = masked.replace(/\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, 'JWT***MASKED***');
       
       // OAuth tokens
-      masked = masked.replace(/oauth[_\-]?token[\s=:]+["']?([A-Za-z0-9\-._~+/]+)["']?/gi, 'oauth_token=***MASKED***');
+      masked = masked.replace(/oauth[_-]?token[\s=:]+["']?([A-Za-z0-9._~+/-]+)["']?/gi, 'oauth_token=***MASKED***');
       
       // URLs with embedded credentials
       masked = masked.replace(/(https?:\/\/)([^:]+):([^@]+)@/gi, '$1***:***@');

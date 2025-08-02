@@ -2,6 +2,8 @@
  * Integration test for the complete analysis flow
  */
 
+import { ProcessingMode } from '../tests/config-constants';
+
 describe('Complete Analysis Flow', () => {
   let mockProps: Map<string, string>;
   const globalAny = (globalThis as any);
@@ -46,7 +48,7 @@ describe('Complete Analysis Flow', () => {
       // Simulate form event
       const mockEvent = {
         formInput: {
-          mode: 'draft',
+          mode: ProcessingMode.CREATE_DRAFTS,
           prompt1: 'Custom classification prompt',
           prompt2: 'Custom response prompt'
         }
@@ -65,7 +67,7 @@ describe('Complete Analysis Flow', () => {
       mockProps.set('ANALYSIS_START_TIME', Date.now().toString());
       
       // Verify saved
-      expect(mockProps.get('PROCESSING_MODE')).toBe('draft');
+      expect(mockProps.get('PROCESSING_MODE')).toBe(ProcessingMode.CREATE_DRAFTS);
       expect(mockProps.get('PROMPT_1')).toBe('Custom classification prompt');
       expect(mockProps.get('ANALYSIS_RUNNING')).toBe('true');
       
@@ -75,17 +77,18 @@ describe('Complete Analysis Flow', () => {
   
   describe('Step 3: Processing Overlay', () => {
     it('should show correct mode and have Start button', () => {
-      mockProps.set('PROCESSING_MODE', 'send');
+      mockProps.set('PROCESSING_MODE', ProcessingMode.AUTO_SEND);
       
       // Simulate ProcessingOverlay.build()
       const mode = mockProps.get('PROCESSING_MODE');
       const overlayConfig = {
         title: 'Processing Starting',
-        modeDisplay: mode === 'send' ? '🚨 Auto-Reply' :
-                     mode === 'draft' ? '✍️ Create Drafts' :
+        modeDisplay: mode === ProcessingMode.AUTO_SEND ? '🚨 Auto-Reply' :
+                     mode === ProcessingMode.CREATE_DRAFTS ? '✍️ Create Drafts' :
                      '🏷️ Label Only',
         text: 'Will scan emails and apply Support/undefined labels' +
-              (mode !== 'label' ? '\n+ ' + (mode === 'draft' ? 'create drafts' : 'send replies') : ''),
+              (mode !== ProcessingMode.LABEL_ONLY ? '\n+ ' + 
+                (mode === ProcessingMode.CREATE_DRAFTS ? 'create drafts' : 'send replies') : ''),
         button: {
           text: 'Start',
           functionName: 'continueProcessing'
@@ -101,7 +104,7 @@ describe('Complete Analysis Flow', () => {
   describe('Step 4: continueProcessing Function', () => {
     it('should retrieve saved parameters and process emails', () => {
       // Set up saved state
-      mockProps.set('PROCESSING_MODE', 'label');
+      mockProps.set('PROCESSING_MODE', ProcessingMode.LABEL_ONLY);
       mockProps.set('PROMPT_1', 'Classification prompt');
       mockProps.set('PROMPT_2', 'Response prompt');
       mockProps.set('GEMINI_API_KEY', 'test-key');
@@ -110,11 +113,11 @@ describe('Complete Analysis Flow', () => {
       const mode = mockProps.get('PROCESSING_MODE');
       const apiKey = mockProps.get('GEMINI_API_KEY');
       
-      expect(mode).toBe('label');
+      expect(mode).toBe(ProcessingMode.LABEL_ONLY);
       expect(apiKey).toBe('test-key');
       
-      const createDrafts = (mode === 'draft' || mode === 'send');
-      const autoReply = (mode === 'send');
+      const createDrafts = (mode === ProcessingMode.CREATE_DRAFTS || mode === ProcessingMode.AUTO_SEND);
+      const autoReply = (mode === ProcessingMode.AUTO_SEND);
       
       expect(createDrafts).toBe(false);
       expect(autoReply).toBe(false);
@@ -153,13 +156,13 @@ describe('Complete Analysis Flow', () => {
       expect(mockProps.get('ANALYSIS_RUNNING')).toBeUndefined();
       
       // 2. User clicks Analyze Inbox -> runAnalysis
-      mockProps.set('PROCESSING_MODE', 'draft');
+      mockProps.set('PROCESSING_MODE', ProcessingMode.CREATE_DRAFTS);
       mockProps.set('ANALYSIS_RUNNING', 'true');
       expect(mockProps.get('ANALYSIS_RUNNING')).toBe('true');
       
       // 3. Processing overlay shown
       const mode = mockProps.get('PROCESSING_MODE');
-      expect(mode).toBe('draft');
+      expect(mode).toBe(ProcessingMode.CREATE_DRAFTS);
       
       // 4. User clicks Start -> continueProcessing
       // Would call GmailService.getUnprocessedThreads()

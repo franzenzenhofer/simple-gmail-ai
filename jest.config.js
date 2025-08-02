@@ -25,6 +25,7 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  resetMocks: true, // Clear all mocks between tests to avoid pollution
   // coverageThreshold: {
   //   global: {
   //     branches: 100,

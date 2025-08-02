@@ -4,6 +4,12 @@
  */
 
 namespace Config {
+  export enum ProcessingMode {
+    LABEL_ONLY = 'label',
+    CREATE_DRAFTS = 'draft', 
+    AUTO_SEND = 'send'
+  }
+  
   export const LABELS = {
     SUPPORT: 'Support',
     NOT_SUPPORT: 'undefined', 

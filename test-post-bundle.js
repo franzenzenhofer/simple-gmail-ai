@@ -5,7 +5,8 @@
  * Ensures the bundled file will work in GAS environment
  */
 
-const fs = require('fs');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const vm = require('vm');
 const acorn = require('acorn');
@@ -20,12 +21,12 @@ function test(name, fn) {
   tests.push({ name, fn });
 }
 
-function runTests() {
+async function runTests() {
   console.log('\n🧪 Post-Bundle Validation\n');
   
-  tests.forEach(({ name, fn }) => {
+  for (const { name, fn } of tests) {
     try {
-      fn();
+      await fn();
       passed++;
       console.log(`✅ ${name}`);
     } catch (error) {
@@ -33,73 +34,74 @@ function runTests() {
       console.log(`❌ ${name}`);
       console.log(`   ${error.message}`);
     }
-  });
+  }
   
   console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
 
-// Read files
-const distPath = path.join(__dirname, 'dist');
-const bundlePath = path.join(distPath, 'Code.gs');
-const manifestPath = path.join(distPath, 'appsscript.json');
+async function main() {
+  // Read files
+  const distPath = path.join(__dirname, 'dist');
+  const bundlePath = path.join(distPath, 'Code.gs');
+  const manifestPath = path.join(distPath, 'appsscript.json');
 
-if (!fs.existsSync(bundlePath) || !fs.existsSync(manifestPath)) {
-  console.error('❌ Build files not found. Run "npm run build" first.');
-  process.exit(1);
-}
-
-const bundledCode = fs.readFileSync(bundlePath, 'utf8');
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-
-// Find all .js and .gs files in dist (including subdirectories)
-function findJSFiles(dir, files = []) {
-  const items = fs.readdirSync(dir, { withFileTypes: true });
-  for (const item of items) {
-    const fullPath = path.join(dir, item.name);
-    if (item.isDirectory()) {
-      findJSFiles(fullPath, files);
-    } else if (item.name.endsWith('.js') || item.name.endsWith('.gs')) {
-      files.push(fullPath);
-    }
+  if (!fsSync.existsSync(bundlePath) || !fsSync.existsSync(manifestPath)) {
+    console.error('❌ Build files not found. Run "npm run build" first.');
+    process.exit(1);
   }
-  return files;
-}
 
-const allJSFiles = findJSFiles(distPath);
+  const bundledCode = await fs.readFile(bundlePath, 'utf8');
+  const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
 
-// Extract all function references from manifest
-function getFunctionRefs(obj, refs = new Set()) {
-  for (const key in obj) {
-    if (key.endsWith('Function') && typeof obj[key] === 'string') {
-      refs.add(obj[key]);
-    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-      getFunctionRefs(obj[key], refs);
+  // Find all .js and .gs files in dist (including subdirectories)
+  async function findJSFiles(dir, files = []) {
+    const items = await fs.readdir(dir, { withFileTypes: true });
+    for (const item of items) {
+      const fullPath = path.join(dir, item.name);
+      if (item.isDirectory()) {
+        await findJSFiles(fullPath, files);
+      } else if (item.name.endsWith('.js') || item.name.endsWith('.gs')) {
+        files.push(fullPath);
+      }
     }
+    return files;
   }
-  return refs;
-}
 
-const requiredFunctions = getFunctionRefs(manifest);
+  const allJSFiles = await findJSFiles(distPath);
 
-// Test 1: All manifest functions exist in bundle
-test('All manifest functions exist', () => {
-  requiredFunctions.forEach(fn => {
-    const regex = new RegExp(`function\\s+${fn}\\s*\\(`, 'g');
-    if (!regex.test(bundledCode)) {
-      throw new Error(`Function '${fn}' not found in bundle`);
+  // Extract all function references from manifest
+  function getFunctionRefs(obj, refs = new Set()) {
+    for (const key in obj) {
+      if (key.endsWith('Function') && typeof obj[key] === 'string') {
+        refs.add(obj[key]);
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        getFunctionRefs(obj[key], refs);
+      }
     }
+    return refs;
+  }
+
+  const requiredFunctions = getFunctionRefs(manifest);
+
+  // Test 1: All manifest functions exist in bundle
+  test('All manifest functions exist', () => {
+    requiredFunctions.forEach(fn => {
+      const regex = new RegExp(`\\bfunction\\s+${fn}\\b\\s*\\(`, 'g');
+      if (!regex.test(bundledCode)) {
+        throw new Error(`Function '${fn}' not found in bundle`);
+      }
+    });
   });
-});
 
-// Test 2: Bundle executes without syntax errors
-test('Bundle has valid syntax', () => {
-  new Function(bundledCode);
-});
+  // Test 2: Bundle executes without syntax errors
+  test('Bundle has valid syntax', () => {
+    new Function(bundledCode);
+  });
 
-// Test 3: No module-level Google service access
-test('No module-level Google service access', () => {
-  const services = ['PropertiesService', 'CardService', 'GmailApp', 'UrlFetchApp', 'SpreadsheetApp', 'DriveApp'];
+  // Test 3: No module-level Google service access
+  test('No module-level Google service access', () => {
+    const services = ['PropertiesService', 'CardService', 'GmailApp', 'UrlFetchApp', 'SpreadsheetApp', 'DriveApp'];
   
   try {
     // Parse the bundled code with Acorn
@@ -171,54 +173,73 @@ test('No module-level Google service access', () => {
       });
     });
   }
-});
+  });
 
-// Test 4: No CommonJS exports in any file
-test('No CommonJS exports in deployed files', () => {
-  const problematicPatterns = [
-    /Object\.defineProperty\(exports/,
-    /exports\.[a-zA-Z_]/,
-    /module\.exports/,
-    /require\(/,
-    /__esModule/
-  ];
-  
-  allJSFiles.forEach(filePath => {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const relativePath = path.relative(__dirname, filePath);
+  // Test 4: No CommonJS exports in any file
+  test('No CommonJS exports in deployed files', async () => {
+    const problematicPatterns = [
+      /Object\.defineProperty\(exports/,
+      /exports\.[a-zA-Z_]/,
+      /module\.exports/,
+      /require\(/,
+      /__esModule/
+    ];
     
-    problematicPatterns.forEach(pattern => {
-      if (pattern.test(content)) {
-        // Find the line number
-        const lines = content.split('\n');
-        let lineNum = 0;
-        for (let i = 0; i < lines.length; i++) {
-          if (pattern.test(lines[i])) {
-            lineNum = i + 1;
-            break;
+    for (const filePath of allJSFiles) {
+      const content = await fs.readFile(filePath, 'utf8');
+      const relativePath = path.relative(__dirname, filePath);
+      
+      problematicPatterns.forEach(pattern => {
+        if (pattern.test(content)) {
+          // Find the line number
+          const lines = content.split('\n');
+          let lineNum = 0;
+          for (let i = 0; i < lines.length; i++) {
+            if (pattern.test(lines[i])) {
+              lineNum = i + 1;
+              break;
+            }
           }
+          throw new Error(`CommonJS pattern found in ${relativePath} at line ${lineNum}: ${pattern}`);
         }
-        throw new Error(`CommonJS pattern found in ${relativePath} at line ${lineNum}: ${pattern}`);
+      });
+    }
+  });
+
+  // Test 5: Bundle size check - prevent bloat
+  test('Bundle size is under 1MB (Apps Script limit is 2MB)', async () => {
+    const stats = await fs.stat(bundlePath);
+    const sizeInMB = stats.size / (1024 * 1024);
+    
+    if (sizeInMB > 1) {
+      throw new Error(`Bundle too large: ${sizeInMB.toFixed(2)}MB (should be <1MB). Current size: ${stats.size} bytes`);
+    }
+    
+    console.log(`✅ Bundle size OK: ${sizeInMB.toFixed(2)}MB (${stats.size} bytes)`);
+  });
+
+  // Test 6: Only approved files in dist
+  test('Only approved files in dist directory', async () => {
+    const approvedFiles = ['Code.gs', 'appsscript.json', '.clasp.json'];
+    const approvedDirs = []; // No subdirectories should exist
+    
+    const items = await fs.readdir(distPath, { withFileTypes: true });
+    
+    items.forEach(item => {
+      if (item.isDirectory() && !approvedDirs.includes(item.name)) {
+        throw new Error(`Unexpected directory in dist: ${item.name}`);
+      } else if (item.isFile() && !approvedFiles.includes(item.name)) {
+        throw new Error(`Unexpected file in dist: ${item.name}`);
       }
     });
   });
-});
 
-// Test 5: Only approved files in dist
-test('Only approved files in dist directory', () => {
-  const approvedFiles = ['Code.gs', 'appsscript.json', '.clasp.json'];
-  const approvedDirs = []; // No subdirectories should exist
-  
-  const items = fs.readdirSync(distPath, { withFileTypes: true });
-  
-  items.forEach(item => {
-    if (item.isDirectory() && !approvedDirs.includes(item.name)) {
-      throw new Error(`Unexpected directory in dist: ${item.name}`);
-    } else if (item.isFile() && !approvedFiles.includes(item.name)) {
-      throw new Error(`Unexpected file in dist: ${item.name}`);
-    }
-  });
-});
+  // Run all tests
+  await runTests();
+}
 
-// Run all tests
-runTests();
+// Run the main function
+main().catch(error => {
+  console.error('❌ Test runner failed:', error);
+  process.exit(1);
+});
