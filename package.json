@@ -1,0 +1,48 @@
+{
+  "name": "simple-gmail-ai",
+  "version": "1.9.0",
+  "description": "Gmail AI Support Triage & Auto-Reply Add-on using Gemini 2.5 Flash",
+  "main": "dist/Code.gs",
+  "scripts": {
+    "login": "clasp login",
+    "create": "clasp create --title 'Gmail AI Support Triage' --type addon --rootDir ./dist",
+    "watch": "tsc --watch",
+    "build": "npm run clean && tsc && npm run bundle && npm run copy-files",
+    "bundle": "node bundle.js",
+    "copy-files": "cp src/appsscript.json dist/",
+    "clean": "rm -rf dist",
+    "push": "npm run build && clasp push --force",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "echo 'E2E tests require manual verification in Gmail - see test-integration.gs'",
+    "lint": "echo 'TypeScript compilation provides linting' && tsc --noEmit",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "predeploy": "npm run lint && npm run build && npm test src/simple.test.ts && echo 'Pre-deploy checks passed'",
+    "deploy": "npm run predeploy && npm version minor && ./deploy.sh && echo 'Deployment complete'",
+    "deploy:major": "npm run predeploy && npm version major && ./deploy.sh && echo 'Major version deployment complete'",
+    "open": "clasp open",
+    "logs": "clasp logs",
+    "setup": "npm install && npm run build"
+  },
+  "keywords": [
+    "gmail",
+    "google-apps-script",
+    "gemini",
+    "ai",
+    "automation"
+  ],
+  "author": "Franz Enzenhofer",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83",
+    "@types/jest": "^29.5.12",
+    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "@typescript-eslint/parser": "^7.16.1",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.5",
+    "typescript": "^5.5.3"
+  }
+}

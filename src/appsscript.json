@@ -1,0 +1,52 @@
+{
+  "timeZone": "Europe/Vienna",
+  "dependencies": {
+    "enabledAdvancedServices": []
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "executionApi": {
+    "access": "ANYONE"
+  },
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.labels",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+  ],
+  "urlFetchWhitelist": [
+    "https://generativelanguage.googleapis.com/"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Gmail Support Triage AI",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/2x/support_agent_black_24dp.png",
+      "homepageTrigger": {
+        "enabled": true,
+        "runFunction": "onHomepage"
+      },
+      "universalActions": [{
+        "label": "View Logs",
+        "runFunction": "viewLogsUniversal"
+      }, {
+        "label": "Toggle Debug Mode",
+        "runFunction": "toggleDebugModeUniversal"
+      }]
+    },
+    "gmail": {
+      "homepageTrigger": {
+        "enabled": true,
+        "runFunction": "onHomepage"
+      },
+      "contextualTriggers": [{
+        "unconditional": {},
+        "onTriggerFunction": "onGmailMessage"
+      }]
+    }
+  }
+}
