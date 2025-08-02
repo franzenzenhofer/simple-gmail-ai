@@ -125,7 +125,7 @@ describe('Gmail Support Triage AI - Core Functions', () => {
         }
       };
 
-      expect(payload.contents[0].parts[0].text).toBe('Test prompt');
+      expect(payload.contents?.[0]?.parts?.[0]?.text).toBe('Test prompt');
       expect(payload.generationConfig.temperature).toBe(0.3);
     });
   });
@@ -142,7 +142,7 @@ describe('Gmail Support Triage AI - Core Functions', () => {
         }]
       };
 
-      const text = mockResponse.candidates[0].content.parts[0].text;
+      const text = mockResponse.candidates?.[0]?.content?.parts?.[0]?.text;
       expect(text).toBe('support');
     });
 

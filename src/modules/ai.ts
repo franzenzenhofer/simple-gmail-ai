@@ -59,7 +59,11 @@ namespace AI {
         throw new Error('No response from AI');
       }
       
-      const result = data.candidates[0].content.parts[0].text.trim();
+      const candidate = data.candidates[0];
+      if (!candidate?.content?.parts?.[0]?.text) {
+        throw new Error('Invalid response structure from AI');
+      }
+      const result = candidate.content.parts[0].text.trim();
       
       AppLogger.info('✅ AI RESULT [' + requestId + ']', {
         result,

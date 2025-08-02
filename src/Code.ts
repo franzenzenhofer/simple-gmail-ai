@@ -15,34 +15,73 @@
 // ===== MAIN ENTRY POINTS =====
 
 /**
+ * Initialize global error handler
+ */
+function handleGlobalError(error: any): GoogleAppsScript.Card_Service.Card {
+  const errorMessage = error?.message || String(error);
+  
+  const card = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader()
+      .setTitle('⚠️ Error')
+      .setSubtitle('Gmail AI Support Triage'))
+    .addSection(CardService.newCardSection()
+      .addWidget(CardService.newTextParagraph()
+        .setText('An error occurred: ' + errorMessage))
+      .addWidget(CardService.newTextParagraph()
+        .setText('Please try reloading Gmail or reinstalling the add-on.')));
+  
+  return card.build();
+}
+
+/**
  * Entry point for Gmail add-on homepage
  */
 function onHomepage(): GoogleAppsScript.Card_Service.Card {
-  AppLogger.initSpreadsheet();
-  AppLogger.info('Gmail Add-on started', {
-    version: Config.VERSION,
-    executionId: AppLogger.executionId
-  });
-  
-  return UI.buildHomepage();
+  try {
+    AppLogger.initSpreadsheet();
+    AppLogger.info('Gmail Add-on started', {
+      version: Config.VERSION,
+      executionId: AppLogger.executionId
+    });
+    
+    return UI.buildHomepage();
+  } catch (error) {
+    return handleGlobalError(error);
+  }
 }
 
 // ===== NAVIGATION HANDLERS =====
 
 function showApiKeyTab(): GoogleAppsScript.Card_Service.ActionResponse {
-  return UI.navigateTo(UI.buildApiKeyTab());
+  try {
+    return UI.navigateTo(UI.buildApiKeyTab());
+  } catch (error) {
+    return UI.navigateTo(handleGlobalError(error));
+  }
 }
 
 function showLogsTab(): GoogleAppsScript.Card_Service.ActionResponse {
-  return UI.navigateTo(UI.buildLogsTab());
+  try {
+    return UI.navigateTo(UI.buildLogsTab());
+  } catch (error) {
+    return UI.navigateTo(handleGlobalError(error));
+  }
 }
 
 function showSettingsTab(): GoogleAppsScript.Card_Service.ActionResponse {
-  return UI.navigateTo(UI.buildSettingsTab());
+  try {
+    return UI.navigateTo(UI.buildSettingsTab());
+  } catch (error) {
+    return UI.navigateTo(handleGlobalError(error));
+  }
 }
 
 function backToMain(): GoogleAppsScript.Card_Service.ActionResponse {
-  return UI.navigateTo(UI.buildHomepage());
+  try {
+    return UI.navigateTo(UI.buildHomepage());
+  } catch (error) {
+    return UI.navigateTo(handleGlobalError(error));
+  }
 }
 
 // ===== ACTION HANDLERS =====
@@ -102,7 +141,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       autoReply
     });
     
-    threads.forEach((thread, index) => {
+    threads.forEach((thread) => {
       stats.scanned++;
       
       const result = GmailService.processThread(
@@ -135,7 +174,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   }
 }
 
-function toggleDebugMode(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+function toggleDebugMode(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
   const currentDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
   const newDebugMode = !currentDebugMode;
   
@@ -151,7 +190,7 @@ function toggleDebugMode(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     .build();
 }
 
-function toggleSpreadsheetLogging(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+function toggleSpreadsheetLogging(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
   const currentDisabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
   const newDisabled = !currentDisabled;
   
@@ -176,4 +215,30 @@ function viewLogsUniversal(): GoogleAppsScript.Card_Service.UniversalActionRespo
   return CardService.newUniversalActionResponseBuilder()
     .displayAddOnCards([UI.buildLogsTab()])
     .build();
+}
+
+function toggleDebugModeUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  const currentDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
+  const newDebugMode = !currentDebugMode;
+  
+  PropertiesService.getUserProperties().setProperty('DEBUG_MODE', newDebugMode.toString());
+  
+  const card = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader()
+      .setTitle('Debug Mode')
+      .setSubtitle(newDebugMode ? 'Enabled' : 'Disabled'))
+    .addSection(CardService.newCardSection()
+      .addWidget(CardService.newTextParagraph()
+        .setText(newDebugMode ? '🐛 Debug mode is now enabled' : '📊 Debug mode is now disabled')))
+    .build();
+  
+  return CardService.newUniversalActionResponseBuilder()
+    .displayAddOnCards([card])
+    .build();
+}
+
+function onGmailMessage(_e: any): GoogleAppsScript.Card_Service.Card {
+  // For now, just show the homepage
+  // In the future, this could show context-specific actions
+  return onHomepage();
 }

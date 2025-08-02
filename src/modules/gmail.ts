@@ -43,6 +43,7 @@ namespace GmailService {
       if (messages.length === 0) return { isSupport: false };
       
       const msg = messages[messages.length - 1];
+      if (!msg) return { isSupport: false };
       const body = msg.getPlainBody().trim();
       if (!body) return { isSupport: false };
       

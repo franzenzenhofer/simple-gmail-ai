@@ -53,7 +53,7 @@ namespace AppLogger {
         }
       }
       
-      const dateString = new Date().toISOString().split('T')[0];
+      const dateString = new Date().toISOString().split('T')[0] || '';
       const todayKey = 'LOG_SPREADSHEET_' + dateString.replace(/-/g, '_');
       let todayId = PropertiesService.getUserProperties().getProperty(todayKey);
       

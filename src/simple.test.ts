@@ -68,8 +68,8 @@ describe('Gmail Support Triage AI - Simple Tests', () => {
       };
 
       expect(payload.contents).toHaveLength(1);
-      expect(payload.contents[0].parts).toHaveLength(1);
-      expect(payload.contents[0].parts[0].text).toBe(prompt);
+      expect(payload.contents?.[0]?.parts).toHaveLength(1);
+      expect(payload.contents?.[0]?.parts?.[0]?.text).toBe(prompt);
       expect(payload.generationConfig.temperature).toBe(0.3);
     });
   });
