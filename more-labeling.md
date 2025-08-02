@@ -344,3 +344,34 @@ export function perform(cmds: GmailAction[], label: string) {
 ### Summary
 
 *Two builder tabs* give non‑technical users unlimited labeling & automation while we preserve a single‑file deployment. Rules → prompts → AI JSON → execution—all strictly defined. Drop this spec into your backlog and Jazz-away the UI; the back‑end already has most plumbing.
+
+
+┌─────────────────────────────────────────────┐
+│ Gmail AI Triage                v1.10•2025‑08│
+├─────────────────────────────────────────────┤
+│ ✅ API Key configured                       │
+│ 🛡 Mode: Development  (toggle)              │
+│ 🐞 Debug: OFF        (switch)               │
+├─Active Rules───────────────────────────────┤
+│ 🟥 Refund        "any email containing ..." │
+│ 🟦 Bug           "subject starts with [bug" │
+│ 🟩 Sales         "contains 'quote', 'price'"│
+│ ⬜ undefined     catch‑all                  │
+│   ➕ Manage rules                            │
+├─Automation─────────────────────────────────┤
+│ Refund     → Draft + Send                   │
+│ Sales      → Forward sales@…                │
+│ undefined  → Label only                     │
+│   ✏️ Manage actions                          │
+├─Last run────────────────────────────────────┤
+│ 2025‑08‑03 09:14 – 42 scanned / 9 support / │
+│ 6 drafted / 3 sent / 0 errors  [Live log]   │
+├─Scope───────────────────────────────────────┤
+│ ◉ Inbox (50 + unread)                       │
+│ ○ Unread only                               │
+│ ○ Last [ 10 ] threads                       │
+├─────────────────────────────────────────────┤
+│          🚀 Run triage now                  │
+└─────────────────────────────────────────────┘
+      Rules   Actions   Logs   Settings
+

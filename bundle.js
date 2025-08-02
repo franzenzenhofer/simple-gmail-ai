@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const acorn = require('acorn');
 
 function readModuleFile(modulePath) {
   try {
@@ -70,25 +71,88 @@ function createBundle() {
     if (fs.existsSync(jsPath)) {
       const moduleContent = fs.readFileSync(jsPath, 'utf8');
       
-      // Extract namespace content
-      const namespaceMatch = moduleContent.match(/var\s+(\w+);\s*\(function\s*\(\1\)\s*\{([\s\S]*?)\}\)\(\1\s*\|\|\s*\(\1\s*=\s*\{\}\)\);?/);
-      
-      if (namespaceMatch) {
-        const namespaceName = namespaceMatch[1];
-        let innerContent = namespaceMatch[2];
+      try {
+        // Parse the module content with Acorn
+        const ast = acorn.parse(moduleContent, { ecmaVersion: 2022 });
         
-        // Clean up the content
-        innerContent = innerContent
-          .replace(/Object\.defineProperty\(exports[^;]*;/g, '')
-          .replace(/exports\.[^=]*=[^;]*;/g, '')
-          .trim();
+        // Find namespace pattern: var X; (function (X) { ... })(X || (X = {}));
+        let namespaceName = null;
+        let namespaceContent = null;
         
-        modulesContent += `\n// ===== ${namespaceName.toUpperCase()} MODULE =====\n`;
-        modulesContent += `var ${namespaceName};\n(function (${namespaceName}) {\n${innerContent}\n})(${namespaceName} || (${namespaceName} = {}));\n`;
+        // Look for the var declaration followed by IIFE
+        for (let i = 0; i < ast.body.length; i++) {
+          const node = ast.body[i];
+          
+          // Find "var NamespaceName;"
+          if (node.type === 'VariableDeclaration' && node.declarations.length === 1) {
+            const varName = node.declarations[0].id.name;
+            
+            // Look for the IIFE in the next statement
+            if (i + 1 < ast.body.length) {
+              const nextNode = ast.body[i + 1];
+              
+              if (nextNode.type === 'ExpressionStatement' && 
+                  nextNode.expression.type === 'CallExpression' &&
+                  nextNode.expression.callee.type === 'FunctionExpression') {
+                
+                const funcExpr = nextNode.expression.callee;
+                const args = nextNode.expression.arguments;
+                
+                // Check if it's the namespace pattern
+                if (funcExpr.params.length === 1 && 
+                    funcExpr.params[0].name === varName &&
+                    args.length === 1) {
+                  
+                  namespaceName = varName;
+                  
+                  // Extract the function body content
+                  const startPos = funcExpr.body.start + 1; // after opening brace
+                  const endPos = funcExpr.body.end - 1; // before closing brace
+                  let innerContent = moduleContent.substring(startPos, endPos);
+                  
+                  // Clean up the content
+                  innerContent = innerContent
+                    .replace(/Object\.defineProperty\(exports[^;]*;/g, '')
+                    .replace(/exports\.[^=]*=[^;]*;/g, '')
+                    .trim();
+                  
+                  namespaceContent = innerContent;
+                  break;
+                }
+              }
+            }
+          }
+        }
         
-        console.log(`✅ Included module: ${moduleName} (${namespaceName})`);
-      } else {
-        console.warn(`⚠️  Could not parse module: ${moduleName}`);
+        if (namespaceName && namespaceContent) {
+          modulesContent += `\n// ===== ${namespaceName.toUpperCase()} MODULE =====\n`;
+          modulesContent += `var ${namespaceName};\n(function (${namespaceName}) {\n${namespaceContent}\n})(${namespaceName} || (${namespaceName} = {}));\n`;
+          
+          console.log(`✅ Included module: ${moduleName} (${namespaceName})`);
+        } else {
+          console.warn(`⚠️  Could not parse namespace pattern in module: ${moduleName}`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Failed to parse module ${moduleName}:`, error.message);
+        
+        // Fallback to regex if AST parsing fails
+        const namespaceMatch = moduleContent.match(/var\s+(\w+);\s*\(function\s*\(\1\)\s*\{([\s\S]*?)\}\)\(\1\s*\|\|\s*\(\1\s*=\s*\{\}\)\);?/);
+        
+        if (namespaceMatch) {
+          const namespaceName = namespaceMatch[1];
+          let innerContent = namespaceMatch[2];
+          
+          innerContent = innerContent
+            .replace(/Object\.defineProperty\(exports[^;]*;/g, '')
+            .replace(/exports\.[^=]*=[^;]*;/g, '')
+            .trim();
+          
+          modulesContent += `\n// ===== ${namespaceName.toUpperCase()} MODULE =====\n`;
+          modulesContent += `var ${namespaceName};\n(function (${namespaceName}) {\n${innerContent}\n})(${namespaceName} || (${namespaceName} = {}));\n`;
+          
+          console.log(`✅ Included module: ${moduleName} (${namespaceName}) [via regex fallback]`);
+        }
       }
     }
   });
