@@ -37,7 +37,7 @@ async function runTests() {
   }
   
   console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
-  process.exit(failed > 0 ? 1 : 0);
+  process.exitCode = failed > 0 ? 1 : 0;
 }
 
 async function main() {
@@ -48,7 +48,8 @@ async function main() {
 
   if (!fsSync.existsSync(bundlePath) || !fsSync.existsSync(manifestPath)) {
     console.error('❌ Build files not found. Run "npm run build" first.');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const bundledCode = await fs.readFile(bundlePath, 'utf8');
@@ -432,5 +433,5 @@ async function main() {
 // Run the main function
 main().catch(error => {
   console.error('❌ Test runner failed:', error);
-  process.exit(1);
+  process.exitCode = 1;
 });

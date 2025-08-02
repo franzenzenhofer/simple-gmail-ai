@@ -137,7 +137,8 @@ function createBundle() {
   // Check if compiled files exist
   if (!fs.existsSync(codeFile)) {
     console.error('❌ Code.js not found. Run npm run build first.');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   
   // Read package.json to get version
@@ -180,7 +181,8 @@ function createBundle() {
   if (missingModules.length > 0) {
     console.error(`❌ Missing required modules: ${missingModules.join(', ')}`);
     console.error('Run npm run build first to compile TypeScript modules');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   
   // Read and combine all modules
@@ -252,13 +254,15 @@ function createBundle() {
         } else {
           console.error(`❌ CRITICAL: Could not parse namespace pattern in module: ${moduleName}`);
           console.error('AST parsing failed - check TypeScript compilation output');
-          process.exit(1); // FAIL FAST - NO FALLBACKS
+          process.exitCode = 1; // FAIL FAST - NO FALLBACKS
+          return;
         }
         
       } catch (error) {
         console.error(`❌ CRITICAL: Failed to parse module ${moduleName}:`, error.message);
         console.error('AST parsing failed - fix the root cause');
-        process.exit(1); // FAIL FAST - NO FALLBACKS
+        process.exitCode = 1; // FAIL FAST - NO FALLBACKS
+        return;
       }
     }
   });
@@ -298,7 +302,8 @@ function createBundle() {
   // Validate bundle content before writing
   if (bundledContent.length < 10000) { // Less than 10KB indicates a problem
     console.error('❌ Bundle too small - likely missing content');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   
   // Check for critical functions
@@ -307,7 +312,8 @@ function createBundle() {
   
   if (missingFunctions.length > 0) {
     console.error(`❌ Bundle missing required functions: ${missingFunctions.join(', ')}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   
   // Check for syntax errors by parsing the final bundle
@@ -317,7 +323,8 @@ function createBundle() {
   } catch (syntaxError) {
     console.error('❌ Bundle has syntax errors:', syntaxError.message);
     console.error('Position:', syntaxError.pos);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   
   // Write the bundled file
