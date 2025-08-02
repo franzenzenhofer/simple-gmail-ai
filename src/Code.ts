@@ -10,6 +10,7 @@
 /// <reference path="modules/ai.ts" />
 /// <reference path="modules/gmail.ts" />
 /// <reference path="modules/ui.ts" />
+/// <reference path="modules/overlay.ts" />
 /// <reference path="modules/utils.ts" />
 
 // ===== MAIN ENTRY POINTS =====
@@ -207,6 +208,33 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       promptsConfigured: true
     });
     
+    // Show processing overlay immediately with initial stats
+    return UI.navigateTo(ProcessingOverlay.build());
+    
+  } catch (err) {
+    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
+    AppLogger.error('Error starting analysis', { error: Utils.handleError(err) });
+    return UI.showNotification('Error: ' + Utils.handleError(err));
+  }
+}
+
+function continueProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const userProps = PropertiesService.getUserProperties();
+  
+  try {
+    // Retrieve saved parameters
+    const mode = userProps.getProperty('PROCESSING_MODE') || 'label';
+    const prompt1 = userProps.getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION;
+    const prompt2 = userProps.getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE;
+    const apiKey = userProps.getProperty('GEMINI_API_KEY');
+    
+    if (!apiKey) {
+      throw new Error('API key not found');
+    }
+    
+    const createDrafts = (mode === 'draft' || mode === 'send');
+    const autoReply = (mode === 'send');
+    
     // START ACTUAL PROCESSING
     const threads = GmailService.getUnprocessedThreads();
     const stats: Types.ProcessingStats = {
@@ -290,9 +318,9 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     return UI.navigateTo(UI.buildLiveLogView());
     
   } catch (err) {
-    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
-    AppLogger.error('Error in analysis', { error: Utils.handleError(err) });
-    return UI.navigateTo(UI.buildLiveLogView());
+    userProps.setProperty('ANALYSIS_RUNNING', 'false');
+    AppLogger.error('Error in processing', { error: Utils.handleError(err) });
+    return UI.showNotification('Error: ' + Utils.handleError(err));
   }
 }
 

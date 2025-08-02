@@ -318,6 +318,7 @@ namespace UI {
       .build();
   }
   
+  
   export function navigateTo(card: GoogleAppsScript.Card_Service.Card): GoogleAppsScript.Card_Service.ActionResponse {
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().pushCard(card))

@@ -60,7 +60,8 @@ function createBundle() {
     'ai',
     'gmail',
     'utils',
-    'ui'
+    'ui',
+    'overlay'
   ];
   
   // Read and combine all modules
