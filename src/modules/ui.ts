@@ -473,77 +473,65 @@ namespace UI {
 
   function getCurrentExecutionLogs(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
     try {
-      const currentExecutionId = AppLogger.executionId;
-      const config = AppLogger.getSpreadsheetConfig();
-      if (!config) return [];
+      // Read from PropertiesService - FAST and reliable!
+      const props = PropertiesService.getUserProperties();
+      const currentExecutionId = props.getProperty('CURRENT_EXECUTION_ID') || AppLogger.executionId;
+      const logKey = 'LIVE_LOG_' + currentExecutionId;
+      const logsJson = props.getProperty(logKey);
       
-      const sheet = SpreadsheetApp.openById(config.todaySpreadsheetId).getActiveSheet();
-      const lastRow = sheet.getLastRow();
+      if (!logsJson) {
+        return [];
+      }
       
-      if (lastRow <= 1) return []; // Only headers
+      const logs = JSON.parse(logsJson);
       
-      const startRow = Math.max(2, lastRow - (limit * 5) + 1); // Get more to filter
-      const numRows = lastRow - startRow + 1;
+      // Map to expected format and reverse (newest first)
+      const entries = logs.map((log: any) => ({
+        timestamp: log.timestamp || '',
+        executionId: currentExecutionId,
+        level: log.level || 'INFO',
+        message: log.message || ''
+      })).reverse();
       
-      const data = sheet.getRange(startRow, 1, numRows, 4).getValues();
-      
-      // Filter for current execution only and reverse order (newest first)
-      const allEntries = data.map(row => ({
-        timestamp: row[0] ? row[0].toString() : '',
-        executionId: row[1] ? row[1].toString() : '',
-        level: row[2] ? row[2].toString() : '',
-        message: row[3] ? row[3].toString() : ''
-      })).filter(entry => entry.timestamp && entry.message && entry.executionId === currentExecutionId).reverse();
-      
-      return allEntries.slice(0, limit);
+      return entries.slice(0, limit);
       
     } catch (error) {
-      AppLogger.error('Failed to get current execution logs', { error: String(error) });
+      console.error('Failed to get current execution logs from properties:', String(error));
       return [];
     }
   }
 
   function getLastExecutionLogs(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
     try {
-      const config = AppLogger.getSpreadsheetConfig();
-      if (!config) return [];
+      // Find the last execution ID from properties
+      const props = PropertiesService.getUserProperties();
+      const lastExecutionId = props.getProperty('LAST_EXECUTION_ID');
       
-      const sheet = SpreadsheetApp.openById(config.todaySpreadsheetId).getActiveSheet();
-      const lastRow = sheet.getLastRow();
-      
-      if (lastRow <= 1) return []; // Only headers
-      
-      const startRow = Math.max(2, lastRow - (limit * 10) + 1); // Get more to find last execution
-      const numRows = lastRow - startRow + 1;
-      
-      const data = sheet.getRange(startRow, 1, numRows, 4).getValues();
-      
-      // Find the most recent execution that has analysis logs
-      const allEntries = data.map(row => ({
-        timestamp: row[0] ? row[0].toString() : '',
-        executionId: row[1] ? row[1].toString() : '',
-        level: row[2] ? row[2].toString() : '',
-        message: row[3] ? row[3].toString() : ''
-      })).filter(entry => entry.timestamp && entry.message).reverse();
-      
-      // Find the last execution with analysis activity
-      let lastAnalysisExecutionId = '';
-      for (const entry of allEntries) {
-        if (entry.message.includes('🚀 ANALYSIS STARTED') || 
-            entry.message.includes('📧 PROCESSING EMAIL') ||
-            entry.message.includes('✅ COMPLETED')) {
-          lastAnalysisExecutionId = entry.executionId;
-          break;
-        }
+      if (!lastExecutionId) {
+        return [];
       }
       
-      if (!lastAnalysisExecutionId) return [];
+      const logKey = 'LIVE_LOG_' + lastExecutionId;
+      const logsJson = props.getProperty(logKey);
       
-      // Return logs from that execution only
-      return allEntries.filter(entry => entry.executionId === lastAnalysisExecutionId).slice(0, limit);
+      if (!logsJson) {
+        return [];
+      }
+      
+      const logs = JSON.parse(logsJson);
+      
+      // Map to expected format and reverse (newest first)
+      const entries = logs.map((log: any) => ({
+        timestamp: log.timestamp || '',
+        executionId: lastExecutionId,
+        level: log.level || 'INFO',
+        message: log.message || ''
+      })).reverse();
+      
+      return entries.slice(0, limit);
       
     } catch (error) {
-      AppLogger.error('Failed to get last execution logs', { error: String(error) });
+      console.error('Failed to get last execution logs from properties:', String(error));
       return [];
     }
   }

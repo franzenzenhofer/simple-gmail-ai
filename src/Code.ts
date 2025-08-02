@@ -112,6 +112,8 @@ function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
 
 function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   try {
+    // CRITICAL: Initialize spreadsheet logging for this execution
+    AppLogger.initSpreadsheet();
     AppLogger.info('🔥 RUNANALYSIS CALLED - Button click received!');
     
     const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
@@ -204,7 +206,8 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     AppLogger.info('🎯 Analysis completed', { stats });
     
     // Mark analysis as complete and save execution info
-    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
+    const props = PropertiesService.getUserProperties();
+    props.setProperty('ANALYSIS_RUNNING', 'false');
     
     // Save last execution time and stats
     const executionTime = new Date().toLocaleString('de-AT', {
@@ -217,8 +220,11 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     });
     const statsString = `${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
     
-    PropertiesService.getUserProperties().setProperty('LAST_EXECUTION_TIME', executionTime);
-    PropertiesService.getUserProperties().setProperty('LAST_EXECUTION_STATS', statsString);
+    props.setProperty('LAST_EXECUTION_TIME', executionTime);
+    props.setProperty('LAST_EXECUTION_STATS', statsString);
+    
+    // CRITICAL: Save this execution ID as the last one for live log view
+    props.setProperty('LAST_EXECUTION_ID', AppLogger.executionId);
     
     const message = `✅ COMPLETED: ${statsString}`;
     AppLogger.info(message);
