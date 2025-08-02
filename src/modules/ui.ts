@@ -20,8 +20,12 @@ namespace UI {
       const warningSection = CardService.newCardSection();
       warningSection.addWidget(
         CardService.newDecoratedText()
-          .setText('⚠️ API Key Required')
+          .setText('API Key Required')
           .setBottomLabel('Configure your Gemini API key to get started')
+          .setOpenLink(CardService.newOpenLink()
+            .setUrl('#')
+            .setOnClose(CardService.OnClose.RELOAD)
+            .setOpenAs(CardService.OpenAs.OVERLAY))
           .setOnClickAction(
             CardService.newAction().setFunctionName('showApiKeyTab')
           )
@@ -72,11 +76,9 @@ namespace UI {
     
     card.addSection(mainSection);
     
-    // Action Buttons
-    const actionSection = CardService.newCardSection();
-    
+    // Fixed action button at bottom
     const analyzeBtn = CardService.newTextButton()
-      .setText('🚀 Analyze Inbox')
+      .setText('Analyze Inbox')
       .setBackgroundColor('#1a73e8')
       .setOnClickAction(
         CardService.newAction().setFunctionName('runAnalysis')
@@ -86,36 +88,10 @@ namespace UI {
       analyzeBtn.setDisabled(true);
     }
     
-    actionSection.addWidget(analyzeBtn);
-    card.addSection(actionSection);
-    
-    // Footer Navigation
-    const footerSection = CardService.newCardSection();
-    footerSection.addWidget(
-      CardService.newButtonSet()
-        .addButton(
-          CardService.newTextButton()
-            .setText('🔑 API Key')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('showApiKeyTab')
-            )
-        )
-        .addButton(
-          CardService.newTextButton()
-            .setText('📊 Logs')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('showLogsTab')
-            )
-        )
-        .addButton(
-          CardService.newTextButton()
-            .setText('⚙️ Settings')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('showSettingsTab')
-            )
-        )
+    card.setFixedFooter(
+      CardService.newFixedFooter()
+        .setPrimaryButton(analyzeBtn)
     );
-    card.addSection(footerSection);
     
     return card.build();
   }
@@ -127,7 +103,7 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('🔑 API Key Configuration')
+          .setTitle('API Key Configuration')
       );
     
     const mainSection = CardService.newCardSection();
@@ -136,7 +112,7 @@ namespace UI {
       mainSection.addWidget(
         CardService.newKeyValue()
           .setTopLabel('Status')
-          .setContent('✅ API Key Configured')
+          .setContent('API Key Configured')
           .setBottomLabel('Key ending in ...' + savedKey.slice(-8))
       );
     }
@@ -151,7 +127,7 @@ namespace UI {
     
     mainSection.addWidget(
       CardService.newTextButton()
-        .setText('💾 Save API Key')
+        .setText('Save API Key')
         .setBackgroundColor('#34a853')
         .setOnClickAction(
           CardService.newAction().setFunctionName('saveApiKey')
@@ -169,7 +145,7 @@ namespace UI {
     const footerSection = CardService.newCardSection();
     footerSection.addWidget(
       CardService.newTextButton()
-        .setText('← Back to Main')
+        .setText('Back')
         .setOnClickAction(
           CardService.newAction().setFunctionName('backToMain')
         )
@@ -186,7 +162,7 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('📊 Logs & Diagnostics')
+          .setTitle('Logs & Diagnostics')
       );
     
     const mainSection = CardService.newCardSection();
@@ -194,7 +170,7 @@ namespace UI {
     if (config) {
       mainSection.addWidget(
         CardService.newDecoratedText()
-          .setText('📄 Today\'s Log')
+          .setText('Today\'s Log')
           .setBottomLabel(config.dateString)
           .setOpenLink(CardService.newOpenLink()
             .setUrl(config.todaySpreadsheetUrl)
@@ -203,7 +179,7 @@ namespace UI {
       
       mainSection.addWidget(
         CardService.newDecoratedText()
-          .setText('📁 All Logs')
+          .setText('All Logs')
           .setBottomLabel('View all daily logs')
           .setOpenLink(CardService.newOpenLink()
             .setUrl(config.folderUrl)
@@ -223,7 +199,7 @@ namespace UI {
     const footerSection = CardService.newCardSection();
     footerSection.addWidget(
       CardService.newTextButton()
-        .setText('← Back to Main')
+        .setText('Back')
         .setOnClickAction(
           CardService.newAction().setFunctionName('backToMain')
         )
@@ -237,7 +213,7 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('⚙️ Settings')
+          .setTitle('Settings')
       );
     
     const mainSection = CardService.newCardSection();
@@ -245,7 +221,7 @@ namespace UI {
     const isDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
     mainSection.addWidget(
       CardService.newDecoratedText()
-        .setText(isDebugMode ? '🐛 Debug Mode: ON' : '📊 Debug Mode: OFF')
+        .setText(isDebugMode ? 'Debug Mode: ON' : 'Debug Mode: OFF')
         .setBottomLabel(isDebugMode ? 'Verbose logging enabled' : 'Normal logging')
         .setSwitchControl(
           CardService.newSwitch()
@@ -260,7 +236,7 @@ namespace UI {
     const spreadsheetDisabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
     mainSection.addWidget(
       CardService.newDecoratedText()
-        .setText(spreadsheetDisabled ? '📊 Spreadsheet Logs: OFF' : '📊 Spreadsheet Logs: ON')
+        .setText(spreadsheetDisabled ? 'Spreadsheet Logs: OFF' : 'Spreadsheet Logs: ON')
         .setBottomLabel(spreadsheetDisabled ? 'Console only' : 'Logging to Google Sheets')
         .setSwitchControl(
           CardService.newSwitch()
@@ -285,7 +261,7 @@ namespace UI {
     const footerSection = CardService.newCardSection();
     footerSection.addWidget(
       CardService.newTextButton()
-        .setText('← Back to Main')
+        .setText('Back')
         .setOnClickAction(
           CardService.newAction().setFunctionName('backToMain')
         )
@@ -307,5 +283,118 @@ namespace UI {
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(card))
       .build();
+  }
+
+  export function buildLiveLogView(): GoogleAppsScript.Card_Service.Card {
+    AppLogger.initSpreadsheet();
+    const config = AppLogger.getSpreadsheetConfig();
+    
+    const card = CardService.newCardBuilder()
+      .setHeader(
+        CardService.newCardHeader()
+          .setTitle('Live Analysis Log')
+          .setSubtitle('Real-time processing updates')
+      );
+    
+    const mainSection = CardService.newCardSection();
+    
+    // Current execution info
+    mainSection.addWidget(
+      CardService.newKeyValue()
+        .setTopLabel('Current Session')
+        .setContent(AppLogger.executionId)
+        .setBottomLabel('Execution ID')
+    );
+    
+    // Analysis status
+    const isRunning = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
+    mainSection.addWidget(
+      CardService.newKeyValue()
+        .setTopLabel('Status')
+        .setContent(isRunning ? 'ANALYZING...' : 'READY')
+        .setBottomLabel(isRunning ? 'Analysis in progress' : 'Ready for analysis')
+    );
+    
+    // Recent log entries (last 10)
+    const recentLogs = getRecentLogEntries(10);
+    if (recentLogs.length > 0) {
+      mainSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>Recent Activity:</b>')
+      );
+      
+      recentLogs.forEach(logEntry => {
+        mainSection.addWidget(
+          CardService.newKeyValue()
+            .setTopLabel(logEntry.timestamp.substring(11, 19)) // Just time part
+            .setContent(logEntry.message)
+            .setBottomLabel(logEntry.level + ' | ' + logEntry.executionId.substring(0, 8))
+        );
+      });
+    }
+    
+    // Refresh button
+    mainSection.addWidget(
+      CardService.newTextButton()
+        .setText('Refresh')
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('refreshLiveLog')
+        )
+    );
+    
+    // Links to full logs
+    if (config) {
+      mainSection.addWidget(
+        CardService.newDecoratedText()
+          .setText('Full Log')
+          .setBottomLabel('View complete log in spreadsheet')
+          .setOpenLink(CardService.newOpenLink()
+            .setUrl(config.todaySpreadsheetUrl)
+          )
+      );
+    }
+    
+    card.addSection(mainSection);
+    
+    // Back button
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(
+      CardService.newTextButton()
+        .setText('Back')
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('backToMain')
+        )
+    );
+    card.addSection(footerSection);
+    
+    return card.build();
+  }
+
+  function getRecentLogEntries(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
+    try {
+      const config = AppLogger.getSpreadsheetConfig();
+      if (!config) return [];
+      
+      const sheet = SpreadsheetApp.openById(config.todaySpreadsheetId).getActiveSheet();
+      const lastRow = sheet.getLastRow();
+      
+      if (lastRow <= 1) return []; // Only headers
+      
+      const startRow = Math.max(2, lastRow - limit + 1);
+      const numRows = lastRow - startRow + 1;
+      
+      const data = sheet.getRange(startRow, 1, numRows, 4).getValues();
+      
+      return data.reverse().map(row => ({
+        timestamp: row[0] ? row[0].toString() : '',
+        executionId: row[1] ? row[1].toString() : '',
+        level: row[2] ? row[2].toString() : '',
+        message: row[3] ? row[3].toString() : ''
+      })).filter(entry => entry.timestamp && entry.message);
+      
+    } catch (error) {
+      AppLogger.error('Failed to get recent log entries', { error: String(error) });
+      return [];
+    }
   }
 }

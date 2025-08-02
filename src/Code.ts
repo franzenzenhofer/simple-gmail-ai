@@ -99,14 +99,14 @@ function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     
     return CardService.newActionResponseBuilder()
       .setNotification(
-        CardService.newNotification().setText('✅ API key saved successfully')
+        CardService.newNotification().setText('API key saved successfully')
       )
       .setNavigation(CardService.newNavigation().updateCard(UI.buildApiKeyTab()))
       .build();
       
   } catch (err) {
     AppLogger.error('Error saving API key', { error: Utils.handleError(err) });
-    return UI.showNotification('❌ ' + Utils.handleError(err));
+    return UI.showNotification('Error: ' + Utils.handleError(err));
   }
 }
 
@@ -126,6 +126,13 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     PropertiesService.getUserProperties().setProperty('PROMPT_1', prompt1);
     PropertiesService.getUserProperties().setProperty('PROMPT_2', prompt2);
     
+    // Mark analysis as running and navigate to live log view
+    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'true');
+    
+    // Navigate to live log view first
+    const liveLogCard = UI.buildLiveLogView();
+    
+    // Run analysis in background (from user's perspective)
     const threads = GmailService.getUnprocessedThreads();
     const stats: Types.ProcessingStats = {
       scanned: 0,
@@ -143,6 +150,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     
     threads.forEach((thread) => {
       stats.scanned++;
+      AppLogger.info(`Processing thread ${stats.scanned}/${threads.length}`);
       
       const result = GmailService.processThread(
         thread,
@@ -155,22 +163,31 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       
       if (result.error) {
         stats.errors++;
+        AppLogger.warn(`Thread ${stats.scanned} failed: ${result.error}`);
       } else if (result.isSupport) {
         stats.supports++;
+        AppLogger.info(`Thread ${stats.scanned}: SUPPORT DETECTED`);
         if (mode === 'draft') stats.drafted++;
         if (autoReply) stats.sent++;
+      } else {
+        AppLogger.info(`Thread ${stats.scanned}: Not support`);
       }
     });
     
     AppLogger.info('Analysis completed', { stats });
     
-    const message = `✅ Analyzed ${stats.scanned} | Support: ${stats.supports} | Drafts: ${stats.drafted} | Sent: ${stats.sent}${stats.errors > 0 ? ' | Errors: ' + stats.errors : ''}`;
+    // Mark analysis as complete
+    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
     
-    return UI.showNotification(message);
+    const message = `COMPLETED: ${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
+    AppLogger.info(message);
+    
+    return UI.navigateTo(liveLogCard);
     
   } catch (err) {
+    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
     AppLogger.error('Error in analysis', { error: Utils.handleError(err) });
-    return UI.showNotification('❌ ' + Utils.handleError(err));
+    return UI.showNotification('Error: ' + Utils.handleError(err));
   }
 }
 
@@ -184,7 +201,7 @@ function toggleDebugMode(_e: any): GoogleAppsScript.Card_Service.ActionResponse 
   return CardService.newActionResponseBuilder()
     .setNotification(
       CardService.newNotification()
-        .setText(newDebugMode ? '🐛 Debug mode enabled' : '📊 Debug mode disabled')
+        .setText(newDebugMode ? 'Debug mode enabled' : 'Debug mode disabled')
     )
     .setNavigation(CardService.newNavigation().updateCard(UI.buildSettingsTab()))
     .build();
@@ -203,7 +220,7 @@ function toggleSpreadsheetLogging(_e: any): GoogleAppsScript.Card_Service.Action
   return CardService.newActionResponseBuilder()
     .setNotification(
       CardService.newNotification()
-        .setText(newDisabled ? '📊 Spreadsheet logging disabled' : '📊 Spreadsheet logging enabled')
+        .setText(newDisabled ? 'Spreadsheet logging disabled' : 'Spreadsheet logging enabled')
     )
     .setNavigation(CardService.newNavigation().updateCard(UI.buildSettingsTab()))
     .build();
@@ -217,24 +234,36 @@ function viewLogsUniversal(): GoogleAppsScript.Card_Service.UniversalActionRespo
     .build();
 }
 
-function toggleDebugModeUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
-  const currentDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
-  const newDebugMode = !currentDebugMode;
-  
-  PropertiesService.getUserProperties().setProperty('DEBUG_MODE', newDebugMode.toString());
-  
-  const card = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader()
-      .setTitle('Debug Mode')
-      .setSubtitle(newDebugMode ? 'Enabled' : 'Disabled'))
-    .addSection(CardService.newCardSection()
-      .addWidget(CardService.newTextParagraph()
-        .setText(newDebugMode ? '🐛 Debug mode is now enabled' : '📊 Debug mode is now disabled')))
-    .build();
-  
+function showApiKeyTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
   return CardService.newUniversalActionResponseBuilder()
-    .displayAddOnCards([card])
+    .displayAddOnCards([UI.buildApiKeyTab()])
     .build();
+}
+
+function showLogsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return CardService.newUniversalActionResponseBuilder()
+    .displayAddOnCards([UI.buildLogsTab()])
+    .build();
+}
+
+function showSettingsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return CardService.newUniversalActionResponseBuilder()
+    .displayAddOnCards([UI.buildSettingsTab()])
+    .build();
+}
+
+function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return CardService.newUniversalActionResponseBuilder()
+    .displayAddOnCards([UI.buildLiveLogView()])
+    .build();
+}
+
+function refreshLiveLog(): GoogleAppsScript.Card_Service.ActionResponse {
+  try {
+    return UI.navigateTo(UI.buildLiveLogView());
+  } catch (error) {
+    return UI.navigateTo(handleGlobalError(error));
+  }
 }
 
 function onGmailMessage(_e: any): GoogleAppsScript.Card_Service.Card {

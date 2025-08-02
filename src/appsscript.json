@@ -31,11 +31,17 @@
         "runFunction": "onHomepage"
       },
       "universalActions": [{
-        "label": "View Logs",
-        "runFunction": "viewLogsUniversal"
+        "label": "API Key",
+        "runFunction": "showApiKeyTabUniversal"
       }, {
-        "label": "Toggle Debug Mode",
-        "runFunction": "toggleDebugModeUniversal"
+        "label": "Live Log",
+        "runFunction": "showLiveLogTabUniversal"
+      }, {
+        "label": "Logs",
+        "runFunction": "showLogsTabUniversal"
+      }, {
+        "label": "Settings",
+        "runFunction": "showSettingsTabUniversal"
       }]
     },
     "gmail": {

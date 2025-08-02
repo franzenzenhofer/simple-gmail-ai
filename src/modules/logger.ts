@@ -121,6 +121,7 @@ namespace AppLogger {
       console.log(JSON.stringify(entry));
       
       if (spreadsheetConfig) {
+        console.log('Writing to spreadsheet:', spreadsheetConfig.todaySpreadsheetId);
         try {
           const sheet = SpreadsheetApp.openById(spreadsheetConfig.todaySpreadsheetId).getActiveSheet();
           sheet.appendRow([
@@ -130,7 +131,10 @@ namespace AppLogger {
             message,
             context ? JSON.stringify(entry.context) : ''
           ]);
-        } catch {}
+        } catch (spreadsheetError) {
+          // Log spreadsheet errors to console so we can debug them
+          console.error('Failed to write to spreadsheet:', String(spreadsheetError));
+        }
       }
     }
   }

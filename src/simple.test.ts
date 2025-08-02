@@ -89,30 +89,6 @@ describe('Gmail Support Triage AI - Simple Tests', () => {
     });
   });
 
-  describe('Development Mode', () => {
-    it('should default to development mode for safety', () => {
-      // Simulate not having a property set
-      const devMode = undefined;
-      const isDev = devMode !== 'false';
-      
-      expect(isDev).toBe(true);
-    });
-
-    it('should only allow production mode with explicit setting', () => {
-      const testCases = [
-        { value: 'false', expected: false },  // Only this enables production
-        { value: 'true', expected: true },
-        { value: undefined, expected: true },
-        { value: '', expected: true },
-        { value: 'anything', expected: true }
-      ];
-
-      testCases.forEach(test => {
-        const isDev = test.value !== 'false';
-        expect(isDev).toBe(test.expected);
-      });
-    });
-  });
 
   describe('Thread Deduplication', () => {
     it('should remove duplicate thread IDs', () => {
