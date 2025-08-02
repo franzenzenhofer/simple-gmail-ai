@@ -220,7 +220,14 @@ const DEPLOYMENT_TIMESTAMP = '$TIMESTAMP';
 EOF
 
     # Append the bundled content (skip any existing headers)
-    tail -n +10 dist/Code.gs >> "$TEMP_BUNDLE"
+    # Use Node.js script for robust header stripping if available
+    if command -v node &> /dev/null && [[ -f "$PROJECT_ROOT/strip-header.js" ]]; then
+        node "$PROJECT_ROOT/strip-header.js" dist/Code.gs >> "$TEMP_BUNDLE"
+    else
+        # Fallback to tail (less robust but works in most cases)
+        # Skip first 15 lines to be safe (header is usually ~10 lines)
+        tail -n +15 dist/Code.gs >> "$TEMP_BUNDLE"
+    fi
     mv "$TEMP_BUNDLE" dist/Code.gs
 fi
 
