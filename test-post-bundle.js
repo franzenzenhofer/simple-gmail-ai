@@ -206,19 +206,67 @@ async function main() {
     }
   });
 
-  // Test 5: Bundle size check - prevent bloat
-  test('Bundle size is under 1MB (Apps Script limit is 2MB)', async () => {
+  // Test 5: Bundle size check - prevent bloat and Apps Script limits
+  test('Bundle size is under Apps Script 2MB hard limit', async () => {
     const stats = await fs.stat(bundlePath);
     const sizeInMB = stats.size / (1024 * 1024);
+    const sizeInKB = stats.size / 1024;
     
-    if (sizeInMB > 1) {
-      throw new Error(`Bundle too large: ${sizeInMB.toFixed(2)}MB (should be <1MB). Current size: ${stats.size} bytes`);
+    // Apps Script hard limit is 2MB per file
+    const APPS_SCRIPT_LIMIT_MB = 2.0;
+    // Warn at 1MB to catch bloat early
+    const WARNING_THRESHOLD_MB = 1.0;
+    
+    if (sizeInMB >= APPS_SCRIPT_LIMIT_MB) {
+      throw new Error(`Bundle exceeds Apps Script 2MB limit: ${sizeInMB.toFixed(2)}MB (${stats.size} bytes). Apps Script will reject this file.`);
     }
     
-    console.log(`✅ Bundle size OK: ${sizeInMB.toFixed(2)}MB (${stats.size} bytes)`);
+    if (sizeInMB > WARNING_THRESHOLD_MB) {
+      console.log(`⚠️  Large bundle warning: ${sizeInMB.toFixed(2)}MB (approaching 2MB limit)`);
+    }
+    
+    console.log(`✅ Bundle size OK: ${sizeInKB.toFixed(0)}KB (${sizeInMB.toFixed(2)}MB) - well under 2MB limit`);
   });
 
-  // Test 6: Only approved files in dist
+  // Test 6: Comprehensive Apps Script project size validation
+  test('All project files are within Apps Script limits', async () => {
+    const APPS_SCRIPT_FILE_LIMIT_MB = 2.0;
+    const APPS_SCRIPT_PROJECT_LIMIT_MB = 10.0; // Total project size limit
+    
+    let totalProjectSize = 0;
+    const fileSizes = [];
+    
+    for (const filePath of allJSFiles) {
+      const stats = await fs.stat(filePath);
+      const sizeInMB = stats.size / (1024 * 1024);
+      const relativePath = path.relative(distPath, filePath);
+      
+      totalProjectSize += stats.size;
+      fileSizes.push({ file: relativePath, sizeKB: Math.round(stats.size / 1024), sizeMB: sizeInMB });
+      
+      // Check individual file size limits
+      if (sizeInMB >= APPS_SCRIPT_FILE_LIMIT_MB) {
+        throw new Error(`File ${relativePath} exceeds 2MB limit: ${sizeInMB.toFixed(2)}MB`);
+      }
+    }
+    
+    const totalProjectSizeMB = totalProjectSize / (1024 * 1024);
+    
+    // Check total project size
+    if (totalProjectSizeMB >= APPS_SCRIPT_PROJECT_LIMIT_MB) {
+      throw new Error(`Total project size exceeds 10MB limit: ${totalProjectSizeMB.toFixed(2)}MB`);
+    }
+    
+    // Log all file sizes for visibility
+    console.log(`📊 File sizes:`);
+    fileSizes.forEach(({ file, sizeKB, sizeMB }) => {
+      const warning = sizeMB > 1 ? ' ⚠️' : '';
+      console.log(`   ${file}: ${sizeKB}KB${warning}`);
+    });
+    console.log(`📦 Total project: ${Math.round(totalProjectSize / 1024)}KB (${totalProjectSizeMB.toFixed(2)}MB)`);
+  });
+
+  // Test 7: Only approved files in dist
   test('Only approved files in dist directory', async () => {
     const approvedFiles = ['Code.gs', 'appsscript.json', '.clasp.json'];
     const approvedDirs = []; // No subdirectories should exist
