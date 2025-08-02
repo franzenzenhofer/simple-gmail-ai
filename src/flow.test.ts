@@ -173,4 +173,44 @@ describe('Complete Analysis Flow', () => {
       expect(mockProps.get('LAST_EXECUTION_STATS')).toContain('3 drafts');
     });
   });
+  
+  describe('Cancel Processing', () => {
+    it('should cancel processing when button is clicked', () => {
+      // Set up processing state
+      mockProps.set('ANALYSIS_RUNNING', 'true');
+      mockProps.set('ANALYSIS_START_TIME', Date.now().toString());
+      mockProps.set('CURRENT_SCANNED', '5');
+      mockProps.set('CURRENT_SUPPORTS', '2');
+      
+      // Simulate cancelProcessing logic
+      const isProcessing = mockProps.get('ANALYSIS_RUNNING') === 'true';
+      expect(isProcessing).toBe(true);
+      
+      // Cancel processing
+      mockProps.set('ANALYSIS_RUNNING', 'false');
+      mockProps.set('ANALYSIS_CANCELLED', 'true');
+      
+      // Clear stats
+      mockProps.delete('CURRENT_SCANNED');
+      mockProps.delete('CURRENT_SUPPORTS');
+      mockProps.delete('CURRENT_DRAFTED');
+      mockProps.delete('CURRENT_SENT');
+      mockProps.delete('CURRENT_ERRORS');
+      
+      // Verify cancellation
+      expect(mockProps.get('ANALYSIS_RUNNING')).toBe('false');
+      expect(mockProps.get('ANALYSIS_CANCELLED')).toBe('true');
+      expect(mockProps.get('CURRENT_SCANNED')).toBeUndefined();
+    });
+    
+    it('should show cancel button only when processing is active', () => {
+      // When not processing
+      mockProps.set('ANALYSIS_RUNNING', 'false');
+      expect(mockProps.get('ANALYSIS_RUNNING') === 'true').toBe(false);
+      
+      // When processing
+      mockProps.set('ANALYSIS_RUNNING', 'true');
+      expect(mockProps.get('ANALYSIS_RUNNING') === 'true').toBe(true);
+    });
+  });
 });

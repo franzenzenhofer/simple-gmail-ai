@@ -152,7 +152,13 @@ namespace GmailService {
       }
     });
     
-    // Step 2: Batch classify all emails
+    // Step 2: Check for cancellation before batch classification
+    if (PropertiesService.getUserProperties().getProperty('ANALYSIS_CANCELLED') === 'true') {
+      AppLogger.info('🛑 Processing cancelled before classification');
+      return results;
+    }
+    
+    // Batch classify all emails
     const classifications = AI.batchClassifyEmails(apiKey, emailsToClassify, classificationPrompt);
     
     // Step 3: Process classification results and apply labels
@@ -163,6 +169,12 @@ namespace GmailService {
     const supportThreads: Array<{threadId: string, thread: GoogleAppsScript.Gmail.GmailThread, body: string, subject: string, sender: string}> = [];
     
     classifications.forEach(result => {
+      // Check for cancellation on each thread
+      if (PropertiesService.getUserProperties().getProperty('ANALYSIS_CANCELLED') === 'true') {
+        AppLogger.info('🛑 Processing cancelled during labeling');
+        return; // Stop processing remaining threads
+      }
+      
       const threadData = threadMap.get(result.id);
       if (!threadData) return;
       

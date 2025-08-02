@@ -120,7 +120,7 @@ namespace UI {
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('runAnalysis')
-          .setLoadIndicator(CardService.LoadIndicator.NONE) // No spinner - we'll show live stats immediately
+          .setLoadIndicator(CardService.LoadIndicator.SPINNER) // Show spinner for immediate feedback
       );
     
     if (!hasApiKey || isProcessing) {
@@ -457,6 +457,18 @@ namespace UI {
           .setText('📊 Full Log Details')
           .setOpenLink(CardService.newOpenLink()
             .setUrl(config.todaySpreadsheetUrl)
+          )
+      );
+    }
+    
+    // Add cancel button if processing is running
+    if (isRunning) {
+      quickActionsSection.addWidget(
+        CardService.newTextButton()
+          .setText('🛑 Cancel Processing')
+          .setBackgroundColor('#dc3545')
+          .setOnClickAction(
+            CardService.newAction().setFunctionName('cancelProcessing')
           )
       );
     }

@@ -193,6 +193,9 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     userProps.setProperty('ANALYSIS_RUNNING', 'true');
     userProps.setProperty('ANALYSIS_START_TIME', Date.now().toString());
     
+    // Clear any previous cancellation flag
+    userProps.deleteProperty('ANALYSIS_CANCELLED');
+    
     // Initialize real-time stats tracking
     userProps.setProperty('CURRENT_SCANNED', '0');
     userProps.setProperty('CURRENT_SUPPORTS', '0');
@@ -496,6 +499,45 @@ function refreshLiveLog(): GoogleAppsScript.Card_Service.ActionResponse {
     return UI.navigateTo(UI.buildLiveLogView());
   } catch (error) {
     return UI.navigateTo(handleGlobalError(error));
+  }
+}
+
+function cancelProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  try {
+    const props = PropertiesService.getUserProperties();
+    const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
+    
+    if (!isProcessing) {
+      return UI.showNotification('No processing to cancel');
+    }
+    
+    // Force stop processing
+    props.setProperty('ANALYSIS_RUNNING', 'false');
+    props.setProperty('ANALYSIS_CANCELLED', 'true');
+    
+    AppLogger.info('🛑 PROCESSING CANCELLED BY USER', {
+      executionId: AppLogger.executionId,
+      cancelledAt: new Date().toISOString()
+    });
+    
+    // Clear real-time stats
+    props.deleteProperty('CURRENT_SCANNED');
+    props.deleteProperty('CURRENT_SUPPORTS');
+    props.deleteProperty('CURRENT_DRAFTED');
+    props.deleteProperty('CURRENT_SENT');
+    props.deleteProperty('CURRENT_ERRORS');
+    
+    return CardService.newActionResponseBuilder()
+      .setNotification(
+        CardService.newNotification()
+          .setText('Processing cancelled successfully')
+      )
+      .setNavigation(CardService.newNavigation().updateCard(UI.buildLiveLogView()))
+      .build();
+      
+  } catch (err) {
+    AppLogger.error('Error cancelling processing', { error: Utils.handleError(err) });
+    return UI.showNotification('Error cancelling: ' + Utils.handleError(err));
   }
 }
 
