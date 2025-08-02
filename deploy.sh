@@ -152,7 +152,7 @@ if [ ! -f "dist/Code.gs" ]; then
     exit 1
 fi
 
-# Get file size and verify it's not empty - portable across macOS and Linux
+# Get file size and verify it's not empty - portable across all platforms
 get_file_size() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
@@ -160,6 +160,13 @@ get_file_size() {
         return
     fi
     
+    # Use portable Node.js script if available
+    if command -v node &> /dev/null && [[ -f "$PROJECT_ROOT/get-file-size.js" ]]; then
+        node "$PROJECT_ROOT/get-file-size.js" "$file" 2>/dev/null || echo "0"
+        return
+    fi
+    
+    # Fallback to platform-specific stat commands
     # Try macOS stat first, then Linux stat
     if stat -f%z "$file" 2>/dev/null; then
         return
