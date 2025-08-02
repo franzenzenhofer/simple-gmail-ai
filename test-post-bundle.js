@@ -266,7 +266,150 @@ async function main() {
     console.log(`📦 Total project: ${Math.round(totalProjectSize / 1024)}KB (${totalProjectSizeMB.toFixed(2)}MB)`);
   });
 
-  // Test 7: Only approved files in dist
+  // Test 7: Validate manifest scopes vs actual code usage
+  test('Manifest scopes match actual API usage', () => {
+    const declaredScopes = new Set(manifest.oauthScopes);
+    const requiredScopes = new Set();
+    const scopeMap = {
+      // Gmail API scopes
+      'GmailApp': 'https://www.googleapis.com/auth/gmail.modify',
+      'gmail.getInboxThreads': 'https://www.googleapis.com/auth/gmail.modify',
+      'gmail.getUnreadThreads': 'https://www.googleapis.com/auth/gmail.modify',
+      'thread.getLabels': 'https://www.googleapis.com/auth/gmail.labels',
+      'thread.addLabel': 'https://www.googleapis.com/auth/gmail.labels',
+      'message.createDraftReply': 'https://www.googleapis.com/auth/gmail.compose',
+      'message.reply': 'https://www.googleapis.com/auth/gmail.send',
+      
+      // CardService and UI
+      'CardService': 'https://www.googleapis.com/auth/gmail.addons.execute',
+      'newCardBuilder': 'https://www.googleapis.com/auth/gmail.addons.execute',
+      
+      // UrlFetchApp for external requests
+      'UrlFetchApp': 'https://www.googleapis.com/auth/script.external_request',
+      'fetch': 'https://www.googleapis.com/auth/script.external_request',
+      
+      // Note: PropertiesService and CacheService don't require OAuth scopes
+      
+      // Spreadsheet and Drive access
+      'SpreadsheetApp': 'https://www.googleapis.com/auth/spreadsheets',
+      'DriveApp': 'https://www.googleapis.com/auth/drive',
+      'createFile': 'https://www.googleapis.com/auth/drive',
+      
+      // Session info
+      'Session.getActiveUser': 'https://www.googleapis.com/auth/userinfo.email',
+      'getActiveUser': 'https://www.googleapis.com/auth/userinfo.email'
+    };
+    
+    try {
+      // Parse the bundled code with AST
+      const ast = acorn.parse(bundledCode, { 
+        ecmaVersion: 2022,
+        locations: true 
+      });
+      
+      // Walk the AST to find API usage patterns
+      function findApiUsage(node) {
+        if (node.type === 'MemberExpression') {
+          if (node.object && node.object.type === 'Identifier') {
+            const service = node.object.name;
+            const method = node.property && node.property.type === 'Identifier' ? node.property.name : '';
+            const fullCall = `${service}.${method}`;
+            
+            // Only check for Apps Script services
+            const gasServices = ['GmailApp', 'CardService', 'UrlFetchApp', 'SpreadsheetApp', 'DriveApp', 'PropertiesService', 'CacheService', 'Session'];
+            
+            if (gasServices.includes(service)) {
+              // Check for service usage
+              if (scopeMap[service]) {
+                requiredScopes.add(scopeMap[service]);
+              }
+              if (scopeMap[fullCall]) {
+                requiredScopes.add(scopeMap[fullCall]);
+              }
+              if (scopeMap[method] && method) {
+                requiredScopes.add(scopeMap[method]);
+              }
+            }
+          }
+        }
+        
+        // Check for direct service references (only Apps Script services)
+        if (node.type === 'Identifier') {
+          const gasServices = ['GmailApp', 'CardService', 'UrlFetchApp', 'SpreadsheetApp', 'DriveApp', 'PropertiesService', 'CacheService', 'Session'];
+          if (gasServices.includes(node.name) && scopeMap[node.name]) {
+            requiredScopes.add(scopeMap[node.name]);
+          }
+        }
+        
+        // Recursively check child nodes
+        for (const key in node) {
+          if (node[key] && typeof node[key] === 'object') {
+            if (Array.isArray(node[key])) {
+              node[key].forEach(child => {
+                if (child && typeof child === 'object') {
+                  findApiUsage(child);
+                }
+              });
+            } else {
+              findApiUsage(node[key]);
+            }
+          }
+        }
+      }
+      
+      findApiUsage(ast);
+      
+    } catch (parseError) {
+      // Fallback to regex-based detection if AST parsing fails
+      Object.keys(scopeMap).forEach(pattern => {
+        const regex = new RegExp(`\\b${pattern}\\b`, 'g');
+        if (regex.test(bundledCode)) {
+          requiredScopes.add(scopeMap[pattern]);
+        }
+      });
+    }
+    
+    // Check for missing scopes
+    const missingScopes = Array.from(requiredScopes).filter(scope => !declaredScopes.has(scope));
+    const unusedScopes = Array.from(declaredScopes).filter(scope => !requiredScopes.has(scope));
+    
+    // Report findings
+    console.log(`🔐 Required scopes: ${Array.from(requiredScopes).length}`);
+    console.log(`📋 Declared scopes: ${Array.from(declaredScopes).length}`);
+    
+    if (missingScopes.length > 0) {
+      throw new Error(`Missing required OAuth scopes: ${missingScopes.join(', ')}`);
+    }
+    
+    if (unusedScopes.length > 0) {
+      // Gmail add-ons often need scopes for conditional features
+      const conditionalScopes = [
+        'https://www.googleapis.com/auth/gmail.labels',
+        'https://www.googleapis.com/auth/gmail.send', 
+        'https://www.googleapis.com/auth/gmail.compose',
+        'https://www.googleapis.com/auth/userinfo.email'
+      ];
+      
+      const trulyUnused = unusedScopes.filter(scope => !conditionalScopes.includes(scope));
+      const conditionalUnused = unusedScopes.filter(scope => conditionalScopes.includes(scope));
+      
+      if (conditionalUnused.length > 0) {
+        console.log(`📝 Conditional/Mode-dependent scopes: ${conditionalUnused.length}`);
+        conditionalUnused.forEach(scope => {
+          console.log(`   - ${scope}`);
+        });
+      }
+      
+      if (trulyUnused.length > 0) {
+        console.log(`⚠️  Potentially unused scopes: ${trulyUnused.length}`);
+        trulyUnused.forEach(scope => {
+          console.log(`   - ${scope}`);
+        });
+      }
+    }
+  });
+
+  // Test 8: Only approved files in dist
   test('Only approved files in dist directory', async () => {
     const approvedFiles = ['Code.gs', 'appsscript.json', '.clasp.json'];
     const approvedDirs = []; // No subdirectories should exist
