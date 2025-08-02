@@ -16,7 +16,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "echo 'E2E tests require manual verification in Gmail - see test-integration.gs'",
-    "lint": "echo 'TypeScript compilation provides linting' && tsc --noEmit",
+    "lint": "tsc --noEmit",
     "lint:fix": "eslint src/**/*.ts --fix",
     "predeploy": "npm run lint && npm run build && npm test src/simple.test.ts && echo 'Pre-deploy checks passed'",
     "deploy": "npm run predeploy && npm version minor && ./deploy.sh && echo 'Deployment complete'",

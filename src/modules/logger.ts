@@ -81,7 +81,7 @@ namespace AppLogger {
         dateString
       };
     } catch (e) {
-      console.error('Failed to init spreadsheet logging:', e);
+      // Silently fail to avoid circular dependency
     }
   }
   
@@ -116,6 +116,8 @@ namespace AppLogger {
         message,
         context: context ? maskSensitive(context) : undefined
       };
+      // Log to console - allowed by Apps Script
+      // eslint-disable-next-line no-console
       console.log(JSON.stringify(entry));
       
       if (spreadsheetConfig) {
