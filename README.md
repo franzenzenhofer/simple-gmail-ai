@@ -1,5 +1,9 @@
 # Gmail Support Triage AI
 
+[![CI](https://github.com/franzenzenhofer/simple-gmail-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/franzenzenhofer/simple-gmail-ai/actions/workflows/ci.yml)
+[![Deploy](https://github.com/franzenzenhofer/simple-gmail-ai/actions/workflows/deploy.yml/badge.svg)](https://github.com/franzenzenhofer/simple-gmail-ai/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An intelligent Gmail add-on that automatically classifies and responds to customer support emails using Google's Gemini 2.5 Flash AI model.
 
 ## 🚀 What's New in v1.9.0
@@ -246,6 +250,21 @@ MIT License - See LICENSE file for details
 3. Write tests for new functionality
 4. Ensure all tests pass
 5. Submit a pull request
+
+## CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+- **CI Pipeline**: Runs on every push and pull request
+  - Tests on Node.js 18.x and 20.x
+  - Runs linter and all test suites
+  - Verifies bundle size
+  - Uploads test results as artifacts
+
+- **Deploy Pipeline**: Triggered by version tags (v*)
+  - Runs full pre-deployment checks
+  - Builds and deploys to Google Apps Script
+  - Creates GitHub releases automatically
 
 ## Support
 
