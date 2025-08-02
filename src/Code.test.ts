@@ -13,43 +13,67 @@ describe('Gmail Support Triage AI - Core Functions', () => {
   });
 
   describe('getFormValue', () => {
-    it('should extract string value from form inputs', () => {
-      const formInputs = {
-        testField: {
-          stringValues: ['test value']
-        }
-      };
-      
-      // Direct test of the logic
-      const obj = formInputs['testField'];
-      const result = (obj && obj.stringValues && obj.stringValues.length > 0) 
-        ? obj.stringValues[0] 
-        : '';
-      
-      expect(result).toBe('test value');
-    });
+    // Table-driven tests for form value extraction
+    interface TestCase {
+      name: string;
+      formInputs: Record<string, { stringValues?: string[] }>;
+      fieldName: string;
+      fallback?: string;
+      expected: string;
+    }
 
-    it('should return fallback when field is missing', () => {
-      const formInputs: Record<string, { stringValues?: string[] }> = {};
-      const fallback = 'default value';
-      
-      const obj = formInputs['missingField'];
-      const result = (obj && obj.stringValues && obj.stringValues.length > 0) 
-        ? obj.stringValues[0] 
-        : fallback;
-      
-      expect(result).toBe('default value');
-    });
+    const testCases: TestCase[] = [
+      {
+        name: 'should extract string value from form inputs',
+        formInputs: { testField: { stringValues: ['test value'] } },
+        fieldName: 'testField',
+        expected: 'test value'
+      },
+      {
+        name: 'should return fallback when field is missing',
+        formInputs: {},
+        fieldName: 'missingField',
+        fallback: 'default value',
+        expected: 'default value'
+      },
+      {
+        name: 'should return empty string when no fallback provided',
+        formInputs: {},
+        fieldName: 'missingField',
+        expected: ''
+      },
+      {
+        name: 'should handle empty stringValues array',
+        formInputs: { testField: { stringValues: [] } },
+        fieldName: 'testField',
+        fallback: 'fallback',
+        expected: 'fallback'
+      },
+      {
+        name: 'should handle missing stringValues property',
+        formInputs: { testField: {} },
+        fieldName: 'testField',
+        fallback: 'fallback',
+        expected: 'fallback'
+      },
+      {
+        name: 'should use first value from multiple stringValues',
+        formInputs: { testField: { stringValues: ['first', 'second', 'third'] } },
+        fieldName: 'testField',
+        expected: 'first'
+      }
+    ];
 
-    it('should return empty string when no fallback provided', () => {
-      const formInputs: Record<string, { stringValues?: string[] }> = {};
-      
-      const obj = formInputs['missingField'];
-      const result = (obj && obj.stringValues && obj.stringValues.length > 0) 
-        ? obj.stringValues[0] 
-        : '';
-      
-      expect(result).toBe('');
+    testCases.forEach(({ name, formInputs, fieldName, fallback, expected }) => {
+      it(name, () => {
+        // Direct test of the logic that getFormValue implements
+        const obj = formInputs[fieldName];
+        const result = (obj && obj.stringValues && obj.stringValues.length > 0) 
+          ? obj.stringValues[0] 
+          : (fallback || '');
+        
+        expect(result).toBe(expected);
+      });
     });
   });
 
