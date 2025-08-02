@@ -99,8 +99,8 @@ namespace GmailService {
       mode: autoReply ? 'AUTO-REPLY' : (createDrafts ? 'DRAFT' : 'LABEL-ONLY')
     });
     
-    // Step 1: Prepare emails for batch classification
-    const emailsToClassify: AI.BatchClassificationRequest[] = [];
+    // Step 1: Prepare emails for batch classification using new BatchProcessor
+    const emailsToClassify: BatchProcessor.BatchItem[] = [];
     const threadMap = new Map<string, {thread: GoogleAppsScript.Gmail.GmailThread, body: string, subject: string, sender: string}>();
     
     threads.forEach(thread => {
@@ -130,7 +130,8 @@ namespace GmailService {
         emailsToClassify.push({
           id: threadId,
           subject: subject,
-          body: body
+          body: body,
+          threadId: threadId
         });
         
         threadMap.set(threadId, {
@@ -155,8 +156,30 @@ namespace GmailService {
       return results;
     }
     
-    // Batch classify all emails
-    const classifications = AI.batchClassifyEmails(apiKey, emailsToClassify, classificationPrompt);
+    // Batch classify all emails using the new BatchProcessor
+    const savings = BatchProcessor.calculateBatchSavings(emailsToClassify.length);
+    AppLogger.info('📊 BATCH PROCESSING SAVINGS', {
+      totalEmails: emailsToClassify.length,
+      individualCalls: savings.individualCalls,
+      batchCalls: savings.batchCalls,
+      savedCalls: savings.savedCalls,
+      savePercentage: savings.savePercentage
+    });
+
+    const classifications = BatchProcessor.processAllBatches(
+      apiKey, 
+      emailsToClassify, 
+      classificationPrompt,
+      (batchResponse, batchIndex, totalBatches) => {
+        AppLogger.info('🔄 BATCH PROGRESS', {
+          batchIndex,
+          totalBatches,
+          emailsInBatch: batchResponse.results.length,
+          processingTime: batchResponse.processingTime,
+          success: batchResponse.success
+        });
+      }
+    );
     
     // Step 3: Process classification results and apply labels
     const supportLabel = getOrCreateLabel(Config.LABELS.SUPPORT);
@@ -175,7 +198,7 @@ namespace GmailService {
       const threadData = threadMap.get(result.id);
       if (!threadData) return;
       
-      const isSupport = result.classification.indexOf('support') === 0;
+      const isSupport = result.label === 'support';
       
       try {
         if (isSupport) {

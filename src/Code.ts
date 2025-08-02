@@ -10,6 +10,7 @@
 /// <reference path="modules/utils.ts" />
 /// <reference path="modules/json-validator.ts" />
 /// <reference path="modules/ai-schemas.ts" />
+/// <reference path="modules/batch-processor.ts" />
 /// <reference path="modules/ai.ts" />
 /// <reference path="modules/structured-ai.ts" />
 /// <reference path="modules/gmail.ts" />
