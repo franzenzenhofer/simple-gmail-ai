@@ -10,7 +10,12 @@ namespace AI {
     AppLogger.info('🚀 AI REQUEST [' + requestId + ']', {
       model: Config.GEMINI.MODEL,
       promptLength: prompt.length,
-      promptPreview: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : ''),
+      requestId
+    });
+    
+    // Log the actual prompt being sent
+    AppLogger.info('📤 PROMPT SENT [' + requestId + ']', {
+      prompt: prompt,
       requestId
     });
     
@@ -41,6 +46,12 @@ namespace AI {
       AppLogger.info('📨 AI RESPONSE [' + requestId + ']', {
         statusCode: responseCode,
         responseLength: responseText.length,
+        requestId
+      });
+      
+      // Log the raw response received
+      AppLogger.info('📥 RAW RESPONSE [' + requestId + ']', {
+        response: responseText,
         requestId
       });
       

@@ -47,10 +47,27 @@ namespace GmailService {
       const body = msg.getPlainBody().trim();
       if (!body) return { isSupport: false };
       
+      const subject = thread.getFirstMessageSubject();
+      const sender = msg.getFrom();
+      
+      AppLogger.info('📧 PROCESSING EMAIL', {
+        subject: subject,
+        from: sender,
+        messageLength: body.length,
+        threadId: thread.getId()
+      });
+      
       const fullPrompt = classificationPrompt + '\n' + body + '\n---------- EMAIL END ----------';
       const classification = AI.callGemini(apiKey, fullPrompt).toLowerCase();
       
       const isSupport = classification.indexOf('support') === 0;
+      
+      AppLogger.info('🎯 CLASSIFICATION RESULT', {
+        subject: subject,
+        classification: classification,
+        isSupport: isSupport,
+        threadId: thread.getId()
+      });
       
       const supportLabel = getOrCreateLabel(Config.LABELS.SUPPORT);
       const notSupportLabel = getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
@@ -61,14 +78,31 @@ namespace GmailService {
         thread.removeLabel(notSupportLabel);
         
         if (mode === 'draft' || autoReply) {
+          AppLogger.info('✍️ GENERATING REPLY', {
+            subject: subject,
+            mode: autoReply ? 'AUTO-SEND' : 'DRAFT',
+            threadId: thread.getId()
+          });
+          
           const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
           const replyBody = AI.callGemini(apiKey, replyPrompt);
           
           if (replyBody) {
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
+              AppLogger.info('📤 EMAIL SENT', {
+                subject: subject,
+                to: sender,
+                replyLength: replyBody.length,
+                threadId: thread.getId()
+              });
             } else {
               thread.createDraftReply(replyBody, { htmlBody: replyBody });
+              AppLogger.info('📝 DRAFT CREATED', {
+                subject: subject,
+                replyLength: replyBody.length,
+                threadId: thread.getId()
+              });
             }
           }
         }

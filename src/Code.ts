@@ -122,17 +122,42 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     const prompt1 = Utils.getFormValue(e, 'prompt1', Config.PROMPTS.CLASSIFICATION);
     const prompt2 = Utils.getFormValue(e, 'prompt2', Config.PROMPTS.RESPONSE);
     
-    // Save prompts
+    // Save all parameters for processing
     PropertiesService.getUserProperties().setProperty('PROMPT_1', prompt1);
     PropertiesService.getUserProperties().setProperty('PROMPT_2', prompt2);
+    PropertiesService.getUserProperties().setProperty('MODE', mode);
+    PropertiesService.getUserProperties().setProperty('AUTO_REPLY', autoReply.toString());
     
-    // Mark analysis as running and navigate to live log view
+    // Mark analysis as starting and immediately navigate to live log view
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'true');
+    AppLogger.info('🚀 ANALYSIS STARTED - Ready to process emails', {
+      mode: mode,
+      autoReply: autoReply,
+      promptsConfigured: true
+    });
     
-    // Navigate to live log view first
-    const liveLogCard = UI.buildLiveLogView();
+    // IMMEDIATELY navigate to live log view - no processing first!
+    return UI.navigateTo(UI.buildLiveLogView());
     
-    // Run analysis in background (from user's perspective)
+  } catch (err) {
+    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
+    AppLogger.error('Error starting analysis', { error: Utils.handleError(err) });
+    return UI.showNotification('Error: ' + Utils.handleError(err));
+  }
+}
+
+function doAnalysisProcessing(): GoogleAppsScript.Card_Service.ActionResponse {
+  try {
+    const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
+    if (!apiKey) {
+      throw new Error('Please configure your API key first');
+    }
+    
+    const mode = PropertiesService.getUserProperties().getProperty('MODE') || 'label';
+    const autoReply = PropertiesService.getUserProperties().getProperty('AUTO_REPLY') === 'true';
+    const prompt1 = PropertiesService.getUserProperties().getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION;
+    const prompt2 = PropertiesService.getUserProperties().getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE;
+    
     const threads = GmailService.getUnprocessedThreads();
     const stats: Types.ProcessingStats = {
       scanned: 0,
@@ -142,7 +167,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       errors: 0
     };
     
-    AppLogger.info('Starting analysis', {
+    AppLogger.info('📊 Starting analysis', {
       threadCount: threads.length,
       mode,
       autoReply
@@ -150,7 +175,7 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     
     threads.forEach((thread) => {
       stats.scanned++;
-      AppLogger.info(`Processing thread ${stats.scanned}/${threads.length}`);
+      AppLogger.info(`📧 Processing thread ${stats.scanned}/${threads.length}`);
       
       const result = GmailService.processThread(
         thread,
@@ -163,31 +188,31 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       
       if (result.error) {
         stats.errors++;
-        AppLogger.warn(`Thread ${stats.scanned} failed: ${result.error}`);
+        AppLogger.warn(`❌ Thread ${stats.scanned} failed: ${result.error}`);
       } else if (result.isSupport) {
         stats.supports++;
-        AppLogger.info(`Thread ${stats.scanned}: SUPPORT DETECTED`);
+        AppLogger.info(`✅ Thread ${stats.scanned}: SUPPORT DETECTED`);
         if (mode === 'draft') stats.drafted++;
         if (autoReply) stats.sent++;
       } else {
-        AppLogger.info(`Thread ${stats.scanned}: Not support`);
+        AppLogger.info(`ℹ️ Thread ${stats.scanned}: Not support`);
       }
     });
     
-    AppLogger.info('Analysis completed', { stats });
+    AppLogger.info('🎯 Analysis completed', { stats });
     
     // Mark analysis as complete
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
     
-    const message = `COMPLETED: ${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
+    const message = `✅ COMPLETED: ${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
     AppLogger.info(message);
     
-    return UI.navigateTo(liveLogCard);
+    return UI.navigateTo(UI.buildLiveLogView());
     
   } catch (err) {
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
-    AppLogger.error('Error in analysis', { error: Utils.handleError(err) });
-    return UI.showNotification('Error: ' + Utils.handleError(err));
+    AppLogger.error('Error in analysis processing', { error: Utils.handleError(err) });
+    return UI.navigateTo(UI.buildLiveLogView());
   }
 }
 

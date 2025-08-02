@@ -315,6 +315,18 @@ namespace UI {
         .setBottomLabel(isRunning ? 'Analysis in progress' : 'Ready for analysis')
     );
     
+    // Start Processing button if not running
+    if (!isRunning) {
+      mainSection.addWidget(
+        CardService.newTextButton()
+          .setText('Start Processing')
+          .setBackgroundColor('#34a853')
+          .setOnClickAction(
+            CardService.newAction().setFunctionName('doAnalysisProcessing')
+          )
+      );
+    }
+    
     // Recent log entries (last 10)
     const recentLogs = getRecentLogEntries(10);
     if (recentLogs.length > 0) {
@@ -324,11 +336,27 @@ namespace UI {
       );
       
       recentLogs.forEach(logEntry => {
+        const timeOnly = logEntry.timestamp.substring(11, 19); // Just time part
+        const shortExecId = logEntry.executionId.substring(0, 8);
+        
+        // Color code by log level and type
+        let iconAndColor = '';
+        if (logEntry.message.includes('🚀')) iconAndColor = '🚀';
+        else if (logEntry.message.includes('📧')) iconAndColor = '📧';
+        else if (logEntry.message.includes('📤')) iconAndColor = '📤';
+        else if (logEntry.message.includes('📥')) iconAndColor = '📥';
+        else if (logEntry.message.includes('🎯')) iconAndColor = '🎯';
+        else if (logEntry.message.includes('✍️')) iconAndColor = '✍️';
+        else if (logEntry.message.includes('📝')) iconAndColor = '📝';
+        else if (logEntry.message.includes('❌')) iconAndColor = '❌';
+        else if (logEntry.message.includes('✅')) iconAndColor = '✅';
+        else iconAndColor = logEntry.level === 'ERROR' ? '❌' : 'ℹ️';
+        
         mainSection.addWidget(
           CardService.newKeyValue()
-            .setTopLabel(logEntry.timestamp.substring(11, 19)) // Just time part
+            .setTopLabel(timeOnly + ' ' + iconAndColor)
             .setContent(logEntry.message)
-            .setBottomLabel(logEntry.level + ' | ' + logEntry.executionId.substring(0, 8))
+            .setBottomLabel(logEntry.level + ' | ' + shortExecId)
         );
       });
     }
@@ -345,9 +373,9 @@ namespace UI {
     // Links to full logs
     if (config) {
       mainSection.addWidget(
-        CardService.newDecoratedText()
-          .setText('Full Log')
-          .setBottomLabel('View complete log in spreadsheet')
+        CardService.newTextButton()
+          .setText('View Complete Log in Spreadsheet')
+          .setBackgroundColor('#1a73e8')
           .setOpenLink(CardService.newOpenLink()
             .setUrl(config.todaySpreadsheetUrl)
           )
@@ -385,12 +413,13 @@ namespace UI {
       
       const data = sheet.getRange(startRow, 1, numRows, 4).getValues();
       
-      return data.reverse().map(row => ({
+      // Return in reverse order so newest logs appear first
+      return data.map(row => ({
         timestamp: row[0] ? row[0].toString() : '',
         executionId: row[1] ? row[1].toString() : '',
         level: row[2] ? row[2].toString() : '',
         message: row[3] ? row[3].toString() : ''
-      })).filter(entry => entry.timestamp && entry.message);
+      })).filter(entry => entry.timestamp && entry.message).reverse();
       
     } catch (error) {
       AppLogger.error('Failed to get recent log entries', { error: String(error) });
