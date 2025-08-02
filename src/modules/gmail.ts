@@ -9,17 +9,40 @@ namespace GmailService {
     isSupport: boolean;
     error?: string;
   }
-  export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
-    let label = GmailApp.getUserLabelByName(name);
-    if (!label) {
-      label = GmailApp.createLabel(name);
+  
+  // Escape label names for Gmail search queries
+  function escapeLabelForSearch(label: string): string {
+    // Gmail requires quotes around labels with spaces or special characters
+    if (label.includes(' ') || label.includes('(') || label.includes(')') || label.includes('✓') || label.includes('✗')) {
+      return '"' + label + '"';
     }
     return label;
   }
   
+  export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
+    try {
+      let label = GmailApp.getUserLabelByName(name);
+      if (!label) {
+        // Try to create the label
+        label = GmailApp.createLabel(name);
+        AppLogger.info('Created new Gmail label', { labelName: name });
+      }
+      return label;
+    } catch (error) {
+      // Label might have been created by concurrent execution
+      const label = GmailApp.getUserLabelByName(name);
+      if (label) {
+        return label;
+      }
+      // Re-throw if label still doesn't exist
+      throw error;
+    }
+  }
+  
   export function getUnprocessedThreads(): GoogleAppsScript.Gmail.GmailThread[] {
-    const recentQuery = 'in:inbox -label:' + Config.LABELS.AI_PROCESSED;
-    const unreadQuery = 'in:inbox is:unread -label:' + Config.LABELS.AI_PROCESSED;
+    const escapedProcessedLabel = escapeLabelForSearch(Config.LABELS.AI_PROCESSED);
+    const recentQuery = 'in:inbox -label:' + escapedProcessedLabel;
+    const unreadQuery = 'in:inbox is:unread -label:' + escapedProcessedLabel;
     
     AppLogger.info('🔍 SEARCHING FOR UNPROCESSED EMAILS', {
       recentQuery: recentQuery,
@@ -191,9 +214,10 @@ namespace GmailService {
       supportThreads.forEach(({threadId, thread, body, subject, sender}) => {
         try {
           const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
-          const replyBody = AI.callGemini(apiKey, replyPrompt);
+          const replyResult = AI.callGemini(apiKey, replyPrompt);
           
-          if (replyBody) {
+          if (replyResult.success && replyResult.data) {
+            const replyBody = replyResult.data;
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {
@@ -263,7 +287,13 @@ namespace GmailService {
       });
       
       const fullPrompt = classificationPrompt + '\n' + body + '\n---------- EMAIL END ----------';
-      const classification = AI.callGemini(apiKey, fullPrompt).toLowerCase();
+      const classificationResult = AI.callGemini(apiKey, fullPrompt);
+      
+      if (!classificationResult.success) {
+        throw new Error(classificationResult.error);
+      }
+      
+      const classification = classificationResult.data.toLowerCase();
       
       const isSupport = classification.indexOf('support') === 0;
       
@@ -290,9 +320,10 @@ namespace GmailService {
           });
           
           const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
-          const replyBody = AI.callGemini(apiKey, replyPrompt);
+          const replyResult = AI.callGemini(apiKey, replyPrompt);
           
-          if (replyBody) {
+          if (replyResult.success && replyResult.data) {
+            const replyBody = replyResult.data;
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {

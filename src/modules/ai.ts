@@ -16,7 +16,12 @@ namespace AI {
     error?: string;
   }
   
-  export function callGemini(apiKey: string, prompt: string): string {
+  // Discriminated union for Gemini API results
+  export type GeminiResult = 
+    | { success: true; data: string; requestId: string }
+    | { success: false; error: string; statusCode?: number; requestId: string };
+  
+  export function callGemini(apiKey: string, prompt: string): GeminiResult {
     const requestId = 'ai_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     
     AppLogger.info('🚀 AI REQUEST [' + requestId + ']', {
@@ -73,18 +78,18 @@ namespace AI {
           error: responseText,
           requestId
         });
-        throw new Error('API error: ' + responseCode);
+        return { success: false, error: 'API error: ' + responseCode + ' - ' + responseText, statusCode: responseCode, requestId };
       }
       
       const data = JSON.parse(responseText) as Types.GeminiResponse;
       
       if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No response from AI');
+        return { success: false, error: 'No response from AI', requestId };
       }
       
       const candidate = data.candidates[0];
       if (!candidate?.content?.parts?.[0]?.text) {
-        throw new Error('Invalid response structure from AI');
+        return { success: false, error: 'Invalid response structure from AI', requestId };
       }
       const result = candidate.content.parts[0].text.trim();
       
@@ -94,10 +99,20 @@ namespace AI {
         classification: result.toLowerCase().indexOf('support') === 0 ? 'SUPPORT' : 'NOT_SUPPORT'
       });
       
-      return result;
+      return { success: true, data: result, requestId };
     } catch (error) {
       AppLogger.error('Failed to call AI', { error: String(error), requestId });
-      throw error;
+      return { success: false, error: String(error), requestId };
+    }
+  }
+  
+  // Helper function for backward compatibility
+  export function callGeminiThrows(apiKey: string, prompt: string): string {
+    const result = callGemini(apiKey, prompt);
+    if (result.success) {
+      return result.data;
+    } else {
+      throw new Error(result.error);
     }
   }
   
@@ -143,31 +158,47 @@ namespace AI {
       
       batchPrompt += 'Response format: [{"id": "<email_id>", "classification": "support" or "not"}]';
       
+      const response = callGemini(apiKey, batchPrompt);
+      
+      if (!response.success) {
+        AppLogger.error('❌ BATCH API ERROR', {
+          batchId,
+          error: response.error,
+          statusCode: response.statusCode
+        });
+        // Mark all emails in this batch as errors
+        batch.forEach(email => {
+          results.push({
+            id: email.id,
+            classification: 'not',
+            error: response.error
+          });
+        });
+        continue;
+      }
+      
+      // Parse the batch response
+      let batchResults: Array<{id: string, classification: string}>;
       try {
-        const response = callGemini(apiKey, batchPrompt);
-        
-        // Parse the batch response
-        let batchResults: Array<{id: string, classification: string}>;
-        try {
-          // Handle response that might have markdown code blocks
-          const cleanResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          batchResults = JSON.parse(cleanResponse);
-        } catch (parseError) {
-          AppLogger.error('❌ BATCH PARSE ERROR', {
-            batchId,
-            response,
-            error: String(parseError)
+        // Handle response that might have markdown code blocks
+        const cleanResponse = response.data.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        batchResults = JSON.parse(cleanResponse);
+      } catch (parseError) {
+        AppLogger.error('❌ BATCH PARSE ERROR', {
+          batchId,
+          response: response.data,
+          error: String(parseError)
+        });
+        // Fallback: mark all emails in batch as errors
+        batch.forEach(email => {
+          results.push({
+            id: email.id,
+            classification: 'not',
+            error: 'Failed to parse batch response'
           });
-          // Fallback: mark all emails in batch as errors
-          batch.forEach(email => {
-            results.push({
-              id: email.id,
-              classification: 'not',
-              error: 'Failed to parse batch response'
-            });
-          });
-          continue;
-        }
+        });
+        continue;
+      }
         
         // Map results back to email IDs
         const resultMap = new Map(batchResults.map(r => [r.id, r.classification]));
@@ -187,20 +218,6 @@ namespace AI {
           });
         });
         
-      } catch (error) {
-        AppLogger.error('❌ BATCH API ERROR', {
-          batchId,
-          error: String(error)
-        });
-        // Mark all emails in this batch as errors
-        batch.forEach(email => {
-          results.push({
-            id: email.id,
-            classification: 'not',
-            error: String(error)
-          });
-        });
-      }
       
       // Add a small delay between batches to avoid rate limiting
       if (i + batchSize < emails.length) {

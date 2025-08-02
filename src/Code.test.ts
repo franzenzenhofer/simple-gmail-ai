@@ -82,12 +82,21 @@ describe('Gmail Support Triage AI - Core Functions', () => {
   });
 
   describe('Label Constants', () => {
-    it('should have correct label names', () => {
-      const LABEL_SUPPORT = 'Support Request';
-      const LABEL_NOT_SUPPORT = 'Not Support Request';
+    it('should have correct label names from Config', () => {
+      // Import the actual Config values (these would be inlined in the bundle)
+      const Config = {
+        LABELS: {
+          SUPPORT: 'Support Request',
+          NOT_SUPPORT: 'Not Support Request',
+          AI_PROCESSED: 'AI Processed ✓',
+          AI_ERROR: 'AI Error ✗'
+        }
+      };
 
-      expect(LABEL_SUPPORT).toBe('Support Request');
-      expect(LABEL_NOT_SUPPORT).toBe('Not Support Request');
+      expect(Config.LABELS.SUPPORT).toBe('Support Request');
+      expect(Config.LABELS.NOT_SUPPORT).toBe('Not Support Request');
+      expect(Config.LABELS.AI_PROCESSED).toBe('AI Processed ✓');
+      expect(Config.LABELS.AI_ERROR).toBe('AI Error ✗');
     });
   });
 

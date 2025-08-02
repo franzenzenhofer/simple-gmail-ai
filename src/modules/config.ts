@@ -5,10 +5,10 @@
 
 namespace Config {
   export const LABELS = {
-    SUPPORT: 'Support',
-    NOT_SUPPORT: 'undefined', 
-    AI_PROCESSED: 'ai✓',
-    AI_ERROR: 'aiX'
+    SUPPORT: 'Support Request',
+    NOT_SUPPORT: 'Not Support Request', 
+    AI_PROCESSED: 'AI Processed ✓',
+    AI_ERROR: 'AI Error ✗'
   };
   
   export const VERSION = '__VERSION__';
