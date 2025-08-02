@@ -172,46 +172,38 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       autoReply
     });
     
-    threads.forEach((thread) => {
+    // Use batch processing instead of individual thread processing
+    const results = GmailService.processThreads(
+      threads,
+      apiKey,
+      createDrafts,
+      autoReply,
+      prompt1,
+      prompt2
+    );
+    
+    // Process results and update stats
+    results.forEach((result) => {
       stats.scanned++;
       
-      // Update real-time stats
+      if (result.error) {
+        stats.errors++;
+      } else if (result.isSupport) {
+        stats.supports++;
+        if (createDrafts) {
+          stats.drafted++;
+        }
+        if (autoReply) {
+          stats.sent++;
+        }
+      }
+      
+      // Update real-time stats after each thread is processed
       properties.setProperty('CURRENT_SCANNED', stats.scanned.toString());
       properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
       properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
       properties.setProperty('CURRENT_SENT', stats.sent.toString());
       properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
-      
-      AppLogger.info(`📧 Processing thread ${stats.scanned}/${threads.length}`);
-      
-      const result = GmailService.processThread(
-        thread,
-        apiKey,
-        createDrafts,
-        autoReply,
-        prompt1,
-        prompt2
-      );
-      
-      if (result.error) {
-        stats.errors++;
-        properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
-        AppLogger.warn(`❌ Thread ${stats.scanned} failed: ${result.error}`);
-      } else if (result.isSupport) {
-        stats.supports++;
-        properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
-        AppLogger.info(`✅ Thread ${stats.scanned}: SUPPORT DETECTED`);
-        if (createDrafts) {
-          stats.drafted++;
-          properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
-        }
-        if (autoReply) {
-          stats.sent++;
-          properties.setProperty('CURRENT_SENT', stats.sent.toString());
-        }
-      } else {
-        AppLogger.info(`ℹ️ Thread ${stats.scanned}: Not support`);
-      }
     });
     
     AppLogger.info('🎯 Analysis completed', { stats });

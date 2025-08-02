@@ -4,6 +4,11 @@
  */
 
 namespace GmailService {
+  export interface ProcessingResult {
+    threadId: string;
+    isSupport: boolean;
+    error?: string;
+  }
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
     let label = GmailApp.getUserLabelByName(name);
     if (!label) {
@@ -50,6 +55,186 @@ namespace GmailService {
     return threads;
   }
   
+  export function processThreads(
+    threads: GoogleAppsScript.Gmail.GmailThread[],
+    apiKey: string,
+    createDrafts: boolean,
+    autoReply: boolean,
+    classificationPrompt: string,
+    responsePrompt: string
+  ): Map<string, ProcessingResult> {
+    const results = new Map<string, ProcessingResult>();
+    
+    if (threads.length === 0) return results;
+    
+    AppLogger.info('📦 BATCH PROCESSING START', {
+      threadCount: threads.length,
+      mode: autoReply ? 'AUTO-REPLY' : (createDrafts ? 'DRAFT' : 'LABEL-ONLY')
+    });
+    
+    // Step 1: Prepare emails for batch classification
+    const emailsToClassify: AI.BatchClassificationRequest[] = [];
+    const threadMap = new Map<string, {thread: GoogleAppsScript.Gmail.GmailThread, body: string, subject: string, sender: string}>();
+    
+    threads.forEach(thread => {
+      try {
+        const messages = thread.getMessages();
+        if (messages.length === 0) {
+          results.set(thread.getId(), { threadId: thread.getId(), isSupport: false });
+          return;
+        }
+        
+        const msg = messages[messages.length - 1];
+        if (!msg) {
+          results.set(thread.getId(), { threadId: thread.getId(), isSupport: false });
+          return;
+        }
+        
+        const body = msg.getPlainBody().trim();
+        if (!body) {
+          results.set(thread.getId(), { threadId: thread.getId(), isSupport: false });
+          return;
+        }
+        
+        const subject = thread.getFirstMessageSubject();
+        const sender = msg.getFrom();
+        const threadId = thread.getId();
+        
+        emailsToClassify.push({
+          id: threadId,
+          subject: subject,
+          body: body
+        });
+        
+        threadMap.set(threadId, {
+          thread: thread,
+          body: body,
+          subject: subject,
+          sender: sender
+        });
+      } catch (error) {
+        AppLogger.error('Failed to prepare thread for classification', {
+          threadId: thread.getId(),
+          error: String(error)
+        });
+        results.set(thread.getId(), {
+          threadId: thread.getId(),
+          isSupport: false,
+          error: String(error)
+        });
+      }
+    });
+    
+    // Step 2: Batch classify all emails
+    const classifications = AI.batchClassifyEmails(apiKey, emailsToClassify, classificationPrompt);
+    
+    // Step 3: Process classification results and apply labels
+    const supportLabel = getOrCreateLabel(Config.LABELS.SUPPORT);
+    const notSupportLabel = getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
+    const processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
+    
+    const supportThreads: Array<{threadId: string, thread: GoogleAppsScript.Gmail.GmailThread, body: string, subject: string, sender: string}> = [];
+    
+    classifications.forEach(result => {
+      const threadData = threadMap.get(result.id);
+      if (!threadData) return;
+      
+      const isSupport = result.classification.indexOf('support') === 0;
+      
+      try {
+        if (isSupport) {
+          threadData.thread.addLabel(supportLabel);
+          threadData.thread.removeLabel(notSupportLabel);
+          
+          if (createDrafts || autoReply) {
+            supportThreads.push({
+              threadId: result.id,
+              thread: threadData.thread,
+              body: threadData.body,
+              subject: threadData.subject,
+              sender: threadData.sender
+            });
+          }
+        } else {
+          threadData.thread.addLabel(notSupportLabel);
+          threadData.thread.removeLabel(supportLabel);
+        }
+        
+        threadData.thread.addLabel(processedLabel);
+        
+        results.set(result.id, {
+          threadId: result.id,
+          isSupport: isSupport,
+          error: result.error
+        });
+        
+      } catch (error) {
+        AppLogger.error('Failed to apply labels', {
+          threadId: result.id,
+          error: String(error)
+        });
+        results.set(result.id, {
+          threadId: result.id,
+          isSupport: isSupport,
+          error: String(error)
+        });
+      }
+    });
+    
+    // Step 4: Generate replies for support emails (individually, as they need custom responses)
+    if (supportThreads.length > 0 && (createDrafts || autoReply)) {
+      AppLogger.info('✍️ GENERATING REPLIES', {
+        supportCount: supportThreads.length,
+        mode: autoReply ? 'AUTO-SEND' : 'DRAFT'
+      });
+      
+      supportThreads.forEach(({threadId, thread, body, subject, sender}) => {
+        try {
+          const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
+          const replyBody = AI.callGemini(apiKey, replyPrompt);
+          
+          if (replyBody) {
+            if (autoReply) {
+              thread.reply(replyBody, { htmlBody: replyBody });
+              AppLogger.info('📤 EMAIL SENT', {
+                subject: subject,
+                to: sender,
+                replyLength: replyBody.length,
+                threadId: threadId
+              });
+            } else {
+              thread.createDraftReply(replyBody, { htmlBody: replyBody });
+              AppLogger.info('✍️ DRAFT CREATED', {
+                subject: subject,
+                draftLength: replyBody.length,
+                threadId: threadId
+              });
+            }
+          }
+        } catch (error) {
+          AppLogger.error('Failed to create reply', {
+            threadId: threadId,
+            error: String(error)
+          });
+          // Update the result with the error
+          const existingResult = results.get(threadId);
+          if (existingResult) {
+            existingResult.error = String(error);
+          }
+        }
+      });
+    }
+    
+    AppLogger.info('✅ BATCH PROCESSING COMPLETE', {
+      totalThreads: threads.length,
+      supportCount: Array.from(results.values()).filter(r => r.isSupport).length,
+      errorCount: Array.from(results.values()).filter(r => r.error).length
+    });
+    
+    return results;
+  }
+  
+  // Keep the old single-thread function for backward compatibility
   export function processThread(
     thread: GoogleAppsScript.Gmail.GmailThread,
     apiKey: string,
