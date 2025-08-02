@@ -11,8 +11,7 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('Gmail AI Support Triage')
-          .setSubtitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
+          .setTitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
       );
     
     if (!hasApiKey) {
