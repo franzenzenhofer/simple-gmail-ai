@@ -91,6 +91,51 @@ namespace Utils {
   }
 
   /**
+   * Mask sensitive API keys in strings for safe logging
+   * Supports multiple API key formats:
+   * - Gemini: AIza... (39 chars)
+   * - OpenAI: sk-... 
+   * - Anthropic: sk-ant-...
+   * - Generic: xxx-xxx-xxx patterns
+   */
+  export function maskApiKeys(text: string): string {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Gemini API keys: AIza followed by 35 chars
+    text = text.replace(/AIza[0-9A-Za-z\-_]{35}/g, (match) => {
+      return match.substring(0, 8) + '...' + match.substring(match.length - 4);
+    });
+    
+    // OpenAI API keys: sk- followed by alphanumeric
+    text = text.replace(/sk-[a-zA-Z0-9]{48,}/g, (match) => {
+      return 'sk-....' + match.substring(match.length - 4);
+    });
+    
+    // Anthropic API keys: sk-ant- followed by alphanumeric
+    text = text.replace(/sk-ant-[a-zA-Z0-9]{40,}/g, (match) => {
+      return 'sk-ant-....' + match.substring(match.length - 4);
+    });
+    
+    // Generic API key patterns (handles various formats)
+    // Matches: key=xxx, apikey=xxx, api_key=xxx, etc.
+    text = text.replace(/([aA][pP][iI][-_]?[kK][eE][yY]\s*[=:]\s*)([a-zA-Z0-9\-_]{20,})/g, (_match, prefix, key) => {
+      return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4);
+    });
+    
+    // URL parameter API keys: ?key=xxx&, &key=xxx&, &key=xxx (end of string)
+    text = text.replace(/([?&]key=)([a-zA-Z0-9\-_]{20,})(&|$)/g, (_match, prefix, key, suffix) => {
+      return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4) + suffix;
+    });
+    
+    // Bearer tokens
+    text = text.replace(/(Bearer\s+)([a-zA-Z0-9\-_.]{30,})/g, (_match, prefix, token) => {
+      return prefix + token.substring(0, 4) + '...' + token.substring(token.length - 4);
+    });
+    
+    return text;
+  }
+
+  /**
    * Generate a simple hash for draft tracking
    * Uses a basic hash function suitable for detecting duplicate content
    */

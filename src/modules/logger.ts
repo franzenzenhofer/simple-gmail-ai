@@ -120,34 +120,40 @@ namespace AppLogger {
   
   function maskSensitive(data: any): any {
     if (typeof data === 'string') {
-      // Comprehensive API key patterns
-      let masked = data;
+      // Inline API key masking to avoid circular dependency
+      let text = data;
       
-      // Google API keys (AIza...)
-      masked = masked.replace(/AIza[0-9A-Za-z\-_]{35}/g, 'AIza***MASKED***');
+      // Gemini API keys: AIza followed by 35 chars
+      text = text.replace(/AIza[0-9A-Za-z\-_]{35}/g, (match) => {
+        return match.substring(0, 8) + '...' + match.substring(match.length - 4);
+      });
       
-      // Generic API key patterns (32+ char alphanumeric)
-      masked = masked.replace(/\b[A-Za-z0-9]{32,}\b/g, (match) => {
-        // Preserve first 4 chars for debugging
-        return match.substring(0, 4) + '***MASKED***';
+      // OpenAI API keys: sk- followed by alphanumeric
+      text = text.replace(/sk-[a-zA-Z0-9]{48,}/g, (match) => {
+        return 'sk-....' + match.substring(match.length - 4);
+      });
+      
+      // Anthropic API keys: sk-ant- followed by alphanumeric
+      text = text.replace(/sk-ant-[a-zA-Z0-9]{40,}/g, (match) => {
+        return 'sk-ant-....' + match.substring(match.length - 4);
+      });
+      
+      // Generic API key patterns
+      text = text.replace(/([aA][pP][iI][-_]?[kK][eE][yY]\s*[=:]\s*)([a-zA-Z0-9\-_]{20,})/g, (_match, prefix, key) => {
+        return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4);
+      });
+      
+      // URL parameter API keys
+      text = text.replace(/([?&]key=)([a-zA-Z0-9\-_]{20,})(&|$)/g, (_match, prefix, key, suffix) => {
+        return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4) + suffix;
       });
       
       // Bearer tokens
-      masked = masked.replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer ***MASKED***');
+      text = text.replace(/(Bearer\s+)([a-zA-Z0-9\-_.]{30,})/g, (_match, prefix, token) => {
+        return prefix + token.substring(0, 4) + '...' + token.substring(token.length - 4);
+      });
       
-      // Basic auth credentials
-      masked = masked.replace(/Basic\s+[A-Za-z0-9+/]+=*/gi, 'Basic ***MASKED***');
-      
-      // JWT tokens (xxx.yyy.zzz format)
-      masked = masked.replace(/\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, 'JWT***MASKED***');
-      
-      // OAuth tokens
-      masked = masked.replace(/oauth[_-]?token[\s=:]+["']?([A-Za-z0-9._~+/-]+)["']?/gi, 'oauth_token=***MASKED***');
-      
-      // URLs with embedded credentials
-      masked = masked.replace(/(https?:\/\/)([^:]+):([^@]+)@/gi, '$1***:***@');
-      
-      return masked;
+      return text;
     }
     if (typeof data === 'object' && data !== null) {
       const masked: any = Array.isArray(data) ? [] : {};
@@ -178,7 +184,7 @@ namespace AppLogger {
         timestamp: new Date().toISOString(),
         executionId,
         level: LogLevel[level],
-        message,
+        message: maskSensitive(message),
         context: context ? maskSensitive(context) : undefined
       };
       
