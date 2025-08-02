@@ -167,6 +167,14 @@ function doAnalysisProcessing(): GoogleAppsScript.Card_Service.ActionResponse {
       errors: 0
     };
     
+    // Initialize real-time stats tracking
+    const properties = PropertiesService.getUserProperties();
+    properties.setProperty('CURRENT_SCANNED', '0');
+    properties.setProperty('CURRENT_SUPPORTS', '0');
+    properties.setProperty('CURRENT_DRAFTED', '0');
+    properties.setProperty('CURRENT_SENT', '0');
+    properties.setProperty('CURRENT_ERRORS', '0');
+    
     AppLogger.info('📊 Starting analysis', {
       threadCount: threads.length,
       mode,
@@ -175,6 +183,14 @@ function doAnalysisProcessing(): GoogleAppsScript.Card_Service.ActionResponse {
     
     threads.forEach((thread) => {
       stats.scanned++;
+      
+      // Update real-time stats
+      properties.setProperty('CURRENT_SCANNED', stats.scanned.toString());
+      properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
+      properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
+      properties.setProperty('CURRENT_SENT', stats.sent.toString());
+      properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
+      
       AppLogger.info(`📧 Processing thread ${stats.scanned}/${threads.length}`);
       
       const result = GmailService.processThread(
@@ -188,12 +204,20 @@ function doAnalysisProcessing(): GoogleAppsScript.Card_Service.ActionResponse {
       
       if (result.error) {
         stats.errors++;
+        properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
         AppLogger.warn(`❌ Thread ${stats.scanned} failed: ${result.error}`);
       } else if (result.isSupport) {
         stats.supports++;
+        properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
         AppLogger.info(`✅ Thread ${stats.scanned}: SUPPORT DETECTED`);
-        if (mode === 'draft') stats.drafted++;
-        if (autoReply) stats.sent++;
+        if (mode === 'draft') {
+          stats.drafted++;
+          properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
+        }
+        if (autoReply) {
+          stats.sent++;
+          properties.setProperty('CURRENT_SENT', stats.sent.toString());
+        }
       } else {
         AppLogger.info(`ℹ️ Thread ${stats.scanned}: Not support`);
       }

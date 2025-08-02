@@ -314,34 +314,45 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('Live Analysis Log')
-          .setSubtitle('Real-time processing updates')
+          .setTitle('🔴 LIVE ANALYSIS')
+          .setSubtitle('Real-time Email Processing')
       );
     
-    const mainSection = CardService.newCardSection();
-    
-    // Current execution info
-    mainSection.addWidget(
-      CardService.newKeyValue()
-        .setTopLabel('Current Session')
-        .setContent(AppLogger.executionId)
-        .setBottomLabel('Execution ID')
-    );
-    
-    // Analysis status
+    // === REAL-TIME STATS SECTION ===
+    const statsSection = CardService.newCardSection();
     const isRunning = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
-    mainSection.addWidget(
-      CardService.newKeyValue()
-        .setTopLabel('Status')
-        .setContent(isRunning ? 'ANALYZING...' : 'READY')
-        .setBottomLabel(isRunning ? 'Analysis in progress' : 'Ready for analysis')
+    
+    // Get current stats from properties
+    const currentStats = getCurrentProcessingStats();
+    
+    // Stats display with live counters
+    statsSection.addWidget(
+      CardService.newDecoratedText()
+        .setText('<b>' + (isRunning ? '⏳ PROCESSING' : '✅ READY') + '</b>')
+        .setBottomLabel('Status: ' + (isRunning ? 'Analysis in progress...' : 'Ready for new analysis'))
     );
     
-    // Start Processing button if not running
+    if (currentStats.scanned > 0 || isRunning) {
+      statsSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>📊 LIVE STATS:</b> ' + 
+            '📧 ' + currentStats.scanned + ' processed | ' +
+            '🎯 ' + currentStats.supports + ' support | ' +
+            '📝 ' + currentStats.drafted + ' drafts | ' +
+            '📤 ' + currentStats.sent + ' sent' +
+            (currentStats.errors > 0 ? ' | ❌ ' + currentStats.errors + ' errors' : ''))
+      );
+    }
+    
+    card.addSection(statsSection);
+    
+    // === LIVE ACTIVITY FEED ===
+    const activitySection = CardService.newCardSection();
+    
     if (!isRunning) {
-      mainSection.addWidget(
+      activitySection.addWidget(
         CardService.newTextButton()
-          .setText('Start Processing')
+          .setText('🚀 START PROCESSING')
           .setBackgroundColor('#34a853')
           .setOnClickAction(
             CardService.newAction().setFunctionName('doAnalysisProcessing')
@@ -349,78 +360,159 @@ namespace UI {
       );
     }
     
-    // Recent log entries (last 10)
-    const recentLogs = getRecentLogEntries(10);
-    if (recentLogs.length > 0) {
-      mainSection.addWidget(
+    // Get filtered, relevant log entries - current execution if running, otherwise last execution
+    const relevantLogs = isRunning ? 
+      getCurrentExecutionLogs(15) : 
+      getLastExecutionLogs(15);
+    
+    if (relevantLogs.length > 0) {
+      activitySection.addWidget(
         CardService.newTextParagraph()
-          .setText('<b>Recent Activity:</b>')
+          .setText('<b>📋 ACTIVITY FEED:</b>')
       );
       
-      recentLogs.forEach(logEntry => {
-        const timeOnly = logEntry.timestamp.substring(11, 19); // Just time part
-        const shortExecId = logEntry.executionId.substring(0, 8);
+      relevantLogs.forEach((logEntry) => {
+        const timeOnly = logEntry.timestamp.substring(11, 19);
         
-        // Color code by log level and type
-        let iconAndColor = '';
-        if (logEntry.message.includes('🚀')) iconAndColor = '🚀';
-        else if (logEntry.message.includes('📧')) iconAndColor = '📧';
-        else if (logEntry.message.includes('📤')) iconAndColor = '📤';
-        else if (logEntry.message.includes('📥')) iconAndColor = '📥';
-        else if (logEntry.message.includes('🎯')) iconAndColor = '🎯';
-        else if (logEntry.message.includes('✍️')) iconAndColor = '✍️';
-        else if (logEntry.message.includes('📝')) iconAndColor = '📝';
-        else if (logEntry.message.includes('❌')) iconAndColor = '❌';
-        else if (logEntry.message.includes('✅')) iconAndColor = '✅';
-        else iconAndColor = logEntry.level === 'ERROR' ? '❌' : 'ℹ️';
+        // Enhanced message formatting
+        let displayMessage = logEntry.message;
+        let icon = '•';
+        let importance = 'normal';
         
-        mainSection.addWidget(
-          CardService.newKeyValue()
-            .setTopLabel(timeOnly + ' ' + iconAndColor)
-            .setContent(logEntry.message)
-            .setBottomLabel(logEntry.level + ' | ' + shortExecId)
-        );
+        // Categorize and format messages
+        if (logEntry.message.includes('📧 PROCESSING EMAIL')) {
+          icon = '📧';
+          importance = 'high';
+          displayMessage = logEntry.message.replace('📧 PROCESSING EMAIL', 'Processing email');
+        } else if (logEntry.message.includes('📤 PROMPT SENT')) {
+          icon = '📤';
+          displayMessage = 'AI prompt sent → ' + logEntry.message.split('PROMPT SENT')[1];
+        } else if (logEntry.message.includes('📥 RAW RESPONSE')) {
+          icon = '📥';
+          displayMessage = 'AI response received ← ' + (logEntry.message.length > 80 ? 
+            logEntry.message.substring(0, 80) + '...' : logEntry.message);
+        } else if (logEntry.message.includes('🎯 EMAIL CLASSIFIED')) {
+          icon = '🎯';
+          importance = 'high';
+          displayMessage = logEntry.message.replace('🎯 EMAIL CLASSIFIED', 'Classified as');
+        } else if (logEntry.message.includes('✍️ DRAFT CREATED')) {
+          icon = '✍️';
+          importance = 'high';
+          displayMessage = logEntry.message.replace('✍️ DRAFT CREATED', 'Draft reply created');
+        } else if (logEntry.message.includes('📤 EMAIL SENT')) {
+          icon = '📤';
+          importance = 'high';
+          displayMessage = logEntry.message.replace('📤 EMAIL SENT', 'Reply sent');
+        } else if (logEntry.message.includes('✅ COMPLETED')) {
+          icon = '🏁';
+          importance = 'high';
+          displayMessage = logEntry.message.replace('✅ COMPLETED', 'Analysis completed');
+        }
+        
+        // Create the activity entry
+        const widget = CardService.newKeyValue()
+          .setTopLabel(timeOnly + ' ' + icon)
+          .setContent(displayMessage);
+        
+        if (importance === 'high') {
+          widget.setBottomLabel('⭐ ' + logEntry.level);
+        } else {
+          widget.setBottomLabel(logEntry.level);
+        }
+        
+        activitySection.addWidget(widget);
       });
+    } else {
+      activitySection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<i>No recent activity. Start processing to see live updates.</i>')
+      );
     }
     
-    // Refresh button
-    mainSection.addWidget(
+    // Auto-refresh button with different text based on status
+    activitySection.addWidget(
       CardService.newTextButton()
-        .setText('Refresh')
+        .setText(isRunning ? '🔄 REFRESH (Auto)' : '🔄 Refresh')
         .setOnClickAction(
           CardService.newAction().setFunctionName('refreshLiveLog')
         )
     );
     
-    // Links to full logs
+    card.addSection(activitySection);
+    
+    // === QUICK ACTIONS ===
+    const quickActionsSection = CardService.newCardSection();
+    
     if (config) {
-      mainSection.addWidget(
+      quickActionsSection.addWidget(
         CardService.newTextButton()
-          .setText('View Complete Log in Spreadsheet')
-          .setBackgroundColor('#1a73e8')
+          .setText('📊 Full Log Details')
           .setOpenLink(CardService.newOpenLink()
             .setUrl(config.todaySpreadsheetUrl)
           )
       );
     }
     
-    card.addSection(mainSection);
-    
-    // Back button
-    const footerSection = CardService.newCardSection();
-    footerSection.addWidget(
+    quickActionsSection.addWidget(
       CardService.newTextButton()
-        .setText('Back')
+        .setText('← Back to Main')
         .setOnClickAction(
           CardService.newAction().setFunctionName('backToMain')
         )
     );
-    card.addSection(footerSection);
+    
+    card.addSection(quickActionsSection);
     
     return card.build();
   }
 
-  function getRecentLogEntries(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
+  function getCurrentProcessingStats(): {scanned: number, supports: number, drafted: number, sent: number, errors: number} {
+    try {
+      const scanned = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SCANNED') || '0');
+      const supports = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SUPPORTS') || '0');
+      const drafted = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_DRAFTED') || '0');
+      const sent = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SENT') || '0');
+      const errors = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_ERRORS') || '0');
+      
+      return { scanned, supports, drafted, sent, errors };
+    } catch (error) {
+      return { scanned: 0, supports: 0, drafted: 0, sent: 0, errors: 0 };
+    }
+  }
+
+  function getCurrentExecutionLogs(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
+    try {
+      const currentExecutionId = AppLogger.executionId;
+      const config = AppLogger.getSpreadsheetConfig();
+      if (!config) return [];
+      
+      const sheet = SpreadsheetApp.openById(config.todaySpreadsheetId).getActiveSheet();
+      const lastRow = sheet.getLastRow();
+      
+      if (lastRow <= 1) return []; // Only headers
+      
+      const startRow = Math.max(2, lastRow - (limit * 5) + 1); // Get more to filter
+      const numRows = lastRow - startRow + 1;
+      
+      const data = sheet.getRange(startRow, 1, numRows, 4).getValues();
+      
+      // Filter for current execution only and reverse order (newest first)
+      const allEntries = data.map(row => ({
+        timestamp: row[0] ? row[0].toString() : '',
+        executionId: row[1] ? row[1].toString() : '',
+        level: row[2] ? row[2].toString() : '',
+        message: row[3] ? row[3].toString() : ''
+      })).filter(entry => entry.timestamp && entry.message && entry.executionId === currentExecutionId).reverse();
+      
+      return allEntries.slice(0, limit);
+      
+    } catch (error) {
+      AppLogger.error('Failed to get current execution logs', { error: String(error) });
+      return [];
+    }
+  }
+
+  function getLastExecutionLogs(limit: number): Array<{timestamp: string, level: string, message: string, executionId: string}> {
     try {
       const config = AppLogger.getSpreadsheetConfig();
       if (!config) return [];
@@ -430,22 +522,39 @@ namespace UI {
       
       if (lastRow <= 1) return []; // Only headers
       
-      const startRow = Math.max(2, lastRow - limit + 1);
+      const startRow = Math.max(2, lastRow - (limit * 10) + 1); // Get more to find last execution
       const numRows = lastRow - startRow + 1;
       
       const data = sheet.getRange(startRow, 1, numRows, 4).getValues();
       
-      // Return in reverse order so newest logs appear first
-      return data.map(row => ({
+      // Find the most recent execution that has analysis logs
+      const allEntries = data.map(row => ({
         timestamp: row[0] ? row[0].toString() : '',
         executionId: row[1] ? row[1].toString() : '',
         level: row[2] ? row[2].toString() : '',
         message: row[3] ? row[3].toString() : ''
       })).filter(entry => entry.timestamp && entry.message).reverse();
       
+      // Find the last execution with analysis activity
+      let lastAnalysisExecutionId = '';
+      for (const entry of allEntries) {
+        if (entry.message.includes('🚀 ANALYSIS STARTED') || 
+            entry.message.includes('📧 PROCESSING EMAIL') ||
+            entry.message.includes('✅ COMPLETED')) {
+          lastAnalysisExecutionId = entry.executionId;
+          break;
+        }
+      }
+      
+      if (!lastAnalysisExecutionId) return [];
+      
+      // Return logs from that execution only
+      return allEntries.filter(entry => entry.executionId === lastAnalysisExecutionId).slice(0, limit);
+      
     } catch (error) {
-      AppLogger.error('Failed to get recent log entries', { error: String(error) });
+      AppLogger.error('Failed to get last execution logs', { error: String(error) });
       return [];
     }
   }
+
 }
