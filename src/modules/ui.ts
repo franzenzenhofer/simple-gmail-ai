@@ -589,7 +589,7 @@ namespace UI {
       return entries.slice(0, limit);
       
     } catch (error) {
-      console.error('Failed to get current execution logs:', String(error));
+      Utils.logAndHandleError(error, 'Current execution logs retrieval');
       return [];
     }
   }
@@ -632,7 +632,7 @@ namespace UI {
       return entries.slice(0, limit);
       
     } catch (error) {
-      console.error('Failed to get last execution logs:', String(error));
+      Utils.logAndHandleError(error, 'Last execution logs retrieval');
       return [];
     }
   }

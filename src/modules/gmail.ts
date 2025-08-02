@@ -140,14 +140,11 @@ namespace GmailService {
           sender: sender
         });
       } catch (error) {
-        AppLogger.error('Failed to prepare thread for classification', {
-          threadId: thread.getId(),
-          error: String(error)
-        });
+        const errorMessage = Utils.logAndHandleError(error, `Thread preparation for ${thread.getId()}`);
         results.set(thread.getId(), {
           threadId: thread.getId(),
           isSupport: false,
-          error: String(error)
+          error: errorMessage
         });
       }
     });
@@ -208,14 +205,11 @@ namespace GmailService {
         });
         
       } catch (error) {
-        AppLogger.error('Failed to apply labels', {
-          threadId: result.id,
-          error: String(error)
-        });
+        const errorMessage = Utils.logAndHandleError(error, `Label application for thread ${result.id}`);
         results.set(result.id, {
           threadId: result.id,
           isSupport: isSupport,
-          error: String(error)
+          error: errorMessage
         });
       }
     });
@@ -254,14 +248,11 @@ namespace GmailService {
             }
           }
         } catch (error) {
-          AppLogger.error('Failed to create reply', {
-            threadId: threadId,
-            error: String(error)
-          });
+          const errorMessage = Utils.logAndHandleError(error, `Reply creation for thread ${threadId}`);
           // Update the result with the error
           const existingResult = results.get(threadId);
           if (existingResult) {
-            existingResult.error = String(error);
+            existingResult.error = errorMessage;
           }
         }
       });
@@ -380,7 +371,8 @@ namespace GmailService {
     } catch (error) {
       const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
       thread.addLabel(errorLabel);
-      return { isSupport: false, error: String(error) };
+      const errorMessage = Utils.logAndHandleError(error, `Thread processing for ${thread.getId()}`);
+      return { isSupport: false, error: errorMessage };
     }
   }
 }

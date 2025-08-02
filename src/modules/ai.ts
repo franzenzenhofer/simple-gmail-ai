@@ -101,8 +101,8 @@ namespace AI {
       
       return { success: true, data: result, requestId };
     } catch (error) {
-      AppLogger.error('Failed to call AI', { error: String(error), requestId });
-      return { success: false, error: String(error), requestId };
+      const errorMessage = Utils.logAndHandleError(error, 'Gemini API call');
+      return { success: false, error: errorMessage, requestId };
     }
   }
   
@@ -186,11 +186,7 @@ namespace AI {
         const cleanResponse = response.data.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         batchResults = JSON.parse(cleanResponse);
       } catch (parseError) {
-        AppLogger.error('❌ BATCH PARSE ERROR', {
-          batchId,
-          response: response.data,
-          error: String(parseError)
-        });
+        Utils.logAndHandleError(parseError, `Batch parse error for ${batchId}`);
         // Fallback: mark all emails in batch as errors
         batch.forEach(email => {
           results.push({

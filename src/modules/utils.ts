@@ -27,6 +27,46 @@ namespace Utils {
     return String(err);
   }
 
+  /**
+   * Enhanced error handling that preserves stack traces and full error context
+   * Returns an object with both user-friendly message and detailed error info
+   */
+  export function preserveErrorStack(err: unknown): { message: string; fullError: string; stack?: string } {
+    if (err instanceof Error) {
+      return {
+        message: err.message,
+        fullError: `${err.name}: ${err.message}`,
+        stack: err.stack
+      };
+    }
+    
+    const errString = String(err);
+    return {
+      message: errString,
+      fullError: errString,
+      stack: undefined
+    };
+  }
+
+  /**
+   * Log error with full context while returning user-friendly message
+   * Use this in catch blocks to preserve debugging information
+   */
+  export function logAndHandleError(err: unknown, context: string = 'Unknown operation'): string {
+    const errorDetails = preserveErrorStack(err);
+    
+    // Log the full error details for debugging
+    AppLogger.error(`Error in ${context}`, {
+      message: errorDetails.message,
+      fullError: errorDetails.fullError,
+      stack: errorDetails.stack,
+      context
+    });
+    
+    // Return user-friendly message
+    return errorDetails.message;
+  }
+
   export function validateApiKeyFormat(apiKey: string): { isValid: boolean; message: string } {
     if (!apiKey || apiKey.trim() === '') {
       return { isValid: false, message: 'API key is required' };
