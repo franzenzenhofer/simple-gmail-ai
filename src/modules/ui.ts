@@ -45,7 +45,7 @@ namespace UI {
         .setType(CardService.SelectionInputType.RADIO_BUTTON)
         .addItem('Labels only', 'label', savedMode === 'label')
         .addItem('Labels + Draft', 'draft', savedMode === 'draft')
-        .addItem('Labels + Draft + Send', 'send', savedMode === 'send')
+        .addItem('Labels + Send', 'send', savedMode === 'send')
     );
     
     card.addSection(mainSection);

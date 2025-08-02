@@ -125,8 +125,11 @@ function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
     const prompt1 = Utils.getFormValue(e, 'prompt1', Config.PROMPTS.CLASSIFICATION);
     const prompt2 = Utils.getFormValue(e, 'prompt2', Config.PROMPTS.RESPONSE);
     
-    // Save mode selection for persistence
-    PropertiesService.getUserProperties().setProperty('PROCESSING_MODE', mode);
+    // Save ALL settings for persistence
+    const userProps = PropertiesService.getUserProperties();
+    userProps.setProperty('PROCESSING_MODE', mode);
+    userProps.setProperty('PROMPT_1', prompt1);
+    userProps.setProperty('PROMPT_2', prompt2);
     
     // Determine processing flags based on mode
     const createDrafts = (mode === 'draft' || mode === 'send');
