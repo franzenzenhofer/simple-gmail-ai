@@ -39,6 +39,7 @@ namespace Config {
   export const GEMINI = {
     MODEL: 'gemini-2.5-flash',
     TEMPERATURE: 0.3,
-    API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/'
+    API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/',
+    TIMEOUT_MS: 30000 // 30 seconds timeout for API calls
   };
 }

@@ -54,8 +54,11 @@ namespace AI {
         method: 'post',
         contentType: 'application/json',
         payload: JSON.stringify(payload),
-        muteHttpExceptions: true
-      });
+        muteHttpExceptions: true,
+        // Add timeout to prevent hanging requests
+        // Note: timeout is in seconds for UrlFetchApp, not milliseconds
+        timeout: Config.GEMINI.TIMEOUT_MS / 1000
+      } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions);
       
       const responseCode = response.getResponseCode();
       const responseText = response.getContentText();
@@ -101,6 +104,17 @@ namespace AI {
       
       return { success: true, data: result, requestId };
     } catch (error) {
+      // Handle timeout errors specifically
+      const errorStr = String(error);
+      if (errorStr.includes('Timeout') || errorStr.includes('timeout')) {
+        AppLogger.error('⏱️ Request timeout [' + requestId + ']', {
+          error: errorStr,
+          timeoutSeconds: Config.GEMINI.TIMEOUT_MS / 1000,
+          requestId
+        });
+        return { success: false, error: 'Request timed out after ' + (Config.GEMINI.TIMEOUT_MS / 1000) + ' seconds', requestId };
+      }
+      
       const errorMessage = Utils.logAndHandleError(error, 'Gemini API call');
       return { success: false, error: errorMessage, requestId };
     }

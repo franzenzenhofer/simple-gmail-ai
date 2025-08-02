@@ -26,8 +26,10 @@ namespace ActionHandlers {
             contents: [{ parts: [{ text: 'test' }] }],
             generationConfig: { temperature: 0 }
           }),
-          muteHttpExceptions: true
-        });
+          muteHttpExceptions: true,
+          // Add timeout for API key validation (shorter timeout since it's just a test)
+          timeout: 10 // 10 seconds timeout
+        } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions);
         
         if (testResponse.getResponseCode() === 403) {
           throw new Error('API key is invalid or has insufficient permissions');
@@ -38,6 +40,9 @@ namespace ActionHandlers {
         const errorMessage = String(testError);
         if (errorMessage.includes('API key')) {
           throw new Error(errorMessage);
+        }
+        if (errorMessage.includes('Timeout') || errorMessage.includes('timeout')) {
+          throw new Error('API key validation timed out after 10 seconds. Please check your internet connection and try again.');
         }
         throw new Error('Failed to validate API key: ' + errorMessage);
       }
