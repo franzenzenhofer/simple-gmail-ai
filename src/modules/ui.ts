@@ -7,6 +7,7 @@ namespace UI {
   export function buildHomepage(): GoogleAppsScript.Card_Service.Card {
     const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
     const hasApiKey = savedKey.trim() !== '';
+    const isProcessing = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
     
     const card = CardService.newCardBuilder()
       .setHeader(
@@ -98,15 +99,15 @@ namespace UI {
     
     // Fixed action button at bottom
     const analyzeBtn = CardService.newTextButton()
-      .setText('Analyze Inbox')
-      .setBackgroundColor('#1a73e8')
+      .setText(isProcessing ? 'Processing...' : 'Analyze Inbox')
+      .setBackgroundColor(isProcessing ? '#999999' : '#1a73e8')
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('runAnalysis')
           .setLoadIndicator(CardService.LoadIndicator.SPINNER)
       );
     
-    if (!hasApiKey) {
+    if (!hasApiKey || isProcessing) {
       analyzeBtn.setDisabled(true);
     }
     
