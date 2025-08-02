@@ -11,13 +11,13 @@ An intelligent Gmail add-on that automatically classifies and responds to custom
 - **Modular Architecture**: Clean, maintainable code structure with 7 focused modules
 - **Enhanced UI/UX**: Tab-based navigation for better user experience
 - **Comprehensive Logging**: Automatic spreadsheet logging with daily rotation
-- **Shorter Labels**: `support`, `undefined`, `ai✓`, `ai✗`
+- **Shorter Labels: `Support`, `undefined`, `ai✓`, `aiX`
 - **Three-Dot Menu**: Quick access to logs and settings
 
 ## Features
 
 - 🤖 **AI-Powered Classification**: Automatically identifies support requests vs. other emails
-- 🏷️ **Smart Labeling**: Clean labels: `support`, `undefined`, `ai✓`, `ai✗`
+- 🏷️ **Smart Labeling**: Clean labels: `Support`, `undefined`, `ai✓`, `aiX`
 - ✉️ **Draft Generation**: Creates AI-generated draft replies for support emails
 - ⚡ **Auto-Reply**: Can automatically send responses (use with caution!)
 - 📊 **Spreadsheet Logging**: All activity logged to Google Sheets with daily rotation
