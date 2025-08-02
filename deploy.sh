@@ -242,8 +242,14 @@ else
     # CRITICAL: Remove any old .js files to avoid conflicts
     echo "🧹 Cleaning old deployment files..."
     find . -maxdepth 1 -name "*.js" -type f -delete 2>/dev/null || true
-    if [[ -d "src" ]]; then
-        rm -rf "src"  # Remove any src subdirectory completely
+    # Use cross-platform cleanup
+    if command -v node &> /dev/null; then
+        node "$PROJECT_ROOT/clean-dist.js" || true
+    else
+        # Fallback to rm if node not available
+        if [[ -d "src" ]]; then
+            rm -rf "src"  # Remove any src subdirectory completely
+        fi
     fi
 
     # List what we're deploying
@@ -252,9 +258,7 @@ else
 
     # CRITICAL: Remove ANY test files that might exist from previous deployments
     echo "🧹 Ensuring NO test files exist..."
-    if [[ -d "tests" ]]; then
-        rm -rf "tests"
-    fi
+    # Already handled by clean-dist.js above
     find . -maxdepth 1 \( -name "*.test.js" -o -name "*.spec.js" -o -name "setup.js" \) -type f -delete 2>/dev/null || true
 
     # List what we're deploying (should ONLY be Code.gs and appsscript.json)
