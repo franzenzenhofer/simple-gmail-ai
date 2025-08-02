@@ -12,7 +12,7 @@ namespace UI {
       .setHeader(
         CardService.newCardHeader()
           .setTitle('Gmail AI Support Triage')
-          .setSubtitle('Powered by Gemini')
+          .setSubtitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
       );
     
     if (!hasApiKey) {
@@ -75,6 +75,29 @@ namespace UI {
     );
     
     card.addSection(mainSection);
+    
+    // Last Execution section
+    const lastExecSection = CardService.newCardSection();
+    const lastExecTime = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_TIME');
+    const lastExecStats = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_STATS');
+    
+    if (lastExecTime && lastExecStats) {
+      lastExecSection.addWidget(
+        CardService.newKeyValue()
+          .setTopLabel('Last Execution')
+          .setContent(lastExecTime)
+          .setBottomLabel(lastExecStats)
+      );
+    } else {
+      lastExecSection.addWidget(
+        CardService.newKeyValue()
+          .setTopLabel('Last Execution')
+          .setContent('No recent runs')
+          .setBottomLabel('Run analysis to see statistics')
+      );
+    }
+    
+    card.addSection(lastExecSection);
     
     // Fixed action button at bottom
     const analyzeBtn = CardService.newTextButton()

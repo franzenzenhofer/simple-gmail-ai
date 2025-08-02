@@ -201,10 +201,24 @@ function doAnalysisProcessing(): GoogleAppsScript.Card_Service.ActionResponse {
     
     AppLogger.info('🎯 Analysis completed', { stats });
     
-    // Mark analysis as complete
+    // Mark analysis as complete and save execution info
     PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
     
-    const message = `✅ COMPLETED: ${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
+    // Save last execution time and stats
+    const executionTime = new Date().toLocaleString('de-AT', {
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Vienna'
+    });
+    const statsString = `${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
+    
+    PropertiesService.getUserProperties().setProperty('LAST_EXECUTION_TIME', executionTime);
+    PropertiesService.getUserProperties().setProperty('LAST_EXECUTION_STATS', statsString);
+    
+    const message = `✅ COMPLETED: ${statsString}`;
     AppLogger.info(message);
     
     return UI.navigateTo(UI.buildLiveLogView());
