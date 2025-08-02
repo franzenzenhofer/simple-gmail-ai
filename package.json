@@ -24,7 +24,7 @@
     "test:postbundle": "node test-post-bundle.js",
     "test:all": "npm-run-all --parallel test test:postbundle",
     "predeploy": "npm-run-all check build test && echo 'Pre-deploy checks passed'",
-    "deploy": "npm run predeploy && git add -A && git diff --staged --quiet || git commit -m 'Auto-commit for deployment' && npm version minor && ./deploy.sh && echo 'Deployment complete'",
+    "deploy": "npm run predeploy && git add -A && git diff --staged --quiet || git commit -m 'chore: prepare for deployment' && npm version minor && ./deploy.sh && echo 'Deployment complete'",
     "deploy:major": "npm run predeploy && npm version major && ./deploy.sh && echo 'Major version deployment complete'",
     "open": "clasp open",
     "logs": "clasp logs",

@@ -177,8 +177,14 @@ get_file_size() {
     fi
 }
 
-readonly BUNDLE_SIZE="$(ls -lh dist/Code.gs | awk '{print $5}')"
 readonly BUNDLE_BYTES="$(get_file_size "dist/Code.gs")"
+# Use portable human-readable size if Node.js is available
+if command -v node &> /dev/null && [[ -f "$PROJECT_ROOT/file-utils.js" ]]; then
+    readonly BUNDLE_SIZE="$(node "$PROJECT_ROOT/file-utils.js" human-size "dist/Code.gs")"
+else
+    # Fallback to ls -lh
+    readonly BUNDLE_SIZE="$(ls -lh dist/Code.gs | awk '{print $5}')"
+fi
 
 if [ "$BUNDLE_BYTES" -lt 1000 ]; then
     echo "❌ CRITICAL: Bundle too small! Only $BUNDLE_SIZE ($BUNDLE_BYTES bytes)"
