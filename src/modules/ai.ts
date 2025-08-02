@@ -16,17 +16,27 @@ namespace AI {
     error?: string;
   }
   
-  // Discriminated union for Gemini API results
-  export type GeminiResult = 
-    | { success: true; data: string; requestId: string }
+  
+  // Updated discriminated union for structured responses
+  export type GeminiResult<T = string> = 
+    | { success: true; data: T; requestId: string; schemaVersion?: string }
     | { success: false; error: string; statusCode?: number; requestId: string };
   
-  export function callGemini(apiKey: string, prompt: string): GeminiResult {
+  
+  // Enhanced callGemini with strict JSON mode support
+  export function callGemini(apiKey: string, prompt: string): GeminiResult;
+  export function callGemini<T>(apiKey: string, prompt: string, schema?: any): GeminiResult<T>;
+  export function callGemini<T = string>(apiKey: string, prompt: string, schema?: any): GeminiResult<T> {
     const requestId = 'ai_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    
+    const useJsonMode = !!schema;
+    const schemaVersion = schema ? '1.0' : undefined;
     
     AppLogger.info('🚀 AI REQUEST [' + requestId + ']', {
       model: Config.GEMINI.MODEL,
       promptLength: prompt.length,
+      useJsonMode,
+      schemaVersion,
       requestId
     });
     
@@ -38,15 +48,30 @@ namespace AI {
     
     const url = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
     
+    // Check if this is a retry attempt and use temperature 0
+    const isRetry = schema && schema.retryAttempt;
+    const cleanSchema = schema ? { ...schema } : undefined;
+    if (cleanSchema) {
+      delete cleanSchema.retryAttempt;
+    }
+    
+    const generationConfig: any = {
+      temperature: isRetry ? 0 : Config.GEMINI.TEMPERATURE
+    };
+    
+    // Enable strict JSON mode if schema provided
+    if (useJsonMode) {
+      generationConfig.response_mime_type = 'application/json';
+      generationConfig.response_schema = cleanSchema;
+    }
+    
     const payload = {
       contents: [{
         parts: [{
           text: prompt
         }]
       }],
-      generationConfig: {
-        temperature: Config.GEMINI.TEMPERATURE
-      }
+      generationConfig
     };
     
     try {
@@ -96,13 +121,80 @@ namespace AI {
       }
       const result = candidate.content.parts[0].text.trim();
       
-      AppLogger.info('✅ AI RESULT [' + requestId + ']', {
-        result,
-        requestId,
-        classification: result.toLowerCase().indexOf('support') === 0 ? 'SUPPORT' : 'NOT_SUPPORT'
-      });
-      
-      return { success: true, data: result, requestId };
+      // Handle JSON mode responses
+      if (useJsonMode) {
+        // Clean and sanitize the response first
+        const sanitizedResult = JsonValidator.sanitizeJsonResponse(result);
+        
+        if (!JsonValidator.isValidJson(sanitizedResult)) {
+          AppLogger.error('❌ INVALID JSON [' + requestId + ']', {
+            original: result,
+            sanitized: sanitizedResult,
+            requestId
+          });
+          
+          // Retry with temperature 0 and clearer instructions
+          if (!isRetry) {
+            AppLogger.info('🔄 RETRYING WITH STRICT INSTRUCTIONS [' + requestId + ']', { requestId });
+            const strictPrompt = prompt + '\n\nCRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, no extra text.';
+            return callGemini(apiKey, strictPrompt, { ...cleanSchema, retryAttempt: true });
+          }
+          
+          return { success: false, error: 'Response is not valid JSON after retry', requestId };
+        }
+        
+        try {
+          const parsedResult = JSON.parse(sanitizedResult);
+          
+          // Validate against schema using the JsonValidator module
+          const validation = JsonValidator.validate(parsedResult, cleanSchema);
+          if (!validation.valid) {
+            AppLogger.warn('⚠️ SCHEMA VALIDATION FAILED [' + requestId + ']', {
+              result: parsedResult,
+              errors: validation.errors,
+              requestId
+            });
+            
+            // Retry with temperature 0 if this was the first attempt
+            if (!isRetry) {
+              AppLogger.info('🔄 RETRYING WITH TEMPERATURE 0 [' + requestId + ']', { requestId });
+              return callGemini(apiKey, prompt, { ...cleanSchema, retryAttempt: true });
+            }
+            
+            return { 
+              success: false, 
+              error: 'JSON response failed schema validation: ' + (validation.errors || []).join(', '), 
+              requestId 
+            };
+          }
+          
+          AppLogger.info('✅ AI JSON RESULT [' + requestId + ']', {
+            result: parsedResult,
+            schemaVersion,
+            requestId
+          });
+          
+          return { success: true, data: parsedResult as T, requestId, schemaVersion };
+        } catch (parseError) {
+          AppLogger.error('❌ JSON PARSE ERROR [' + requestId + ']', {
+            error: String(parseError),
+            sanitized: sanitizedResult,
+            original: result,
+            requestId
+          });
+          
+          return { success: false, error: 'Failed to parse JSON response: ' + String(parseError), requestId };
+        }
+      } else {
+        // Legacy string mode
+        AppLogger.info('✅ AI RESULT [' + requestId + ']', {
+          result,
+          requestId,
+          classification: result.toLowerCase().indexOf('support') === 0 ? 'SUPPORT' : 'NOT_SUPPORT'
+        });
+        
+        return { success: true, data: result as T, requestId };
+      }
     } catch (error) {
       // Handle timeout errors specifically
       const errorStr = String(error);
