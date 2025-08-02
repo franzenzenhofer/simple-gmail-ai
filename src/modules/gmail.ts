@@ -237,14 +237,27 @@ namespace GmailService {
                 replyLength: replyBody.length,
                 threadId: threadId
               });
+              // Clear any draft metadata since we sent the email
+              DraftTracker.clearDraftMetadata(threadId);
             } else {
-              thread.createDraftReply(replyBody, { htmlBody: replyBody });
-              AppLogger.info('✍️ DRAFT CREATED', {
-                shortMessage: 'Draft created for: ' + subject,
-                subject: subject,
-                draftLength: replyBody.length,
-                threadId: threadId
-              });
+              // Check for duplicate drafts before creating
+              if (DraftTracker.isDuplicateDraft(threadId, replyBody)) {
+                AppLogger.info('⏭️ DRAFT SKIPPED (DUPLICATE)', {
+                  shortMessage: 'Duplicate draft skipped for: ' + subject,
+                  subject: subject,
+                  threadId: threadId
+                });
+              } else {
+                thread.createDraftReply(replyBody, { htmlBody: replyBody });
+                // Record the draft creation
+                DraftTracker.recordDraftCreation(threadId, replyBody);
+                AppLogger.info('✍️ DRAFT CREATED', {
+                  shortMessage: 'Draft created for: ' + subject,
+                  subject: subject,
+                  draftLength: replyBody.length,
+                  threadId: threadId
+                });
+              }
             }
           }
         } catch (error) {

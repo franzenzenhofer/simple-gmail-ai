@@ -89,4 +89,21 @@ namespace Utils {
 
     return { isValid: true, message: 'API key format is valid' };
   }
+
+  /**
+   * Generate a simple hash for draft tracking
+   * Uses a basic hash function suitable for detecting duplicate content
+   */
+  export function generateContentHash(content: string): string {
+    let hash = 0;
+    if (content.length === 0) return hash.toString();
+    
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    return Math.abs(hash).toString(36); // Convert to base36 for shorter string
+  }
 }
