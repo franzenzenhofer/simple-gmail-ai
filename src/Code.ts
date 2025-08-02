@@ -94,12 +94,44 @@ function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
       throw new Error('Please enter an API key');
     }
     
-    PropertiesService.getUserProperties().setProperty('GEMINI_API_KEY', apiKey);
-    AppLogger.info('API key saved successfully');
+    // Validate Gemini API key format
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey.match(/^AIza[0-9A-Za-z\-_]{35}$/)) {
+      throw new Error('Invalid API key format. Gemini API keys start with "AIza" followed by 35 characters.');
+    }
+    
+    // Test the API key with a simple request
+    try {
+      const testUrl = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent?key=' + encodeURIComponent(trimmedKey);
+      const testResponse = UrlFetchApp.fetch(testUrl, {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({
+          contents: [{ parts: [{ text: 'test' }] }],
+          generationConfig: { temperature: 0 }
+        }),
+        muteHttpExceptions: true
+      });
+      
+      if (testResponse.getResponseCode() === 403) {
+        throw new Error('API key is invalid or has insufficient permissions');
+      } else if (testResponse.getResponseCode() !== 200) {
+        throw new Error('API key validation failed. Please check your key.');
+      }
+    } catch (testError) {
+      const errorMessage = String(testError);
+      if (errorMessage.includes('API key')) {
+        throw new Error(errorMessage);
+      }
+      throw new Error('Failed to validate API key: ' + errorMessage);
+    }
+    
+    PropertiesService.getUserProperties().setProperty('GEMINI_API_KEY', trimmedKey);
+    AppLogger.info('API key saved and validated successfully');
     
     return CardService.newActionResponseBuilder()
       .setNotification(
-        CardService.newNotification().setText('API key saved successfully')
+        CardService.newNotification().setText('API key saved and validated successfully')
       )
       .setNavigation(CardService.newNavigation().updateCard(UI.buildApiKeyTab()))
       .build();

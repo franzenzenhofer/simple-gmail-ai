@@ -119,12 +119,48 @@ namespace AppLogger {
   
   function maskSensitive(data: any): any {
     if (typeof data === 'string') {
-      return data.replace(/AIza[0-9A-Za-z\-_]{35}/g, 'AIza***MASKED***');
+      // Comprehensive API key patterns
+      let masked = data;
+      
+      // Google API keys (AIza...)
+      masked = masked.replace(/AIza[0-9A-Za-z\-_]{35}/g, 'AIza***MASKED***');
+      
+      // Generic API key patterns (32+ char alphanumeric)
+      masked = masked.replace(/\b[A-Za-z0-9]{32,}\b/g, (match) => {
+        // Preserve first 4 chars for debugging
+        return match.substring(0, 4) + '***MASKED***';
+      });
+      
+      // Bearer tokens
+      masked = masked.replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer ***MASKED***');
+      
+      // Basic auth credentials
+      masked = masked.replace(/Basic\s+[A-Za-z0-9+/]+=*/gi, 'Basic ***MASKED***');
+      
+      // JWT tokens (xxx.yyy.zzz format)
+      masked = masked.replace(/\b[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\b/g, 'JWT***MASKED***');
+      
+      // OAuth tokens
+      masked = masked.replace(/oauth[_\-]?token[\s=:]+["']?([A-Za-z0-9\-._~+/]+)["']?/gi, 'oauth_token=***MASKED***');
+      
+      // URLs with embedded credentials
+      masked = masked.replace(/(https?:\/\/)([^:]+):([^@]+)@/gi, '$1***:***@');
+      
+      return masked;
     }
     if (typeof data === 'object' && data !== null) {
       const masked: any = Array.isArray(data) ? [] : {};
       for (const key in data) {
-        if (key.toLowerCase().includes('key') || key.toLowerCase().includes('token')) {
+        const lowerKey = key.toLowerCase();
+        // Expand sensitive field detection
+        if (lowerKey.includes('key') || 
+            lowerKey.includes('token') || 
+            lowerKey.includes('secret') || 
+            lowerKey.includes('password') || 
+            lowerKey.includes('auth') ||
+            lowerKey.includes('credential') ||
+            lowerKey.includes('api_key') ||
+            lowerKey.includes('apikey')) {
           masked[key] = '***MASKED***';
         } else {
           masked[key] = maskSensitive(data[key]);
