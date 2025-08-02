@@ -1,0 +1,50 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 10
+    # Group non-major updates
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore specific dependencies
+    ignore:
+      # @google/clasp has breaking changes between versions
+      - dependency-name: "@google/clasp"
+        update-types: ["version-update:semver-major"]
+      # Ignore major updates for critical build tools
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ts-jest"
+        update-types: ["version-update:semver-major"]
+    # Labels to apply to PRs
+    labels:
+      - "dependencies"
+      - "automated"
+    # Reviewers
+    reviewers:
+      - "franzenzenhofer"
+    # Commit message options
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Enable security updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
