@@ -258,6 +258,12 @@ else
             rm -rf "src"  # Remove any src subdirectory completely
         fi
     fi
+    
+    # Extra cleanup for TypeScript output that may have been created after bundling
+    if [[ -d "src" ]]; then
+        echo "🧹 Extra cleanup: removing src/ directory created by TypeScript..."
+        rm -rf "src"
+    fi
 
     # List what we're deploying
     echo "📋 Files to deploy:"
