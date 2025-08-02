@@ -349,17 +349,6 @@ namespace UI {
     // === LIVE ACTIVITY FEED ===
     const activitySection = CardService.newCardSection();
     
-    if (!isRunning) {
-      activitySection.addWidget(
-        CardService.newTextButton()
-          .setText('🚀 START PROCESSING')
-          .setBackgroundColor('#34a853')
-          .setOnClickAction(
-            CardService.newAction().setFunctionName('doAnalysisProcessing')
-          )
-      );
-    }
-    
     // Get filtered, relevant log entries - current execution if running, otherwise last execution
     const relevantLogs = isRunning ? 
       getCurrentExecutionLogs(15) : 
