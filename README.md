@@ -194,6 +194,26 @@ Tests cover:
 
 ## Configuration
 
+### OAuth Scopes & Permissions
+
+The Gmail add-on requests the following OAuth scopes for specific functionality:
+
+**Core Gmail Features:**
+- `https://www.googleapis.com/auth/gmail.addons.execute` - **Required** for Gmail add-on functionality
+- `https://www.googleapis.com/auth/userinfo.email` - **Required** for user identification
+- `https://www.googleapis.com/auth/gmail.modify` - **Required** for applying/removing labels
+- `https://www.googleapis.com/auth/gmail.labels` - **Required** for creating and managing Gmail labels
+- `https://www.googleapis.com/auth/gmail.send` - **Optional** for auto-reply feature (only when enabled)
+- `https://www.googleapis.com/auth/gmail.compose` - **Optional** for creating draft replies
+
+**Advanced Features:**
+- `https://www.googleapis.com/auth/script.external_request` - **Required** for calling Gemini API
+- `https://www.googleapis.com/auth/spreadsheets` - **Optional** for spreadsheet logging feature
+- `https://www.googleapis.com/auth/drive` - **Optional** for Google Docs prompt editor feature
+- `https://www.googleapis.com/auth/documents` - **Optional** for Google Docs prompt editor feature
+
+**Note**: Drive and Documents permissions are only used if you enable the Google Docs Prompt Editor feature. All other scopes are required for core functionality. Your data remains private and is never shared with third parties.
+
 ### Gemini API Settings
 
 The add-on uses these Gemini settings:
