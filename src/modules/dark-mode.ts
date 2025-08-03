@@ -128,7 +128,19 @@ namespace DarkMode {
    */
   export function isDarkModeEnabled(): boolean {
     try {
-      // Check user properties for saved preference
+      // First try to detect Gmail's actual theme
+      const cardService = CardService as any;
+      if (cardService.Theme && typeof cardService.Theme !== 'undefined') {
+        // Gmail provides theme information
+        const currentTheme = cardService.Theme;
+        if (currentTheme === 'DARK') {
+          return true;
+        } else if (currentTheme === 'LIGHT') {
+          return false;
+        }
+      }
+      
+      // Fallback to user properties for saved preference
       const savedPreference = PropertiesService.getUserProperties().getProperty('DARK_MODE_ENABLED');
       if (savedPreference !== null) {
         return savedPreference === 'true';
@@ -285,5 +297,48 @@ namespace DarkMode {
         defaultMode: 'light'
       });
     }
+  }
+  
+  /**
+   * Get theme-aware colors that match Config.COLORS structure
+   */
+  export function getThemeColors(): typeof Config.COLORS {
+    const theme = getCurrentTheme();
+    
+    return {
+      // Primary actions
+      PRIMARY: theme.primary,
+      PRIMARY_DISABLED: theme.textDisabled,
+      
+      // Status colors
+      SUCCESS: theme.success,
+      DANGER: theme.error,
+      WARNING: theme.warning,
+      INFO: theme.primaryLight,
+      
+      // Text colors
+      TEXT_PRIMARY: theme.textPrimary,
+      TEXT_SECONDARY: theme.textSecondary,
+      TEXT_DISABLED: theme.textDisabled,
+      
+      // Background colors
+      BACKGROUND: theme.background,
+      BACKGROUND_SUBTLE: theme.surface
+    };
+  }
+  
+  /**
+   * Update Config.COLORS based on current theme
+   */
+  export function applyThemeToConfig(): void {
+    const themeColors = getThemeColors();
+    
+    // Update Config.COLORS with theme-aware colors
+    Object.assign(Config.COLORS, themeColors);
+    
+    AppLogger.info('🎨 THEME APPLIED TO CONFIG', {
+      isDarkMode: isDarkModeEnabled(),
+      primaryColor: themeColors.PRIMARY
+    });
   }
 }

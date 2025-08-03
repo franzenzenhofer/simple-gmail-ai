@@ -37,6 +37,8 @@ namespace EntryPoints {
       
       // Initialize dark mode settings
       DarkMode.initializeDarkMode();
+      // Apply theme colors to Config
+      DarkMode.applyThemeToConfig();
       
       // Check if user needs welcome flow
       if (WelcomeFlow.needsWelcomeFlow()) {
