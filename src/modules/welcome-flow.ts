@@ -48,7 +48,17 @@ namespace WelcomeFlow {
       try {
         return JSON.parse(progressStr);
       } catch (e) {
-        // Ignore parse errors
+        // Log the parse error for debugging
+        AppLogger.error('Failed to parse onboarding progress', {
+          error: Utils.handleError(e),
+          corruptedData: progressStr
+        });
+        
+        // Clear the corrupted data
+        PropertiesService.getUserProperties().deleteProperty(ONBOARDING_KEY);
+        
+        // Notify about reset (will be shown on next UI interaction)
+        AppLogger.warn('Onboarding progress reset due to data corruption');
       }
     }
     
