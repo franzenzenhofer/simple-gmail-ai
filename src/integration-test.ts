@@ -3,6 +3,10 @@
  * Tests the actual batch processing with live API
  */
 
+// Load environment variables from .env file
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 // Get API key from environment variable for security
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
@@ -14,18 +18,18 @@ interface BatchEmail {
 
 async function testBatchProcessing() {
   // Test state for cleanup
-  let testStartTime: number;
+  let testStartTime: number | undefined;
   let apiCallMade = false;
   
   try {
+    testStartTime = Date.now(); // Initialize before any early returns
+    
     if (!API_KEY) {
       console.error('❌ No API key found - cannot run integration test');
       console.error('Please set GEMINI_API_KEY environment variable');
       console.error('Example: GEMINI_API_KEY=your-api-key npm test');
       return;
     }
-
-    testStartTime = Date.now();
     console.log('🧪 INTEGRATION TEST: Batch Processing with Real Gemini API');
     console.log('API Key:', JSON.stringify(API_KEY.substring(0, 10) + '...' + API_KEY.substring(API_KEY.length - 5)));
     console.log('Test started at:', new Date(testStartTime).toISOString());
@@ -175,7 +179,7 @@ async function testBatchProcessing() {
     // Cleanup and test reporting
     console.log('\n🧹 CLEANUP & REPORTING:');
     
-    if (testStartTime!) {
+    if (testStartTime) {
       const duration = Date.now() - testStartTime;
       console.log('Test duration:', duration, 'ms');
     }
