@@ -62,11 +62,12 @@ namespace ErrorTaxonomy {
    * Structured error class
    */
   export class AppError extends Error {
-    public readonly type: AppErrorType;
-    public readonly severity: ErrorSeverity;
-    public readonly context?: any;
-    public readonly timestamp: string;
-    public readonly recoverable: boolean;
+    // Declare properties using type assertions to avoid ES6 syntax
+    get type(): AppErrorType { return (this as any)._type; }
+    get severity(): ErrorSeverity { return (this as any)._severity; }
+    get context(): any { return (this as any)._context; }
+    get timestamp(): string { return (this as any)._timestamp; }
+    get recoverable(): boolean { return (this as any)._recoverable; }
     
     constructor(
       type: AppErrorType,
@@ -77,11 +78,11 @@ namespace ErrorTaxonomy {
     ) {
       super(message);
       this.name = 'AppError';
-      this.type = type;
-      this.severity = severity;
-      this.recoverable = recoverable;
-      this.context = context;
-      this.timestamp = new Date().toISOString();
+      (this as any)._type = type;
+      (this as any)._severity = severity;
+      (this as any)._recoverable = recoverable;
+      (this as any)._context = context;
+      (this as any)._timestamp = new Date().toISOString();
       
       // Maintain proper stack trace (not available in Apps Script environment)
       // In a browser/node environment, we would use Error.captureStackTrace
