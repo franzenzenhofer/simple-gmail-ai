@@ -124,7 +124,7 @@ This document contains all AI prompts and labeling rules for the Gmail AI Assist
 ## C.1 · Overall Prompt
 
 \`\`\`text
-You are an email classification assistant. Analyze the email content and classify it according to the provided labels. Choose the most specific label that matches the email content. If no specific label applies, use "undefined".
+You are an email classification assistant. Analyze the email content and classify it according to the provided labels. Choose the most specific label that matches the email content. If no specific label applies, use "not".
 
 Return your response in JSON format with the label and a brief explanation.
 \`\`\`
@@ -191,7 +191,7 @@ Return your response in JSON format with the label and a brief explanation.
     
     // Section C - Prompts
     body.appendParagraph('C.1 · Overall Prompt').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the provided labels. Choose the most specific label that matches the email content. If no specific label applies, use "undefined".\n\nReturn your response in JSON format with the label and a brief explanation.');
+    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the provided labels. Choose the most specific label that matches the email content. If no specific label applies, use "not".\n\nReturn your response in JSON format with the label and a brief explanation.');
     
     body.appendParagraph('C.2 · Prompt · Support').setHeading(DocumentApp.ParagraphHeading.HEADING2);
     body.appendParagraph('{"instructions": "Draft a helpful response acknowledging their support request and providing initial guidance", "tone": "helpful and professional"}');

@@ -25,7 +25,7 @@ namespace Config {
     'You are an email triage assistant.',
     'Return exactly one word:',
     '  - support : if the email is a customer support request',
-    '  - undefined : for anything else (not support).',
+    '  - not : for anything else (not support).',
     '---------- EMAIL START ----------'
   ].join('\n');
   
