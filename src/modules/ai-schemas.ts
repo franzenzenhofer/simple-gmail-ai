@@ -6,93 +6,93 @@
 namespace AISchemas {
   // JSON Schema for email classification responses
   export const CLASSIFICATION_SCHEMA = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "required": ["label"],
-    "properties": {
-      "label": {
-        "type": "string",
-        "enum": ["support", "not"]
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'required': ['label'],
+    'properties': {
+      'label': {
+        'type': 'string',
+        'enum': ['support', 'not']
       },
-      "confidence": {
-        "type": "number",
-        "minimum": 0,
-        "maximum": 1
+      'confidence': {
+        'type': 'number',
+        'minimum': 0,
+        'maximum': 1
       },
-      "reasoning": {
-        "type": "string",
-        "maxLength": 200
+      'reasoning': {
+        'type': 'string',
+        'maxLength': 200
       }
     },
-    "additionalProperties": false
+    'additionalProperties': false
   };
   
   // JSON Schema for reply generation responses  
   export const REPLY_SCHEMA = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "required": ["reply"],
-    "properties": {
-      "reply": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 2000
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'object',
+    'required': ['reply'],
+    'properties': {
+      'reply': {
+        'type': 'string',
+        'minLength': 1,
+        'maxLength': 2000
       },
-      "tone": {
-        "type": "string",
-        "enum": ["formal", "friendly", "neutral"]
+      'tone': {
+        'type': 'string',
+        'enum': ['formal', 'friendly', 'neutral']
       },
-      "category": {
-        "type": "string",
-        "enum": ["inquiry", "complaint", "request", "feedback", "other"]
+      'category': {
+        'type': 'string',
+        'enum': ['inquiry', 'complaint', 'request', 'feedback', 'other']
       }
     },
-    "additionalProperties": false
+    'additionalProperties': false
   };
   
   // JSON Schema for batch processing responses
   export const BATCH_SCHEMA = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "array",
-    "items": {
-      "type": "object",
-      "required": ["id", "label"],
-      "properties": {
-        "id": {
-          "type": "string"
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'array',
+    'items': {
+      'type': 'object',
+      'required': ['id', 'label'],
+      'properties': {
+        'id': {
+          'type': 'string'
         },
-        "label": {
-          "type": "string",
-          "enum": ["support", "not"]
+        'label': {
+          'type': 'string',
+          'enum': ['support', 'not']
         },
-        "confidence": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
+        'confidence': {
+          'type': 'number',
+          'minimum': 0,
+          'maximum': 1
         }
       },
-      "additionalProperties": false
+      'additionalProperties': false
     },
-    "minItems": 1,
-    "maxItems": 20
+    'minItems': 1,
+    'maxItems': 20
   };
   
   // TypeScript interfaces for structured responses
   export interface ClassificationResponse {
-    label: "support" | "not";
+    label: 'support' | 'not';
     confidence?: number;
     reasoning?: string;
   }
   
   export interface ReplyResponse {
     reply: string;
-    tone?: "formal" | "friendly" | "neutral";
-    category?: "inquiry" | "complaint" | "request" | "feedback" | "other";
+    tone?: 'formal' | 'friendly' | 'neutral';
+    category?: 'inquiry' | 'complaint' | 'request' | 'feedback' | 'other';
   }
   
   export interface BatchResponse {
     id: string;
-    label: "support" | "not";
+    label: 'support' | 'not';
     confidence?: number;
   }
   

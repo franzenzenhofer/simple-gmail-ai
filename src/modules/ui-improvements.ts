@@ -216,7 +216,7 @@ namespace UIImprovements {
     
     statsWidgets.push(CardService.newTextParagraph()
       .setText(
-        `📊 Processing Statistics:\n\n` +
+        '📊 Processing Statistics:\n\n' +
         `Total Processed: ${stats.totalProcessed}\n` +
         `Support Emails: ${stats.supportCount} (${stats.supportPercentage}%)\n` +
         `Drafts Created: ${stats.draftsCreated}\n` +

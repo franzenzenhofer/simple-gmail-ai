@@ -42,7 +42,7 @@ async function runTests() {
 
 async function main() {
   // Read files
-  const distPath = path.join(__dirname, 'dist');
+  const distPath = path.join(__dirname, '..', '..', 'dist');
   const bundlePath = path.join(distPath, 'Code.gs');
   const manifestPath = path.join(distPath, 'appsscript.json');
 
@@ -188,7 +188,7 @@ async function main() {
     
     for (const filePath of allJSFiles) {
       const content = await fs.readFile(filePath, 'utf8');
-      const relativePath = path.relative(__dirname, filePath);
+      const relativePath = path.relative(path.join(__dirname, '..', '..'), filePath);
       
       problematicPatterns.forEach(pattern => {
         if (pattern.test(content)) {

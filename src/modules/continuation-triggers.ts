@@ -199,7 +199,7 @@ namespace ContinuationTriggers {
     
     // Check for existing continuation state
     const existingState = loadContinuationState();
-    let processedCount = existingState?.processedCount || 0;
+    const processedCount = existingState?.processedCount || 0;
     
     AppLogger.info('🔄 CONTINUATION PROCESSING START', {
       totalThreads: threads.length,

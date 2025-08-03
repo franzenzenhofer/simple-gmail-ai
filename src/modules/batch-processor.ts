@@ -21,7 +21,7 @@ namespace BatchProcessor {
 
   export interface BatchResult {
     id: string;
-    label: "support" | "not";
+    label: 'support' | 'not';
     confidence?: number;
     reasoning?: string;
     error?: string;
@@ -40,40 +40,40 @@ namespace BatchProcessor {
 
   // Schema for batch classification responses
   const BATCH_CLASSIFICATION_SCHEMA = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "array",
-    "items": {
-      "type": "object",
-      "required": ["id", "label"],
-      "properties": {
-        "id": { "type": "string" },
-        "label": { "type": "string", "enum": ["support", "not"] },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-        "reasoning": { "type": "string", "maxLength": 200 }
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'array',
+    'items': {
+      'type': 'object',
+      'required': ['id', 'label'],
+      'properties': {
+        'id': { 'type': 'string' },
+        'label': { 'type': 'string', 'enum': ['support', 'not'] },
+        'confidence': { 'type': 'number', 'minimum': 0, 'maximum': 1 },
+        'reasoning': { 'type': 'string', 'maxLength': 200 }
       },
-      "additionalProperties": false
+      'additionalProperties': false
     },
-    "minItems": 1,
-    "maxItems": CONFIG.MAX_BATCH_SIZE
+    'minItems': 1,
+    'maxItems': CONFIG.MAX_BATCH_SIZE
   };
 
   // Schema for batch reply generation responses (for future use)
   export const BATCH_REPLY_SCHEMA = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "array",
-    "items": {
-      "type": "object",
-      "required": ["id", "reply"],
-      "properties": {
-        "id": { "type": "string" },
-        "reply": { "type": "string", "minLength": 1, "maxLength": 2000 },
-        "tone": { "type": "string", "enum": ["formal", "friendly", "neutral"] },
-        "category": { "type": "string", "enum": ["inquiry", "complaint", "request", "feedback", "other"] }
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'type': 'array',
+    'items': {
+      'type': 'object',
+      'required': ['id', 'reply'],
+      'properties': {
+        'id': { 'type': 'string' },
+        'reply': { 'type': 'string', 'minLength': 1, 'maxLength': 2000 },
+        'tone': { 'type': 'string', 'enum': ['formal', 'friendly', 'neutral'] },
+        'category': { 'type': 'string', 'enum': ['inquiry', 'complaint', 'request', 'feedback', 'other'] }
       },
-      "additionalProperties": false
+      'additionalProperties': false
     },
-    "minItems": 1,
-    "maxItems": CONFIG.MAX_BATCH_SIZE
+    'minItems': 1,
+    'maxItems': CONFIG.MAX_BATCH_SIZE
   };
 
   /**
