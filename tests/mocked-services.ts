@@ -3,6 +3,77 @@
  * Provides a consistent and reusable way to mock GAS globals
  */
 
+/**
+ * Mock implementation of GoogleAppsScript.Properties.Properties
+ * Provides in-memory storage for testing
+ */
+export class MockProperties implements GoogleAppsScript.Properties.Properties {
+  private properties: Map<string, string> = new Map();
+
+  getProperty(key: string): string | null {
+    return this.properties.get(key) || null;
+  }
+
+  getProperties(): { [key: string]: string } {
+    const result: { [key: string]: string } = {};
+    this.properties.forEach((value, key) => {
+      result[key] = value;
+    });
+    return result;
+  }
+
+  getKeys(): string[] {
+    return Array.from(this.properties.keys());
+  }
+
+  setProperty(key: string, value: string): GoogleAppsScript.Properties.Properties {
+    this.properties.set(key, value);
+    return this;
+  }
+
+  setProperties(properties: { [key: string]: string }): GoogleAppsScript.Properties.Properties;
+  setProperties(properties: { [key: string]: string }, deleteAllOthers: boolean): GoogleAppsScript.Properties.Properties;
+  setProperties(properties: { [key: string]: string }, deleteAllOthers?: boolean): GoogleAppsScript.Properties.Properties {
+    if (deleteAllOthers) {
+      this.properties.clear();
+    }
+    Object.entries(properties).forEach(([key, value]) => {
+      this.properties.set(key, value);
+    });
+    return this;
+  }
+
+  deleteProperty(key: string): GoogleAppsScript.Properties.Properties {
+    this.properties.delete(key);
+    return this;
+  }
+
+  deleteAllProperties(): GoogleAppsScript.Properties.Properties {
+    this.properties.clear();
+    return this;
+  }
+
+  has(key: string): boolean {
+    return this.properties.has(key);
+  }
+
+  clear(): void {
+    this.properties.clear();
+  }
+
+  set(key: string, value: string): void {
+    this.properties.set(key, value);
+  }
+
+  get(key: string): string | null {
+    return this.properties.get(key) || null;
+  }
+
+  delete(key: string): boolean {
+    return this.properties.delete(key);
+  }
+}
+
 export interface MockedServices {
   PropertiesService: {
     getUserProperties: jest.MockedFunction<() => GoogleAppsScript.Properties.Properties>;
