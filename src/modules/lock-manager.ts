@@ -1,11 +1,13 @@
 /**
- * Lock Manager Module
- * Provides robust locking mechanism to prevent concurrent executions and handle timeouts
+ * Lock Manager Module  
+ * Provides ATOMIC locking mechanism using LockService to prevent race conditions
+ * 
+ * CRITICAL FIX: Uses LockService.getScriptLock() for true atomic mutex operations.
+ * This eliminates the race condition that existed with PropertiesService-based locking.
  */
 
 namespace LockManager {
-  const LOCK_KEY = 'ANALYSIS_LOCK';
-  const LOCK_TIMEOUT_MS = 300000; // 5 minutes (under GAS 6-minute limit)
+  const LOCK_TIMEOUT_MS = 30000; // 30 seconds max wait for lock acquisition
   
   export interface LockInfo {
     executionId: string;
@@ -13,131 +15,127 @@ namespace LockManager {
     mode: string;
   }
   
+  // Store current lock info in PropertiesService for UI display purposes only
+  const LOCK_INFO_KEY = 'CURRENT_LOCK_INFO';
+  
+  // Global variable to track the current script lock
+  let currentScriptLock: GoogleAppsScript.Lock.Lock | null = null;
+  
   /**
-   * Attempt to acquire analysis lock
+   * Attempt to acquire analysis lock using atomic LockService
    * Returns true if lock acquired, false if already locked
    */
   export function acquireLock(mode: string): boolean {
-    const props = PropertiesService.getUserProperties();
-    
     try {
-      // Check for existing lock
-      const existingLockStr = props.getProperty(LOCK_KEY);
+      // Get atomic script lock - this is the REAL lock mechanism
+      const lock = LockService.getScriptLock();
       
-      if (existingLockStr) {
-        try {
-          const existingLock: LockInfo = JSON.parse(existingLockStr);
-          const elapsed = Date.now() - existingLock.startTime;
-          
-          // Check if lock is stale
-          if (elapsed > LOCK_TIMEOUT_MS) {
-            AppLogger.warn('Clearing stale analysis lock', {
-              previousExecutionId: existingLock.executionId,
-              elapsedMs: elapsed,
-              mode: existingLock.mode
-            });
-            // Lock is stale, we can take it
-          } else {
-            // Lock is still valid
-            AppLogger.info('Analysis already running', {
-              currentExecutionId: existingLock.executionId,
-              elapsedMs: elapsed,
-              remainingMs: LOCK_TIMEOUT_MS - elapsed
-            });
-            return false;
-          }
-        } catch (e) {
-          // Invalid lock data, clear it
-          AppLogger.error('Invalid lock data, clearing', { error: String(e) });
-        }
+      // Try to acquire lock with timeout
+      const acquired = lock.tryLock(LOCK_TIMEOUT_MS);
+      
+      if (!acquired) {
+        AppLogger.info('Analysis already running - could not acquire atomic lock', {
+          timeoutMs: LOCK_TIMEOUT_MS,
+          requestedMode: mode
+        });
+        return false;
       }
       
-      // Create new lock
-      const newLock: LockInfo = {
+      // Lock acquired! Store reference and metadata
+      currentScriptLock = lock;
+      
+      const lockInfo: LockInfo = {
         executionId: AppLogger.executionId,
         startTime: Date.now(),
         mode: mode
       };
       
-      props.setProperty(LOCK_KEY, JSON.stringify(newLock));
+      const props = PropertiesService.getUserProperties();
+      props.setProperty(LOCK_INFO_KEY, JSON.stringify(lockInfo));
       
-      // Also set legacy flag for backward compatibility
+      // Keep legacy properties for backward compatibility during transition
       props.setProperty('ANALYSIS_RUNNING', 'true');
-      props.setProperty('ANALYSIS_START_TIME', newLock.startTime.toString());
+      props.setProperty('ANALYSIS_START_TIME', lockInfo.startTime.toString());
       
-      AppLogger.info('Analysis lock acquired', {
-        executionId: newLock.executionId,
-        mode: newLock.mode
+      AppLogger.info('Analysis lock acquired (ATOMIC)', {
+        executionId: lockInfo.executionId,
+        mode: lockInfo.mode,
+        lockMechanism: 'LockService.getScriptLock()',
+        timeoutMs: LOCK_TIMEOUT_MS
       });
       
       return true;
-      
     } catch (error) {
-      AppLogger.error('Failed to acquire lock', { error: Utils.handleError(error) });
+      AppLogger.error('Failed to acquire atomic lock', { error: Utils.handleError(error) });
       return false;
     }
   }
   
   /**
-   * Release analysis lock
+   * Release analysis lock (ATOMIC)
    */
   export function releaseLock(): void {
-    const props = PropertiesService.getUserProperties();
-    
     try {
-      const lockStr = props.getProperty(LOCK_KEY);
-      
-      if (lockStr) {
-        const lock: LockInfo = JSON.parse(lockStr);
+      // Release the atomic script lock if we have it
+      if (currentScriptLock) {
+        currentScriptLock.releaseLock();
+        currentScriptLock = null;
         
-        // Only release if it's our lock
-        if (lock.executionId === AppLogger.executionId) {
-          props.deleteProperty(LOCK_KEY);
-          props.setProperty('ANALYSIS_RUNNING', 'false');
-          
-          const duration = Date.now() - lock.startTime;
-          AppLogger.info('Analysis lock released', {
-            executionId: lock.executionId,
-            durationMs: duration,
-            mode: lock.mode
-          });
-        } else {
-          AppLogger.warn('Cannot release lock owned by different execution', {
-            currentExecutionId: AppLogger.executionId,
-            lockExecutionId: lock.executionId
-          });
-        }
+        AppLogger.info('Analysis lock released (ATOMIC)', {
+          lockMechanism: 'LockService.getScriptLock()'
+        });
       }
       
-      // Always clear the legacy flag
+      // Clear metadata and legacy properties
+      const props = PropertiesService.getUserProperties();
+      props.deleteProperty(LOCK_INFO_KEY);
       props.setProperty('ANALYSIS_RUNNING', 'false');
+      props.deleteProperty('ANALYSIS_START_TIME');
       
     } catch (error) {
-      AppLogger.error('Failed to release lock', { error: Utils.handleError(error) });
-      // Force clear on error
+      AppLogger.error('Failed to release atomic lock', { error: Utils.handleError(error) });
+      
+      // Force clear everything on error
+      currentScriptLock = null;
+      const props = PropertiesService.getUserProperties();
+      props.deleteProperty(LOCK_INFO_KEY);
       props.setProperty('ANALYSIS_RUNNING', 'false');
-      props.deleteProperty(LOCK_KEY);
+      props.deleteProperty('ANALYSIS_START_TIME');
     }
   }
   
   /**
    * Check if analysis is currently locked
+   * Uses metadata approach since LockService doesn't provide query capability
    */
   export function isLocked(): boolean {
-    const props = PropertiesService.getUserProperties();
-    
     try {
-      const lockStr = props.getProperty(LOCK_KEY);
+      const props = PropertiesService.getUserProperties();
+      const lockInfoStr = props.getProperty(LOCK_INFO_KEY);
       
-      if (!lockStr) {
+      if (!lockInfoStr) {
         return false;
       }
       
-      const lock: LockInfo = JSON.parse(lockStr);
-      const elapsed = Date.now() - lock.startTime;
+      const lockInfo: LockInfo = JSON.parse(lockInfoStr);
+      const elapsed = Date.now() - lockInfo.startTime;
       
-      // Lock is valid if not stale
-      return elapsed <= LOCK_TIMEOUT_MS;
+      // Consider lock stale after reasonable time (5 minutes)
+      const STALE_LOCK_MS = 300000; // 5 minutes
+      
+      if (elapsed > STALE_LOCK_MS) {
+        // Lock is stale, clean it up
+        AppLogger.warn('Cleaning up stale lock metadata', {
+          elapsedMs: elapsed,
+          executionId: lockInfo.executionId
+        });
+        
+        props.deleteProperty(LOCK_INFO_KEY);
+        props.setProperty('ANALYSIS_RUNNING', 'false');
+        return false;
+      }
+      
+      return true;
       
     } catch (error) {
       // On any error, assume not locked
@@ -152,18 +150,20 @@ namespace LockManager {
     const props = PropertiesService.getUserProperties();
     
     try {
-      const lockStr = props.getProperty(LOCK_KEY);
+      const lockInfoStr = props.getProperty(LOCK_INFO_KEY);
       
-      if (!lockStr) {
+      if (!lockInfoStr) {
         return null;
       }
       
-      const lock: LockInfo = JSON.parse(lockStr);
-      const elapsed = Date.now() - lock.startTime;
+      const lockInfo: LockInfo = JSON.parse(lockInfoStr);
+      const elapsed = Date.now() - lockInfo.startTime;
       
-      // Only return if lock is still valid
-      if (elapsed <= LOCK_TIMEOUT_MS) {
-        return lock;
+      // Consider lock stale after reasonable time (5 minutes)
+      const STALE_LOCK_MS = 300000; // 5 minutes
+      
+      if (elapsed <= STALE_LOCK_MS) {
+        return lockInfo;
       }
       
       return null;
@@ -177,11 +177,21 @@ namespace LockManager {
    * Force clear all locks (for emergency use)
    */
   export function forceClearLocks(): void {
+    try {
+      // Release any active script lock
+      if (currentScriptLock) {
+        currentScriptLock.releaseLock();
+        currentScriptLock = null;
+      }
+    } catch (error) {
+      // Ignore errors when force clearing
+    }
+    
     const props = PropertiesService.getUserProperties();
-    props.deleteProperty(LOCK_KEY);
+    props.deleteProperty(LOCK_INFO_KEY);
     props.setProperty('ANALYSIS_RUNNING', 'false');
     props.deleteProperty('ANALYSIS_START_TIME');
     
-    AppLogger.warn('Force cleared all analysis locks');
+    AppLogger.warn('Force cleared all analysis locks (ATOMIC)');
   }
 }
