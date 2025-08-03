@@ -20,20 +20,23 @@ namespace Config {
   export const VERSION = '__VERSION__';
   export const DEPLOY_TIME = '__DEPLOY_TIME__';
   
+  export const DEFAULT_CLASSIFICATION_PROMPT = [
+    'You are an email triage assistant.',
+    'Return exactly one word:',
+    '  - support : if the email is a customer support request',
+    '  - undefined : for anything else (not support).',
+    '---------- EMAIL START ----------'
+  ].join('\n');
+  
+  export const DEFAULT_RESPONSE_PROMPT = [
+    'You are a customer support agent.',
+    'Draft a friendly, concise reply that resolves the customer issue.',
+    '---------- ORIGINAL EMAIL ----------'
+  ].join('\n');
+  
   export const PROMPTS = {
-    CLASSIFICATION: [
-      'You are an email triage assistant.',
-      'Return exactly one word:',
-      '  - support : if the email is a customer support request',
-      '  - undefined : for anything else (not support).',
-      '---------- EMAIL START ----------'
-    ].join('\n'),
-    
-    RESPONSE: [
-      'You are a customer support agent.',
-      'Draft a friendly, concise reply that resolves the customer issue.',
-      '---------- ORIGINAL EMAIL ----------'
-    ].join('\n')
+    CLASSIFICATION: DEFAULT_CLASSIFICATION_PROMPT,
+    RESPONSE: DEFAULT_RESPONSE_PROMPT
   };
   
   export const GEMINI = {

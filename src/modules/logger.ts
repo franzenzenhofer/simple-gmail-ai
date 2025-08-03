@@ -292,4 +292,79 @@ namespace AppLogger {
   export const info = (msg: string, ctx?: LogContext) => log(LogLevel.INFO, msg, ctx);
   export const warn = (msg: string, ctx?: LogContext) => log(LogLevel.WARN, msg, ctx);
   export const error = (msg: string, ctx?: LogContext) => log(LogLevel.ERROR, msg, ctx);
+  
+  // In-memory log cache for display
+  let logCache: string[] = [];
+  
+  export function getLogsForDisplay(): string {
+    return logCache.join('\n') || 'No logs available';
+  }
+  
+  /**
+   * Get recent logs with metadata
+   */
+  export function getRecentLogs(limit: number = 50): Array<{timestamp: number; level: string; message: string; context?: string}> {
+    // Try to get from cache first
+    try {
+      const cache = CacheService.getUserCache();
+      const logKey = 'LIVE_LOG_' + executionId;
+      const cachedLogs = cache.get(logKey);
+      
+      if (cachedLogs) {
+        const logs = JSON.parse(cachedLogs);
+        return logs.slice(-limit).map((entry: any) => ({
+          timestamp: new Date(entry.timestamp).getTime(),
+          level: entry.level.toLowerCase(),
+          message: entry.message,
+          context: entry.context ? JSON.stringify(entry.context) : undefined
+        }));
+      }
+    } catch (e) {
+      // Fall back to properties
+      try {
+        const props = PropertiesService.getUserProperties();
+        const logKey = 'LIVE_LOG_' + executionId;
+        const propLogs = props.getProperty(logKey);
+        
+        if (propLogs) {
+          const logs = JSON.parse(propLogs);
+          return logs.slice(-limit).map((entry: any) => ({
+            timestamp: new Date(entry.timestamp).getTime(),
+            level: entry.level.toLowerCase(),
+            message: entry.message,
+            context: entry.context ? JSON.stringify(entry.context) : undefined
+          }));
+        }
+      } catch (e2) {
+        // Ignore
+      }
+    }
+    
+    return [];
+  }
+  
+  /**
+   * Clear all logs
+   */
+  export function clearLogs(): void {
+    logCache = [];
+    
+    try {
+      const cache = CacheService.getUserCache();
+      const logKey = 'LIVE_LOG_' + executionId;
+      cache.remove(logKey);
+    } catch (e) {
+      // Ignore
+    }
+    
+    try {
+      const props = PropertiesService.getUserProperties();
+      const logKey = 'LIVE_LOG_' + executionId;
+      props.deleteProperty(logKey);
+    } catch (e) {
+      // Ignore
+    }
+    
+    info('📋 Logs cleared', {});
+  }
 }

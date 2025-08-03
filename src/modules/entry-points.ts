@@ -35,7 +35,21 @@ namespace EntryPoints {
         executionId: AppLogger.executionId
       });
       
-      return UI.buildHomepage();
+      // Initialize dark mode settings
+      DarkMode.initializeDarkMode();
+      
+      // Check if user needs welcome flow
+      if (WelcomeFlow.needsWelcomeFlow()) {
+        return WelcomeFlow.createWelcomeCard();
+      }
+      
+      // Check if test mode is active
+      if (TestMode.isTestModeActive()) {
+        return TestMode.createTestModeCard();
+      }
+      
+      // Use condensed UI
+      return UIImprovements.createCondensedMainCard();
     } catch (error) {
       return ErrorHandling.handleGlobalError(error);
     }

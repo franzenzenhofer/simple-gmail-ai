@@ -13,6 +13,12 @@
 /// <reference path="modules/batch-processor.ts" />
 /// <reference path="modules/continuation-triggers.ts" />
 /// <reference path="modules/continuation-handlers.ts" />
+/// <reference path="modules/function-calling.ts" />
+/// <reference path="modules/dark-mode.ts" />
+/// <reference path="modules/test-mode.ts" />
+/// <reference path="modules/contextual-actions.ts" />
+/// <reference path="modules/welcome-flow.ts" />
+/// <reference path="modules/ui-improvements.ts" />
 /// <reference path="modules/ai.ts" />
 /// <reference path="modules/structured-ai.ts" />
 /// <reference path="modules/gmail.ts" />
@@ -111,4 +117,151 @@ function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActio
 // Continuation Processing Handler
 function continueLargeInboxProcessing(): void {
   return ContinuationHandlers.continueLargeInboxProcessing();
+}
+
+// Test Mode Handlers
+function toggleTestMode(): GoogleAppsScript.Card_Service.ActionResponse {
+  const isActive = TestMode.isTestModeActive();
+  
+  if (isActive) {
+    TestMode.disableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('🧪 Test mode disabled'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(UI.buildHomepage()))
+      .build();
+  } else {
+    TestMode.enableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('🧪 Test mode enabled - safe processing active'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(TestMode.createTestModeCard()))
+      .build();
+  }
+}
+
+function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
+  const apiKey = PropertiesService.getUserProperties().getProperty('apiKey');
+  if (!apiKey) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('❌ API key not configured'))
+      .build();
+  }
+  
+  const result = TestMode.runTestAnalysis(
+    apiKey,
+    PropertiesService.getUserProperties().getProperty('classificationPrompt') || Config.DEFAULT_CLASSIFICATION_PROMPT,
+    PropertiesService.getUserProperties().getProperty('responsePrompt') || Config.DEFAULT_RESPONSE_PROMPT
+  );
+  
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification()
+      .setText(result.success 
+        ? `✅ Test complete: ${result.emailsProcessed} email(s) analyzed`
+        : `❌ Test failed: ${result.errors[0]}`))
+    .setNavigation(CardService.newNavigation()
+      .updateCard(TestMode.createTestModeCard()))
+    .build();
+}
+
+// Dark Mode Handler
+function toggleDarkMode(): GoogleAppsScript.Card_Service.ActionResponse {
+  const newMode = DarkMode.toggleDarkMode();
+  
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification()
+      .setText(newMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled'))
+    .setNavigation(CardService.newNavigation()
+      .updateCard(UIImprovements.createCondensedMainCard()))
+    .build();
+}
+
+// Welcome Flow Handlers
+function startWelcomeFlow(): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.startWelcomeFlow();
+}
+
+function saveApiKeyFromWelcome(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.saveApiKeyFromWelcome(e);
+}
+
+function runWelcomeTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.runWelcomeTestAnalysis();
+}
+
+function toggleDarkModeFromWelcome(): GoogleAppsScript.Card_Service.ActionResponse {
+  DarkMode.toggleDarkMode();
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification()
+      .setText('🌓 Theme preference saved'))
+    .build();
+}
+
+function finishWelcomeFlow(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.finishWelcomeFlow(e);
+}
+
+// Contextual Actions Handler
+function executeContextualAction(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const actionId = e.parameters.actionId;
+  const messageId = e.parameters.messageId;
+  const threadId = e.parameters.threadId;
+  
+  // Get the action and execute it
+  const message = GmailApp.getMessageById(messageId);
+  const thread = GmailApp.getThreadById(threadId);
+  
+  const context: ContextualActions.MessageContext = {
+    messageId: messageId,
+    threadId: threadId,
+    subject: message.getSubject(),
+    from: message.getFrom(),
+    to: message.getTo(),
+    body: message.getPlainBody(),
+    labels: thread.getLabels().map(l => l.getName()),
+    attachments: message.getAttachments().length,
+    isUnread: message.isUnread(),
+    isDraft: message.isDraft()
+  };
+  
+  // Find and execute the action
+  const actions = ContextualActions.getAvailableActions(context);
+  const action = actions.find(a => a.id === actionId);
+  
+  if (action) {
+    return action.handler(context);
+  }
+  
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification()
+      .setText('❌ Action not found'))
+    .build();
+}
+
+// UI Improvements Handlers
+function toggleSectionState(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.toggleSectionState(e);
+}
+
+function updateLogFilter(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.updateLogFilter(e);
+}
+
+function refreshLiveLogOverlay(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.refreshLiveLogOverlay();
+}
+
+function closeLiveLogOverlay(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.closeLiveLogOverlay();
+}
+
+function clearLogs(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.clearLogs();
+}
+
+function resetStatistics(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.resetStatistics();
 }
