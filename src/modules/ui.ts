@@ -8,22 +8,8 @@ namespace UI {
     const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
     const hasApiKey = savedKey.trim() !== '';
     
-    // Check if processing, with failsafe for stale flags (clear after 5 minutes)
-    const props = PropertiesService.getUserProperties();
-    let isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
-    
-    if (isProcessing) {
-      const lastStartTime = props.getProperty('ANALYSIS_START_TIME');
-      if (lastStartTime) {
-        const elapsed = Date.now() - parseInt(lastStartTime);
-        if (elapsed > 300000) { // 5 minutes
-          // Clear stale flag
-          props.setProperty('ANALYSIS_RUNNING', 'false');
-          isProcessing = false;
-          AppLogger.info('Cleared stale ANALYSIS_RUNNING flag', { elapsed });
-        }
-      }
-    }
+    // Check if processing using robust lock manager
+    const isProcessing = LockManager.isLocked();
     
     const card = CardService.newCardBuilder()
       .setHeader(
@@ -416,7 +402,7 @@ namespace UI {
     
     // === REAL-TIME STATS SECTION ===
     const statsSection = CardService.newCardSection();
-    const isRunning = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
+    const isRunning = LockManager.isLocked();
     
     AppLogger.info('📊 BUILDING STATS SECTION', {
       isRunning: isRunning,

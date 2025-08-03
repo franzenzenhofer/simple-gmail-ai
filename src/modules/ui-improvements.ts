@@ -414,7 +414,7 @@ namespace UIImprovements {
    * Check if processing is active
    */
   function isProcessingActive(): boolean {
-    return PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true' ||
+    return LockManager.isLocked() ||
            ContinuationTriggers.isContinuationActive();
   }
   

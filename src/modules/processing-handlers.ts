@@ -12,8 +12,6 @@ namespace ProcessingHandlers {
     createDrafts: boolean,
     autoReply: boolean
   ): GoogleAppsScript.Card_Service.ActionResponse {
-    const userProps = PropertiesService.getUserProperties();
-    
     try {
       // START ACTUAL PROCESSING
       const threads = GmailService.getUnprocessedThreads();
@@ -69,9 +67,9 @@ namespace ProcessingHandlers {
       
       AppLogger.info('🎯 Analysis completed', { stats });
       
-      // Mark analysis as complete and save execution info
+      // Release lock and save execution info
+      LockManager.releaseLock();
       const props = PropertiesService.getUserProperties();
-      props.setProperty('ANALYSIS_RUNNING', 'false');
       
       // T-20: Mark first run as complete for delta processing
       HistoryDelta.markFirstRunDone();
@@ -101,9 +99,12 @@ namespace ProcessingHandlers {
       return UI.navigateTo(UI.buildLiveLogView());
       
     } catch (err) {
-      userProps.setProperty('ANALYSIS_RUNNING', 'false');
+      LockManager.releaseLock();
       AppLogger.error('Error in processing', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
+    } finally {
+      // Ensure lock is released even on unexpected errors
+      LockManager.releaseLock();
     }
   }
 
@@ -178,9 +179,9 @@ namespace ProcessingHandlers {
       
       AppLogger.info('🎯 Analysis completed', { stats });
       
-      // Mark analysis as complete and save execution info
+      // Release lock and save execution info
+      LockManager.releaseLock();
       const props = PropertiesService.getUserProperties();
-      props.setProperty('ANALYSIS_RUNNING', 'false');
       
       // T-20: Mark first run as complete for delta processing
       HistoryDelta.markFirstRunDone();
@@ -214,9 +215,12 @@ namespace ProcessingHandlers {
         .build();
         
     } catch (err) {
-      userProps.setProperty('ANALYSIS_RUNNING', 'false');
+      LockManager.releaseLock();
       AppLogger.error('Error in processing', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
+    } finally {
+      // Ensure lock is released even on unexpected errors
+      LockManager.releaseLock();
     }
   }
 }

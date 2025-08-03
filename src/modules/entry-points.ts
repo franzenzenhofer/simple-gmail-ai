@@ -39,23 +39,16 @@ namespace EntryPoints {
         Utils.logWarning('migrate label cache', error);
       }
       
-      // Clear any stale processing flags on add-on load
-      const props = PropertiesService.getUserProperties();
-      const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
-      if (isProcessing) {
-        const lastStartTime = props.getProperty('ANALYSIS_START_TIME');
-        if (lastStartTime) {
-          const elapsed = Date.now() - parseInt(lastStartTime);
-          // Clear if older than 2 minutes (processing should never take that long)
-          if (elapsed > 120000) {
-            props.setProperty('ANALYSIS_RUNNING', 'false');
-            AppLogger.info('Cleared stale ANALYSIS_RUNNING flag on startup', { elapsed });
-          }
-        } else {
-          // No start time recorded, clear the flag
-          props.setProperty('ANALYSIS_RUNNING', 'false');
-          AppLogger.info('Cleared ANALYSIS_RUNNING flag (no start time)');
-        }
+      // Clear any stale processing locks on add-on load
+      const lockInfo = LockManager.getLockInfo();
+      if (lockInfo) {
+        const elapsed = Date.now() - lockInfo.startTime;
+        AppLogger.info('Found existing analysis lock on startup', {
+          executionId: lockInfo.executionId,
+          elapsedMs: elapsed,
+          mode: lockInfo.mode
+        });
+        // Lock manager will automatically handle stale locks based on timeout
       }
       
       AppLogger.info('Gmail Add-on started', {

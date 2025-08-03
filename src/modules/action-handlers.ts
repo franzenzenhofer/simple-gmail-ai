@@ -114,9 +114,11 @@ namespace ActionHandlers {
       
       AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
       
-      // Mark analysis as starting with timestamp for stale flag detection
-      userProps.setProperty('ANALYSIS_RUNNING', 'true');
-      userProps.setProperty('ANALYSIS_START_TIME', Date.now().toString());
+      // Acquire analysis lock with timeout protection
+      if (!LockManager.acquireLock(mode)) {
+        AppLogger.warn('Analysis already running, cannot start new analysis');
+        return UI.showNotification('Analysis is already running. Please wait for it to complete.');
+      }
       
       // Clear any previous cancellation flag
       userProps.deleteProperty('ANALYSIS_CANCELLED');
@@ -139,7 +141,7 @@ namespace ActionHandlers {
       return ProcessingHandlers.continueProcessingAndNavigate(apiKey, mode, prompt1, prompt2, createDrafts, autoReply);
       
     } catch (err) {
-      PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
+      LockManager.releaseLock();
       AppLogger.error('Error starting analysis', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
     }
@@ -154,8 +156,8 @@ namespace ActionHandlers {
         return UI.showNotification('No processing to cancel');
       }
       
-      // Force stop processing
-      props.setProperty('ANALYSIS_RUNNING', 'false');
+      // Force release lock and mark as cancelled
+      LockManager.releaseLock();
       props.setProperty('ANALYSIS_CANCELLED', 'true');
       
       AppLogger.info('🛑 PROCESSING CANCELLED BY USER', {
