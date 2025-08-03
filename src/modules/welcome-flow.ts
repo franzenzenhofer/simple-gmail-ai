@@ -32,7 +32,7 @@ namespace WelcomeFlow {
    * Check if user needs welcome flow
    */
   export function needsWelcomeFlow(): boolean {
-    const apiKey = PropertiesService.getUserProperties().getProperty('apiKey');
+    const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
     const welcomeShown = PropertiesService.getUserProperties().getProperty(WELCOME_SHOWN_KEY);
     
     return !apiKey && !welcomeShown;
@@ -406,7 +406,7 @@ namespace WelcomeFlow {
         .build();
     }
     
-    PropertiesService.getUserProperties().setProperty('apiKey', apiKey);
+    PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.API_KEY, apiKey);
     
     updateOnboardingProgress({
       state: WelcomeState.TEST_RUN,
@@ -426,7 +426,7 @@ namespace WelcomeFlow {
    */
   export function runWelcomeTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      const apiKey = PropertiesService.getUserProperties().getProperty('apiKey');
+      const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
       if (!apiKey) {
         throw new Error('API key not found');
       }

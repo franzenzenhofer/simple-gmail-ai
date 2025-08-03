@@ -12,7 +12,7 @@ namespace Config {
   
   export const LABELS = {
     SUPPORT: 'Support',
-    NOT_SUPPORT: 'undefined', 
+    NOT_SUPPORT: 'General', 
     AI_PROCESSED: 'ai✓',
     AI_ERROR: 'aiX',
     AI_GUARDRAILS_FAILED: 'ai✗'
@@ -45,6 +45,20 @@ namespace Config {
     TEMPERATURE: 0.3,
     API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/',
     TIMEOUT_MS: 30000 // 30 seconds timeout for API calls
+  };
+  
+  // Property keys - centralized to avoid inconsistency
+  export const PROP_KEYS = {
+    API_KEY: 'GEMINI_API_KEY', // Single source of truth for API key property
+    ONBOARDING_PROGRESS: 'ONBOARDING_PROGRESS',
+    ANALYSIS_RUNNING: 'ANALYSIS_RUNNING',
+    ANALYSIS_START_TIME: 'ANALYSIS_START_TIME',
+    LAST_EXECUTION_STATS: 'LAST_EXECUTION_STATS',
+    DEBUG_MODE: 'DEBUG_MODE',
+    SPREADSHEET_LOGGING_ENABLED: 'SPREADSHEET_LOGGING_ENABLED',
+    SPREADSHEET_LOG_ID: 'SPREADSHEET_LOG_ID',
+    DARK_MODE_ENABLED: 'DARK_MODE_ENABLED',
+    TEST_MODE_CONFIG: 'TEST_MODE_CONFIG'
   };
   
   // Theme colors - can be customized or made theme-aware

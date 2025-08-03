@@ -91,7 +91,7 @@ namespace UIImprovements {
    * Create condensed main card
    */
   export function createCondensedMainCard(): GoogleAppsScript.Card_Service.Card {
-    const apiKey = PropertiesService.getUserProperties().getProperty('apiKey');
+    const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
     const isDarkMode = DarkMode.isDarkModeEnabled();
     
     const card = CardService.newCardBuilder()

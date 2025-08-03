@@ -260,6 +260,6 @@ namespace Utils {
    * Get API key from user properties
    */
   export function getApiKey(): string | null {
-    return PropertiesService.getUserProperties().getProperty('apiKey');
+    return PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
   }
 }
