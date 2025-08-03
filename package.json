@@ -22,7 +22,7 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "check": "npm-run-all --parallel lint lint:eslint",
     "lint:eslint": "eslint src/**/*.ts",
-    "test:postbundle": "node test-post-bundle.js",
+    "test:postbundle": "node tests/scripts/test-post-bundle.js",
     "test:all": "npm-run-all --parallel test test:postbundle",
     "predeploy": "npm-run-all check build test && echo 'Pre-deploy checks passed'",
     "deploy": "npm run predeploy && git add -A && git diff --staged --quiet || git commit -m 'chore: prepare for deployment' && npm version minor && ./deploy.sh && echo 'Deployment complete'",
