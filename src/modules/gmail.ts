@@ -344,12 +344,34 @@ namespace GmailService {
       supportThreads.forEach(({threadId, thread, redactedBody, subject, sender}) => {
         try {
           // T-12: Use redacted body for AI reply generation
-          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------';
-          const replyResult = AI.callGemini(apiKey, replyPrompt);
+          // T-14: Use structured JSON response for batch reply generation
+          const replySchema = {
+            type: 'object',
+            properties: {
+              reply: {
+                type: 'string'
+              }
+            },
+            required: ['reply']
+          };
+          
+          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
+          const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
+            // T-14: Parse structured response
+            let replyData: any;
+            try {
+              replyData = typeof replyResult.data === 'string' 
+                ? JSON.parse(replyResult.data)
+                : replyResult.data;
+            } catch (e) {
+              // Fallback to direct string if JSON parse fails
+              replyData = { reply: replyResult.data };
+            }
+            
             // T-12: Restore PII in the reply
-            const replyBody = Redaction.restorePII(replyResult.data, threadId);
+            const replyBody = Redaction.restorePII(replyData.reply || replyData, threadId);
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {
@@ -477,21 +499,57 @@ namespace GmailService {
         });
       }
       
-      const fullPrompt = classificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------';
-      const classificationResult = AI.callGemini(apiKey, fullPrompt);
+      // T-14: Use structured JSON response for classification
+      const classificationSchema = {
+        type: 'object',
+        properties: {
+          label: {
+            type: 'string',
+            enum: ['support', 'not']
+          },
+          confidence: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1
+          },
+          category: {
+            type: 'string',
+            enum: ['technical', 'billing', 'feature_request', 'bug_report', 'general', 'not_support']
+          }
+        },
+        required: ['label']
+      };
+      
+      const fullPrompt = classificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------\n\nRespond with JSON containing "label" field with value "support" or "not".';
+      const classificationResult = AI.callGemini(apiKey, fullPrompt, classificationSchema);
       
       if (!classificationResult.success) {
         throw new Error(classificationResult.error);
       }
       
-      const classification = classificationResult.data.toLowerCase();
+      // T-14: Parse structured response
+      let classificationData: any;
+      try {
+        classificationData = typeof classificationResult.data === 'string' 
+          ? JSON.parse(classificationResult.data)
+          : classificationResult.data;
+      } catch (e) {
+        // Fallback to string parsing if JSON parse fails
+        AppLogger.warn('Failed to parse classification as JSON, falling back to string', {
+          response: classificationResult.data,
+          error: String(e)
+        });
+        classificationData = { label: String(classificationResult.data).toLowerCase().includes('support') ? 'support' : 'not' };
+      }
       
-      const isSupport = classification.indexOf('support') === 0;
+      const isSupport = classificationData.label === 'support';
       
       AppLogger.info('🎯 EMAIL CLASSIFIED', {
-        shortMessage: 'Classified "' + subject + '" as ' + classification.toUpperCase(),
+        shortMessage: 'Classified "' + subject + '" as ' + classificationData.label.toUpperCase(),
         subject: subject,
-        classification: classification,
+        classification: classificationData.label,
+        confidence: classificationData.confidence,
+        category: classificationData.category,
         isSupport: isSupport,
         threadId: thread.getId()
       });
@@ -517,12 +575,45 @@ namespace GmailService {
           });
           
           // T-12: Use redacted body for reply generation (already redacted above)
-          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------';
-          const replyResult = AI.callGemini(apiKey, replyPrompt);
+          // T-14: Use structured JSON response for reply generation
+          const replySchema = {
+            type: 'object',
+            properties: {
+              reply: {
+                type: 'string'
+              },
+              tone: {
+                type: 'string',
+                enum: ['formal', 'friendly', 'technical', 'empathetic']
+              },
+              requiresEscalation: {
+                type: 'boolean'
+              }
+            },
+            required: ['reply']
+          };
+          
+          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
+          const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
+            // T-14: Parse structured response
+            let replyData: any;
+            try {
+              replyData = typeof replyResult.data === 'string' 
+                ? JSON.parse(replyResult.data)
+                : replyResult.data;
+            } catch (e) {
+              // Fallback to direct string if JSON parse fails
+              AppLogger.warn('Failed to parse reply as JSON, using as plain text', {
+                response: replyResult.data,
+                error: String(e)
+              });
+              replyData = { reply: replyResult.data };
+            }
+            
             // T-12: Restore PII in the reply before sending/saving
-            const replyBody = Redaction.restorePII(replyResult.data, thread.getId());
+            const replyBody = Redaction.restorePII(replyData.reply || replyData, thread.getId());
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {

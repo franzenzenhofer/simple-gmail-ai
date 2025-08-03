@@ -59,7 +59,7 @@ namespace AI {
       temperature: isRetry ? 0 : Config.GEMINI.TEMPERATURE
     };
     
-    // Enable strict JSON mode if schema provided
+    // T-14: Enable strict JSON mode if schema provided
     if (useJsonMode) {
       generationConfig.response_mime_type = 'application/json';
       generationConfig.response_schema = cleanSchema;
@@ -291,7 +291,23 @@ namespace AI {
       
       batchPrompt += 'REMEMBER: Respond ONLY with the JSON array, nothing else! Format: [{"id": "<email_id>", "classification": "support" or "not"}]';
       
-      const response = callGemini(apiKey, batchPrompt);
+      // T-14: Use JSON schema for batch classification
+      const batchSchema = {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            classification: { 
+              type: 'string',
+              enum: ['support', 'not']
+            }
+          },
+          required: ['id', 'classification']
+        }
+      };
+      
+      const response = callGemini(apiKey, batchPrompt, batchSchema);
       
       if (!response.success) {
         AppLogger.error('❌ BATCH API ERROR', {
@@ -310,12 +326,17 @@ namespace AI {
         continue;
       }
       
-      // Parse the batch response
+      // T-14: Parse the batch response (should already be parsed with JSON schema)
       let batchResults: Array<{id: string, classification: string}>;
       try {
-        // Handle response that might have markdown code blocks
-        const cleanResponse = response.data.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        batchResults = JSON.parse(cleanResponse);
+        if (typeof response.data === 'string') {
+          // Fallback: Handle response that might have markdown code blocks
+          const cleanResponse = response.data.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          batchResults = JSON.parse(cleanResponse);
+        } else {
+          // Should already be parsed when using JSON schema
+          batchResults = response.data as Array<{id: string, classification: string}>;
+        }
       } catch (parseError) {
         Utils.logAndHandleError(parseError, `Batch parse error for ${batchId}`);
         // Fallback: mark all emails in batch as errors
