@@ -3,8 +3,8 @@
  * Following TDD principles with real implementations
  */
 
-import { setupMinimalEnvironment } from '../tests/setup';
-import { ProcessingMode } from '../tests/config-constants';
+import { setupMinimalEnvironment } from '../setup';
+import { ProcessingMode } from '../config-constants';
 
 // Import functions to test (we'll need to refactor Code.ts to export them)
 describe('Gmail Support Triage AI - Core Functions', () => {

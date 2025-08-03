@@ -3,7 +3,7 @@
  * Tests core logic without Google Apps Script dependencies
  */
 
-import { ProcessingMode } from '../tests/config-constants';
+import { ProcessingMode } from '../config-constants';
 
 describe('Gmail Support Triage AI - Simple Tests', () => {
   describe('Form Value Extraction', () => {

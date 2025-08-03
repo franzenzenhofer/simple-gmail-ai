@@ -2,7 +2,7 @@
  * Integration test for the complete analysis flow
  */
 
-import { ProcessingMode } from '../tests/config-constants';
+import { ProcessingMode } from '../config-constants';
 
 describe('Complete Analysis Flow', () => {
   let mockProps: Map<string, string>;
