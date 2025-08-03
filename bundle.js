@@ -46,7 +46,8 @@ function analyzeDependencies(modulesDir) {
     'navigation-handlers',
     'action-handlers',
     'processing-handlers',
-    'universal-actions'
+    'universal-actions',
+    'docs-prompt-editor'
   ];
   
   // Map of namespace names to module files
@@ -80,7 +81,8 @@ function analyzeDependencies(modulesDir) {
     'NavigationHandlers': 'navigation-handlers',
     'ActionHandlers': 'action-handlers',
     'ProcessingHandlers': 'processing-handlers',
-    'UniversalActions': 'universal-actions'
+    'UniversalActions': 'universal-actions',
+    'DocsPromptEditor': 'docs-prompt-editor'
   };
   
   coreModules.forEach(moduleName => {
