@@ -69,8 +69,7 @@ namespace ProcessingHandlers {
     
     AppLogger.info('🎯 Analysis completed', { stats });
     
-    // Release lock and save execution info
-    LockManager.releaseLock();
+    // Save execution info (lock will be released in finally block)
     const props = PropertiesService.getUserProperties();
     
     // T-20: Mark first run as complete for delta processing
@@ -115,11 +114,10 @@ namespace ProcessingHandlers {
       return UI.navigateTo(UI.buildLiveLogView());
       
     } catch (err) {
-      LockManager.releaseLock();
       AppLogger.error('Error in processing', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
     } finally {
-      // Ensure lock is released even on unexpected errors
+      // Ensure lock is released exactly once regardless of success/failure
       LockManager.releaseLock();
     }
   }
@@ -155,11 +153,10 @@ namespace ProcessingHandlers {
         .build();
         
     } catch (err) {
-      LockManager.releaseLock();
       AppLogger.error('Error in processing', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
     } finally {
-      // Ensure lock is released even on unexpected errors
+      // Ensure lock is released exactly once regardless of success/failure
       LockManager.releaseLock();
     }
   }
