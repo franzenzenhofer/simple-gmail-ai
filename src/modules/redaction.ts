@@ -1,19 +1,51 @@
 /**
  * Redaction Module - T-12
  * Per-Thread Redaction Cache for PII protection
+ * 
+ * ⚠️  IMPORTANT SECURITY DISCLAIMER:
+ * This PII redaction system is INCOMPLETE and provides only BASIC protection.
+ * It uses regex patterns that will MISS many PII formats and variations.
+ * DO NOT rely on this system for complete privacy protection.
+ * 
+ * Known limitations:
+ * - Names, addresses, and personal identifiers: NOT detected
+ * - International phone/SSN formats: NOT detected  
+ * - Encoded or obfuscated PII: NOT detected
+ * - Context-dependent sensitive data: NOT detected
+ * 
+ * For sensitive data processing, consider using dedicated PII detection services
+ * or avoid sending personal information to AI services entirely.
  */
 
 namespace Redaction {
-  // PII patterns to redact
+  // Basic PII patterns - INCOMPLETE coverage (see disclaimer above)
   const PII_PATTERNS = {
+    // Email addresses (basic pattern)
     email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+    
+    // US phone numbers (various formats)
     phone: /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
-    orderNumber: /#[0-9]{6,}/g,
-    // Additional patterns can be added here
+    
+    // Order/tracking numbers (common patterns)
+    orderNumber: /#[0-9A-Z]{6,}/gi,
+    
+    // Credit card numbers (basic pattern - may have false positives)
     creditCard: /\b(?:\d[ -]*?){13,19}\b/g,
+    
+    // US Social Security Numbers
     ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
-    // URLs that might contain sensitive params
-    sensitiveUrl: /https?:\/\/[^\s]+(?:token|key|password|auth|session|api)[^\s]*/gi
+    
+    // URLs with sensitive parameters
+    sensitiveUrl: /https?:\/\/[^\s]+(?:token|key|password|auth|session|api|login)[^\s]*/gi,
+    
+    // Basic IP addresses
+    ipAddress: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
+    
+    // Common account numbers
+    accountNumber: /\b(?:acc?t?#?|account#?)\s*:?\s*[0-9A-Z]{6,}\b/gi,
+    
+    // Driver license (US format)
+    driverLicense: /\b[A-Z]{1,2}[0-9]{6,8}\b/g
   };
   
   interface RedactionMapping {
@@ -190,6 +222,7 @@ namespace Redaction {
   
   /**
    * Analyze text for PII without redacting (for reporting)
+   * WARNING: This analysis is INCOMPLETE - see module disclaimer
    */
   export function analyzePII(text: string): {
     hasEmail: boolean;
@@ -198,7 +231,11 @@ namespace Redaction {
     hasCreditCard: boolean;
     hasSSN: boolean;
     hasSensitiveUrl: boolean;
+    hasIpAddress: boolean;
+    hasAccountNumber: boolean;
+    hasDriverLicense: boolean;
     totalPIICount: number;
+    disclaimer: string;
   } {
     const analysis = {
       hasEmail: PII_PATTERNS.email.test(text),
@@ -207,7 +244,11 @@ namespace Redaction {
       hasCreditCard: PII_PATTERNS.creditCard.test(text),
       hasSSN: PII_PATTERNS.ssn.test(text),
       hasSensitiveUrl: PII_PATTERNS.sensitiveUrl.test(text),
-      totalPIICount: 0
+      hasIpAddress: PII_PATTERNS.ipAddress.test(text),
+      hasAccountNumber: PII_PATTERNS.accountNumber.test(text),
+      hasDriverLicense: PII_PATTERNS.driverLicense.test(text),
+      totalPIICount: 0,
+      disclaimer: 'WARNING: This PII detection is INCOMPLETE and may miss many forms of personal data'
     };
     
     // Count total PII occurrences
@@ -216,6 +257,8 @@ namespace Redaction {
       if (matches) {
         analysis.totalPIICount += matches.length;
       }
+      // Reset regex lastIndex to avoid stateful regex issues
+      pattern.lastIndex = 0;
     });
     
     return analysis;
