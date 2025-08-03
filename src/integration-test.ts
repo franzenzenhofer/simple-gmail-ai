@@ -3,8 +3,8 @@
  * Tests the actual batch processing with live API
  */
 
-// Use the API key from the CLAUDE.md file
-const API_KEY = 'AIzaSyBDeR8FBytoqxJ16aJV_2ryF__ChsUPCDE';
+// Get API key from environment variable for security
+const API_KEY = process.env.GEMINI_API_KEY || '';
 
 interface BatchEmail {
   id: string;
@@ -20,6 +20,8 @@ async function testBatchProcessing() {
   try {
     if (!API_KEY) {
       console.error('❌ No API key found - cannot run integration test');
+      console.error('Please set GEMINI_API_KEY environment variable');
+      console.error('Example: GEMINI_API_KEY=your-api-key npm test');
       return;
     }
 

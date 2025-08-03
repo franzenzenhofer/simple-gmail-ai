@@ -3,7 +3,7 @@
  * Tests the actual batch processing with live API
  */
 
-const API_KEY = 'AIzaSyBDeR8FBytoqxJ16aJV_2ryF__ChsUPCDE';
+const API_KEY = process.env.GEMINI_API_KEY || '';
 
 const testEmails = [
   {
@@ -24,6 +24,13 @@ const testEmails = [
 ];
 
 async function testBatchProcessing() {
+  if (!API_KEY) {
+    console.error('❌ No API key found - cannot run integration test');
+    console.error('Please set GEMINI_API_KEY environment variable');
+    console.error('Example: GEMINI_API_KEY=your-api-key npm test');
+    process.exit(1);
+  }
+  
   console.log('🧪 INTEGRATION TEST: Batch Processing with Real Gemini API');
   console.log('API Key:', API_KEY.substring(0, 10) + '...' + API_KEY.substring(API_KEY.length - 5));
 
