@@ -34,8 +34,12 @@ namespace GmailService {
       if (label) {
         return label;
       }
-      // Re-throw if label still doesn't exist
-      throw error;
+      // Re-throw as structured error
+      throw ErrorTaxonomy.createError(
+        ErrorTaxonomy.AppErrorType.GMAIL_LABEL_CREATE_FAILED,
+        'Failed to create label: ' + name,
+        { labelName: name, originalError: error }
+      );
     }
   }
   

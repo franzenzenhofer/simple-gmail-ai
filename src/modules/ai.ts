@@ -101,23 +101,47 @@ namespace AI {
       });
       
       if (responseCode !== 200) {
-        AppLogger.error('❌ AI ERROR [' + requestId + ']', {
-          statusCode: responseCode,
-          error: responseText,
-          requestId
-        });
-        return { success: false, error: 'API error: ' + responseCode + ' - ' + responseText, statusCode: responseCode, requestId };
+        // Determine specific error type
+        let errorType = ErrorTaxonomy.AppErrorType.API_SERVICE_ERROR;
+        if (responseCode === 401 || responseCode === 403) {
+          errorType = ErrorTaxonomy.AppErrorType.API_KEY_INVALID;
+        } else if (responseCode === 429) {
+          errorType = ErrorTaxonomy.AppErrorType.API_RATE_LIMITED;
+        } else if (responseCode === 503 || responseCode === 504) {
+          errorType = ErrorTaxonomy.AppErrorType.NETWORK_UNAVAILABLE;
+        }
+        
+        const appError = ErrorTaxonomy.createError(
+          errorType,
+          'API error: ' + responseCode + ' - ' + responseText,
+          { statusCode: responseCode, requestId }
+        );
+        
+        ErrorTaxonomy.logError(appError);
+        return { success: false, error: appError.message, statusCode: responseCode, requestId };
       }
       
       const data = JSON.parse(responseText) as Types.GeminiResponse;
       
       if (!data.candidates || data.candidates.length === 0) {
-        return { success: false, error: 'No response from AI', requestId };
+        const appError = ErrorTaxonomy.createError(
+          ErrorTaxonomy.AppErrorType.API_INVALID_RESPONSE,
+          'No response from AI',
+          { requestId }
+        );
+        ErrorTaxonomy.logError(appError);
+        return { success: false, error: appError.message, requestId };
       }
       
       const candidate = data.candidates[0];
       if (!candidate?.content?.parts?.[0]?.text) {
-        return { success: false, error: 'Invalid response structure from AI', requestId };
+        const appError = ErrorTaxonomy.createError(
+          ErrorTaxonomy.AppErrorType.API_INVALID_RESPONSE,
+          'Invalid response structure from AI',
+          { requestId, candidate }
+        );
+        ErrorTaxonomy.logError(appError);
+        return { success: false, error: appError.message, requestId };
       }
       const result = candidate.content.parts[0].text.trim();
       
@@ -196,19 +220,20 @@ namespace AI {
         return { success: true, data: result as T, requestId };
       }
     } catch (error) {
-      // Handle timeout errors specifically
-      const errorStr = String(error);
-      if (errorStr.includes('Timeout') || errorStr.includes('timeout')) {
-        AppLogger.error('⏱️ Request timeout [' + requestId + ']', {
-          error: errorStr,
-          timeoutSeconds: Config.GEMINI.TIMEOUT_MS / 1000,
-          requestId
-        });
-        return { success: false, error: 'Request timed out after ' + (Config.GEMINI.TIMEOUT_MS / 1000) + ' seconds', requestId };
-      }
+      // Parse and structure the error
+      const appError = ErrorTaxonomy.parseError(error);
       
-      const errorMessage = Utils.logAndHandleError(error, 'Gemini API call');
-      return { success: false, error: errorMessage, requestId };
+      // Create new error with added context
+      const enrichedError = ErrorTaxonomy.createError(
+        appError.type,
+        appError.message,
+        { ...appError.context, requestId }
+      );
+      
+      // Log with appropriate severity
+      ErrorTaxonomy.logError(enrichedError);
+      
+      return { success: false, error: enrichedError.message, requestId };
     }
   }
   

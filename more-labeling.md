@@ -1,377 +1,273 @@
-## ✨ Pitch Deck‑Style Narrative
-
-*(Why we’re building the “Prompt‑Powered Gmail Triage & Automation Studio” and how the new Classification + Action Builders unlock the next level.)*
+Below is an **add-on UI specification** that folds the extra requirement you just gave me into the Docs-based workflow:
 
 ---
 
-### 1 · Problem
+## 🎯 UI-Project Goal
 
-**Customer‑support mailboxes are overloaded and heterogenous.**
-*Refund requests, bugs, presales, spam, partner intros*—all land in the same Gmail inbox. Existing rules are binary (filters / labels) and brittle. Teams either:
+> **Ship a zero-code “Prompt Editor” card that — on first launch — automatically creates a pre-templated Google Docs file, and on every later launch re-parses that doc, detects changes, and shows an inline validation summary.**
 
-* Manually read & label every thread, losing hours.
-* Deploy heavyweight help‑desk suites, sacrificing Gmail’s native speed and discoverability.
-
----
-
-### 2 · Vision
-
-Bring **LLM‑grade intelligence** *inside* Gmail—no tab‑switching, no vendor lock‑in, no complex infra.
-Teams should design bespoke triage logic and response flows **visually**, then watch the system label, draft, forward or close tickets 24/7 while they stay in the inbox they already love.
+Users never touch Apps Script; they only edit one Doc.
+The add-on card is the single entry-point: *Create → Edit → Validate → Go Live*.
 
 ---
 
-### 3 · Solution Components
+## 🛣️ Full User Flow
 
-| Layer                             | What it does                                                                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Prompt Builders** (new UI tabs) | Drag‑and‑drop interface to declare unlimited *label ↔ criteria* pairs and per‑label *action recipes* (draft, send, forward, spam, delete). |
-| **Prompt Compiler**               | Translates those human‑readable rows into two readonly prompts—the Classification prompt & the Action prompt—optimised for Gemini 2.5.     |
-| **AI Runtime**                    | Two fast API calls per email. Call #1 returns `{label}`. Call #2 (optional) returns `{actions[]}` aligning to our JSON schema.             |
-| **Execution Engine**              | Executes Gmail actions safely (respecting Dev vs. Prod mode) and logs every step to the Live Log Viewer & spreadsheet archive.             |
-| **Live Log Viewer 2.0**           | Spreadsheet‑free, filterable, real‑time console—stay in Gmail, debug instantly.                                                            |
-
----
-
-### 4 · Why it wins
-
-1. **No vendor migration** – Teams keep Gmail labels, filters, shortcuts.
-2. **Infinite flexibility** – Add new labels or flows in 30 seconds via the builder; catch‑all “undefined” rule ensures nothing slips.
-3. **Cost‑efficient** – Gemini Flash call per thread ≈ \$0.0003; cheaper than SaaS desk seats.
-4. **Single‑file deployment** – One `Code.gs`, version‑controlled, auditable by security teams.
-5. **Design‑system ready** – Material‑3 tokens embedded; UI feels native to Google Workspace.
-6. **Governance** – All rules + prompts stored in user properties; exportable JSON, easy rollback, fully local, GDPR‑friendly.
+| #     | Card State                              | What the user sees & does                                                                                                                                                                                   | Under the hood                                                                                                                                                                                                                                                  |
+| ----- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0** | **First-run “No Doc yet”**              | Card text: “Welcome! Click **Create Prompt File** to start.”<br>Primary button **Create Prompt File**.                                                                                                      | Add-on calls `Drive.Files.create()` with the template body (Sections A–D skeleton).<br>• Stores `PROMPT_DOC_ID`, `PROMPT_DOC_REV` (= latestRevisionId) in `PropertiesService`.<br>• Opens the Doc in a new tab (`Url.open()`)<br>• Refreshes card into state 1. |
+| **1** | **Doc exists – needs first validation** | Header shows doc link (title as link).<br>Button **Validate & Compile**.                                                                                                                                    | When pressed, script reads Doc content, runs parser, shows summary panel (state 2).                                                                                                                                                                             |
+| **2** | **Summary panel**                       | Colored summary: ✅/⚠️/❌ counts + details list.<br>Footer buttons:<br>• **Open Doc** (for editing)<br>• **Refresh Summary** (disabled if no doc change)<br>• **Save & Go Live** (enabled only if 0 errors)   | Each refresh:<br>1. Calls Drive.Revisions.get() → `latestRevisionId`.<br>2. If different from stored `PROMPT_DOC_REV`, re-parse.<br>3. Update stored `PROMPT_DOC_REV`.                                                                                          |
+| **3** | **Go Live toast**                       | After user clicks **Save & Go Live** and summary has 0 errors → toast “Prompts compiled • Dev mode ON”.                                                                                                     | Compiled strings stored in `CLASS_RULES`, `ACTION_RULES`, etc.; timestamp `COMPILED_AT` saved.                                                                                                                                                                  |
+| **4** | **Subsequent visits**                   | Card instantly requests current `latestRevisionId`.<br>• **If unchanged** → shows cached summary + “No changes since last compile”.<br>• **If changed** → switches to state 1 and asks user to re-validate. | —                                                                                                                                                                                                                                                               |
 
 ---
 
-### 5 · Target Users & ROI
-
-| Persona                                     | Pain today                                          | Payoff with us                                                            |
-| ------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------- |
-| **Solo founder** running support from Gmail | Drowns in mixed inquiries, forgets to reply         | Auto‑drafts answers, highlights refunds; zero missed emails.              |
-| **SMB support lead** (3‑5 reps)             | Creates 20+ Gmail filters manually, brittle         | Visual builder → maintains rules w/out IT; <1 hr/week savings/rep.        |
-| **Growth hacker**                           | Needs to route leads vs. support vs. spam           | Gemini labels & forwards hot leads to CRM instantly.                      |
-| **Enterprise help‑desk manager** (pilot)    | Wants LLM benefits but can’t move off Gmail + Vault | Single‑file Apps Script passes security review faster than external SaaS. |
-
----
-
-### 6 · Go‑to‑Market Footprint
-
-* **Google Workspace Marketplace listing** (free tier up to 100 mails/day).
-* In‑product **“Upgrade to Pro”** upsell toggles more daily quota & analytics sheet.
-* Content marketing: templates gallery (“Refund flow”, “Bug triage flow”) importable via JSON.
-
----
-
-### 7 · Roadmap (3 releases)
-
-| Quarter    | Focus                                      | Highlights                                         |
-| ---------- | ------------------------------------------ | -------------------------------------------------- |
-| **Q3 ’25** | 🏗 Launch Classification & Action builders | Unlimited labels, live viewer 2.0                  |
-| **Q4 ’25** | 📊 Analytics & SLA monitoring              | Charts in sidebar; export to BigQuery              |
-| **Q1 ’26** | 🤖 Tool‑calling                            | Add custom webhooks & data look‑ups inside prompts |
-
----
-
-### 8 · Asks
-
-* **Design approval** for Builder UI wireframes.
-* **Security review** of JSON action schema.
-* **Beta testers** (3–5 Gmail power‑users) to validate flows.
-
----
-
-**In short:** We turn Gmail into a programmable, AI‑assisted help desk—*without* leaving Gmail, *without* extra SaaS logins, powered by a single Google Apps Script file your admin can audit in five minutes.
-
-
-## 📐 End‑to‑End Specification
-
-*(UI + data model + AI contract)*
-
-This document turns your idea into a **concrete blueprint** that fits the “single‑file, no external runtime deps” constraint. It has two pillars:
-
-1. **Configuration UI** (two builder tabs) – everything users touch.
-2. **Runtime contract** – how we translate those configs into prompts, what JSON the AI must return, and how the execution engine in Apps Script fulfils Gmail actions.
-
----
-
-### 1 Processing pipeline (big picture)
+## 🖥️ Card Wireframe (state 2)
 
 ```
-User Inbox           ┌─────► Step 1
-                     │         Classification prompt
-                     │         → AI returns {label}
-                     │
-Original email ──────┤
-                     │         Step 2
-                     └─────►   Action prompt
-                               → AI returns {actions[]}
-                                          ↓
-                                   GmailService executes
+┌─────────────────────────────────────────┐
+│ 📝  Prompt Editor                       │
+│ Doc:  Prompt-Rules-v1 (link)           │
+├─────────────────────────────────────────┤
+│  ✅ 5 labels parsed   ⚠️ 1 warning      │
+│  ❌ 0 errors                               │
+│                                           │
+│  ⚠️ Missing prompts                       │
+│     – Bug                                 │
+│                                           │
+│  🔁 Last compiled: 2025-08-03 09:14       │
+├─────────────────────────────────────────┤
+│  [Open Doc]   [Refresh Summary]   [Save & Go Live] │
+└─────────────────────────────────────────┘
 ```
 
-*We keep two separate calls:*
-
-* **Classification call** is *fast & cheap* (few tokens).
-* **Action call** (optional per label) can be heavier (draft body, forward, etc.).
+* **Refresh Summary** becomes active only when Drive’s `latestRevisionId` differs from stored one.
+* **Save & Go Live** is greyed if any ❌ errors remain.
 
 ---
 
-### 2 Data model stored in `PropertiesService`
-
-| Key                      | Type                         | Comment                         |
-| ------------------------ | ---------------------------- | ------------------------------- |
-| `CLASS_RULES`            | JSON string → `Rule[]`       | All label/criteria rows.        |
-| `ACTION_RULES`           | JSON string → `ActionRule[]` | Label → actions mapping.        |
-| `CLASS_PROMPT_OVERRIDE`  | string                       | If user hand‑edits full prompt. |
-| `ACTION_PROMPT_OVERRIDE` | string                       | idem for action prompt.         |
+## 🔍 Change-Detection Logic
 
 ```ts
-interface Rule {
-  label: string;            // “Refund”, “Bug”, “undefined”
-  criteria: string;         // free‑text condition
-  order: number;            // evaluation order
-}
-
-interface ActionRule {
-  label: string;            // must exist in Rule[]
-  actions: GmailAction[];   // see §7
-}
-
-type GmailAction =
-  | { type: 'labelOnly' }                               // default
-  | { type: 'draftReply'; tone?: 'friendly'|'formal'; template?: string }
-  | { type: 'sendReply';   tone?: string; template?: string }
-  | { type: 'forward';     to: string;   note?: string }
-  | { type: 'markSpam' }
-  | { type: 'delete' }
-  | { type: 'replyAll';    tone?: string; template?: string };
-```
-
-*Catch‑all* rule: A pseudo‑row with label `"undefined"` and empty criteria is auto‑appended and locked.
-
----
-
-### 3 UI spec – **Classification Prompt Builder** tab
-
-| Zone                         | Widgets (CardService)                                                                                          | Behaviour                                                                                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Header**                   | Title “Classification rules”                                                                                   |                                                                                                                                   |
-| **Toolbar**                  | `＋ Add rule` button                                                                                            | pushes an overlay card with two fields: **Label** (TextInput) & **Criteria** (TextInput, multiline). On save → append new `Rule`. |
-| **Rule list**                | For each rule<br> `KeyValue` → `label: criteria` + inline `✏️` *(edit)* & `🗑️` *(delete)* icons               | Order draggable: up/down arrows.                                                                                                  |
-| **Catch‑all row**            | Greyed text: `undefined : (matches all remaining)`                                                             | Not editable.                                                                                                                     |
-| **Generated prompt preview** | Collapsible `TextInput` (multiline) showing built prompt. `Edit raw` toggle writes to `CLASS_PROMPT_OVERRIDE`. |                                                                                                                                   |
-| **Save**                     | Fixed‑footer `Save` button                                                                                     | Serialises `Rule[]` and override value to `PropertiesService`.                                                                    |
-
-#### Prompt builder algorithm
-
-```ts
-"Return exactly one JSON line. Available labels: [Refund, Bug, Sales, undefined].\n" +
-rules.map(r => `- ${r.label}: ${r.criteria}`).join("\n") +
-"\nRespond with {\"label\":\"<one label>\"}"
-```
-
-If `CLASS_PROMPT_OVERRIDE` exists → use it verbatim.
-
----
-
-### 4 UI spec – **Action Builder** tab
-
-| Zone                                | Widgets                                                                                                                                                                              |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Toolbar**                         | `＋ Add action set` (choose existing **label** first)                                                                                                                                 |
-| **Action rows**                     | Each row: **Label badge** + pills for enabled actions (`Draft`, `Send`, `Forward`, `Spam`, `Delete`). Clicking a pill opens parameters dialog (e.g. template text, forward address). |
-| **Generated action prompt preview** | Same collapsible raw editor tied to `ACTION_PROMPT_OVERRIDE`.                                                                                                                        |
-
-#### Sample generated prompt
-
-```
-You are an email automation agent. Read the email and its assigned label,
-then respond ONLY with valid JSON following the schema below.
-
-### Labels & actions
-- Refund:
-    draftReply: Use friendly tone, start with apology.
-- Bug:
-    draftReply: Formal tone. Ask for repro steps.
-- Sales:
-    forward: "sales@company.com"
-- undefined:
-    labelOnly
-
-### JSON schema
-{
- "label": "<one label from above>",
- "actions": [
-   { "type": "draftReply", "body": "<markdown>" },
-   { "type": "forward", "to": "<email>", "note": "<optional>" },
-   ...
- ]
-}
-END.
-```
-
-If `ACTION_PROMPT_OVERRIDE` exists, use it.
-
----
-
-### 5 Opening the tabs (hydrate UI)
-
-1. Read `CLASS_RULES` / `ACTION_RULES` JSON.
-2. Populate list widgets.
-3. If user previously edited raw prompt, set collapsible “Raw prompt (custom)” open and fill value.
-
----
-
-### 6 Execution time flow
-
-```ts
-const { label } = AI.callClassification(apiKey, emailBody);
-const rule = actionRules.find(r => r.label === label) || { actions:[{type:'labelOnly'}]};
-if (rule.actions.some(a => a.type !== 'labelOnly')) {
-  const { actions } = AI.callAction(apiKey, { emailBody, label });
-  GmailService.perform(actions, label);
-} else {
-  GmailService.perform([{type:'labelOnly'}], label);
+function hasDocChanged(docId, cachedRev) {
+  const rev = Drive.Revisions.get(docId, 'head').id;
+  return rev !== cachedRev;
 }
 ```
 
+*Revision IDs are immutable; faster than comparing `modifiedTime`.*
+
 ---
 
-### 7 💾 AI → Apps Script **response schema**
+## 📜 Parser-to-Summary Mapping (unchanged)
 
-```jsonc
-{
-  "label": "Refund",            // must exist in Rule[] (else "undefined")
-  "actions": [
-    { "type": "labelOnly" },
+| Parser finding | UI list heading      | Icon |
+| -------------- | -------------------- | ---- |
+| duplicates     | “❌ Duplicate labels” | ❌    |
+| missing prompt | “⚠️ Missing prompts” | ⚠️   |
+| orphan prompt  | “⚠️ Orphan prompts”  | ⚠️   |
+| invalid order  | “❌ Invalid order”    | ❌    |
 
-    { "type": "draftReply",
-      "body": "Hi … We’ve processed your refund …",
-      "htmlBody": "<p>Hi …</p>"              // optional; plain body used if missing
-    },
+---
 
-    { "type": "forward",
-      "to": "support-tier2@company.com",
-      "note": "High‑value client"             // optional
-    },
+## 🔐 Permissions
 
-    { "type": "markSpam" },
+* **Drive** scope (`https://www.googleapis.com/auth/drive.file`) – needed only for the single Doc.
+* **Docs** scope for read-only parsing.
 
-    { "type": "delete" }
-  ]
-}
+---
+
+## ⏳ Performance Targets
+
+* **Doc creation round-trip** < 2 s.
+* **Validation** for 500-line Doc < 1 s (cache regex patterns, stream table rows).
+
+---
+
+### Outcome
+
+With this flow the add-on:
+
+1. **Creates** the prompt document automatically (no manual setup friction).
+2. **Tracks** every subsequent edit via Drive revision IDs.
+3. **Surfaces** validation results inline before the user can press “Go Live”.
+
+That matches your requirement: *“the app should create the first document and, when returning to the prompt editor card, check if it changed, update, and show a summary.”*
+
+
+
+Below is a **fully‑self‑contained specification** for storing **all triage prompts inside a single Google Docs file**.
+It replaces the in‑product “Prompt Builder” UI with a document‑based workflow while preserving
+every technical requirement you previously defined.
+
+---
+
+## 1 · Document Layout & Editing Guide  *(“Section A”)*
+
+| Purpose                                                                          | How to edit                                                                                    | Google Docs formatting                                                                           |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Explain to any collaborator **what the file is for** and **how to maintain it**. | Keep this section short and non‑technical—2‑3 paragraphs plus a bullet list of “dos & don’ts”. | Style = **Heading 1** titled `A · How to use this document`, followed by normal‑text paragraphs. |
+
+**Mandatory content**
+
+1. *Who should edit*: Ops lead, CX manager—never frontline agents.
+2. *Versioning tips*: Use **File ▸ Version history ▸ Name current version** after each change.
+3. *Golden rules*: one label per row in Section B; never rename headings; keep code blocks unwrapped.
+
+---
+
+## 2 · Label Registry  *(“Section B”)*
+
+| Column       | Meaning                                             | Example value                                      |
+| ------------ | --------------------------------------------------- | -------------------------------------------------- |
+| **Label**    | Gmail label to apply (unique, case‑sensitive)       | `Refund`                                           |
+| **Criteria** | Plain‑English classification hint for the LLM       | `mentions "refund", "money back", or "chargeback"` |
+| **Order**    | Integer; lower = evaluated earlier                  | `10`                                               |
+| **Actions?** | `YES` if a prompt exists in Section C, blank if not | *(auto‑filled by parser, do not edit)*             |
+
+### Editing rules
+
+* Add or change rows only—**never** delete the header row.
+* Keep one special row with `Label = undefined` and empty criteria; it is the catch‑all rule.
+
+### Google Docs formatting
+
+* Heading 1: `B · Label registry`
+* Immediately followed by a **plain table** (4 columns, any number of rows).
+
+---
+
+## 3 · Prompt Library  *(“Section C”)*
+
+Section C contains **one prompt per label**, plus an overall system prompt.
+Each prompt lives in its own *Heading 2* block:
+
+````
+### C.1 · Overall Prompt
+```text
+<free‑form text between triple backticks>
+````
+
+### C.2 · Prompt · Refund
+
+```text
+<the JSON‑guard‑railed prompt that tells the LLM how to handle Refund>
 ```
 
-*Rules*
+### C.3 · Prompt · Bug
 
-* `actions` may be empty → we fall back to `labelOnly`.
-* Allowed `type` values (case‑sensitive):
-  `labelOnly | draftReply | sendReply | replyAll | forward | markSpam | delete`.
-* `delete` means “move to trash”, **never** “permanent”.
-* If multiple conflicting actions exist (e.g. `draftReply` **and** `sendReply`), execution order is: **labelOnly → spam/delete → forward → draft → send → replyAll** ; later wins in conflicts.
+…
 
----
-
-### 8 Execution engine (`GmailService.perform`)
-
-```ts
-export function perform(cmds: GmailAction[], label: string) {
-  const thread = ...; // current GmailThread
-  switch (label) { case … add/remove Gmail labels … }
-
-  cmds.forEach(c => {
-    switch (c.type) {
-      case 'draftReply':
-        thread.createDraftReply(c.body, { htmlBody: c.htmlBody || c.body });
-        break;
-      case 'sendReply':
-        thread.reply(c.body, { htmlBody: c.htmlBody || c.body });
-        break;
-      case 'replyAll':
-        thread.replyAll(c.body, { htmlBody: c.htmlBody || c.body });
-        break;
-      case 'forward':
-        thread.forward(c.to, { subject: "FWD: " + thread.getFirstMessageSubject(),
-                               htmlBody: c.note ? c.note + '\n\n' + c.body : c.body });
-        break;
-      case 'markSpam':
-        thread.markSpam();
-        break;
-      case 'delete':
-        thread.moveToTrash();
-        break;
-    }
-  });
-}
 ```
 
-*(Development‑mode guard remains: send/draft operations become console logs unless production confirmed.)*
+**Conventions**
+
+* Heading 2 title **must start with one of**  
+  * `C.1 · Overall Prompt`  
+  * `C.n · Prompt · <Label>`
+* The first code fence after the heading is what the runtime uses verbatim.
+* If a label listed in Section B is **missing** its `C.n · Prompt · <Label>` block, the parser flags it as an *error*.
 
 ---
 
-### 9 Storage & size considerations
+## 4 · Undefined Prompt  *(“Section D”)*
 
-* `Rule[]` and `ActionRule[]` JSON stay small (<10 KB).
-* Generated prompts live only in memory at build time; overrides stored in `PropertiesService` under 100 KB limit.
-* Live‑log writer unchanged.
+Heading 1: `D · Prompt · undefined`  
 
----
+```
 
-### 10 UI implementation notes
+```text
+<free‑form prompt for the undefined catch‑all>
+```
 
-* Build two new helpers: `UI.buildClassificationBuilder()` and `UI.buildActionBuilder()`.
-* Extend `appsscript.json → addOns.common.universalActions` with “Classification rules” & “Action rules”.
-* Reuse design tokens for colours (e.g. label badges use `primary500` background).
+*Must be present even if its body is empty.*
 
 ---
 
-### Example end‑to‑end flow
+## 5 · Parser Expectations & Validation Rules
 
-1. **User** adds 3 rules: Refund, Bug, Sales.
-2. Adds actions: Refund → draftReply; Sales → forward.
-3. System constructs prompts (or user tweaks raw).
-4. Inbox email hits pipeline.
-5. **AI** returns
+| Check                                    | Severity    | Behaviour in summary block        |
+| ---------------------------------------- | ----------- | --------------------------------- |
+| Duplicate label in Section B             | **Error**   | Listed under “❌ Duplicate labels” |
+| Label with no prompt in Section C        | **Warning** | Listed under “⚠️ Missing prompts” |
+| Prompt exists for label not in Section B | **Warning** | Listed under “⚠️ Orphan prompts”  |
+| Missing `undefined` row or prompt        | **Error**   | Listed and triage stops           |
+| Non‑integer **Order** value              | **Error**   | Listed under “❌ Invalid order”    |
 
-   ```json
-   {"label":"Sales","actions":[{"type":"forward","to":"sales@company.com"}]}
-   ```
-6. Engine labels thread “Sales”, forwards, done. Spreadsheet logs everything, live viewer shows it.
+The **summary** that the Apps Script writes back to the sidebar or console uses this template:
+
+```
+✅ 5 labels parsed · 0 errors · 2 warnings
+❌ Duplicate labels
+   – Sales (rows 4 & 9)
+⚠️  Missing prompts
+   – Bug
+   – VIP
+⚠️  Orphan prompts
+   – BetaTester
+```
 
 ---
 
-### Summary
+## 6 · Runtime Generation Algorithm (unchanged)
 
-*Two builder tabs* give non‑technical users unlimited labeling & automation while we preserve a single‑file deployment. Rules → prompts → AI JSON → execution—all strictly defined. Drop this spec into your backlog and Jazz-away the UI; the back‑end already has most plumbing.
+* **Classification prompt** is built from Section B (same string‑builder you already wrote).
+* **Action prompts** per label are taken **verbatim** from each code block in Section C.
+* If **Section C** lacks a prompt for a given label, that label inherits **`labelOnly`** behaviour.
 
+---
 
-┌─────────────────────────────────────────────┐
-│ Gmail AI Triage                v1.10•2025‑08│
-├─────────────────────────────────────────────┤
-│ ✅ API Key configured                       │
-│ 🛡 Mode: Development  (toggle)              │
-│ 🐞 Debug: OFF        (switch)               │
-├─Active Rules───────────────────────────────┤
-│ 🟥 Refund        "any email containing ..." │
-│ 🟦 Bug           "subject starts with [bug" │
-│ 🟩 Sales         "contains 'quote', 'price'"│
-│ ⬜ undefined     catch‑all                  │
-│   ➕ Manage rules                            │
-├─Automation─────────────────────────────────┤
-│ Refund     → Draft + Send                   │
-│ Sales      → Forward sales@…                │
-│ undefined  → Label only                     │
-│   ✏️ Manage actions                          │
-├─Last run────────────────────────────────────┤
-│ 2025‑08‑03 09:14 – 42 scanned / 9 support / │
-│ 6 drafted / 3 sent / 0 errors  [Live log]   │
-├─Scope───────────────────────────────────────┤
-│ ◉ Inbox (50 + unread)                       │
-│ ○ Unread only                               │
-│ ○ Last [ 10 ] threads                       │
-├─────────────────────────────────────────────┤
-│          🚀 Run triage now                  │
-└─────────────────────────────────────────────┘
-      Rules   Actions   Logs   Settings
+## 7 · Example Minimal Document Outline
 
+````
+A · How to use this document
+   (paragraphs…)
+
+B · Label registry
+   | Label | Criteria | Order | Actions? |
+   | Refund | mentions "refund"… | 1 | YES |
+   | Bug | subject starts with… | 2 | YES |
+   | Sales | "quote" OR "pricing" | 3 |  |
+   | undefined |  | 9999 | YES |
+
+C.1 · Overall Prompt
+   ```text
+   You are an email‑classification assistant…
+````
+
+C.2 · Prompt · Refund
+
+```text
+{"instructions":"draft friendly apology and tag Refund"}
+```
+
+C.3 · Prompt · Bug
+
+```text
+{"instructions":"ask for repro steps and tag Bug"}
+```
+
+D · Prompt · undefined
+
+```text
+{"instructions":"labelOnly"}
+```
+
+```
+
+---
+
+## 8 · Implementation Tips
+
+1. **Heading parsing** – use `getParagraphs()` and test `getHeading() === DocumentApp.ParagraphHeading.HEADING2`.  
+2. **Table parsing** – the first table after Heading 1 “B · Label registry” is authoritative.  
+3. **Version control** – store the final JSON snapshot in `PropertiesService` under key `GOOGLE_DOCS_PROMPTS_RAW` for audit.  
+4. **Local testing** – commit a sample doc as `.md` in the repo; unit‑test the parser against it.
+
+---
+
+### In short
+*Everything*—labels, overall prompt, per‑label prompts—lives in a single Google Docs file with four clearly structured sections.  
+Your Apps Script parser consumes that file, builds the prompts, and produces a human‑readable summary pointing out any gaps before the triage engine runs.
+```
