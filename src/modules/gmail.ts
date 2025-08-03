@@ -185,7 +185,7 @@ namespace GmailService {
     
     // Step 1: Prepare emails for batch classification using new BatchProcessor
     const emailsToClassify: BatchProcessor.BatchItem[] = [];
-    const threadMap = new Map<string, {thread: GoogleAppsScript.Gmail.GmailThread, body: string, subject: string, sender: string}>();
+    const threadMap = new Map<string, {thread: GoogleAppsScript.Gmail.GmailThread, body: string, redactedBody: string, subject: string, sender: string}>();
     
     threads.forEach(thread => {
       try {
@@ -211,16 +211,28 @@ namespace GmailService {
         const sender = msg.getFrom();
         const threadId = thread.getId();
         
+        // T-12: Redact PII before batch classification
+        const redactionResult = Redaction.redactPII(body, threadId);
+        const redactedBody = redactionResult.redactedText;
+        
+        if (redactionResult.redactionCount > 0) {
+          AppLogger.info('🔒 PII REDACTED FOR BATCH', {
+            threadId: threadId,
+            tokensRedacted: redactionResult.redactionCount
+          });
+        }
+        
         emailsToClassify.push({
           id: threadId,
           subject: subject,
-          body: body,
+          body: redactedBody, // Use redacted body for classification
           threadId: threadId
         });
         
         threadMap.set(threadId, {
           thread: thread,
-          body: body,
+          body: body, // Keep original body for draft generation context
+          redactedBody: redactedBody, // Store redacted version too
           subject: subject,
           sender: sender
         });
@@ -270,7 +282,7 @@ namespace GmailService {
     const notSupportLabel = getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
     const processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
     
-    const supportThreads: Array<{threadId: string, thread: GoogleAppsScript.Gmail.GmailThread, body: string, subject: string, sender: string}> = [];
+    const supportThreads: Array<{threadId: string, thread: GoogleAppsScript.Gmail.GmailThread, body: string, redactedBody: string, subject: string, sender: string}> = [];
     
     classifications.forEach(result => {
       // Check for cancellation on each thread
@@ -294,6 +306,7 @@ namespace GmailService {
               threadId: result.id,
               thread: threadData.thread,
               body: threadData.body,
+              redactedBody: threadData.redactedBody, // T-12: Include redacted body
               subject: threadData.subject,
               sender: threadData.sender
             });
@@ -328,13 +341,15 @@ namespace GmailService {
         mode: autoReply ? 'AUTO-SEND' : 'DRAFT'
       });
       
-      supportThreads.forEach(({threadId, thread, body, subject, sender}) => {
+      supportThreads.forEach(({threadId, thread, redactedBody, subject, sender}) => {
         try {
-          const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
+          // T-12: Use redacted body for AI reply generation
+          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------';
           const replyResult = AI.callGemini(apiKey, replyPrompt);
           
           if (replyResult.success && replyResult.data) {
-            const replyBody = replyResult.data;
+            // T-12: Restore PII in the reply
+            const replyBody = Redaction.restorePII(replyResult.data, threadId);
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {
@@ -366,6 +381,9 @@ namespace GmailService {
                 });
               }
             }
+            
+            // T-12: Clear redaction cache after successful processing
+            Redaction.clearRedactionCache(threadId);
           }
         } catch (error) {
           const errorMessage = Utils.logAndHandleError(error, `Reply creation for thread ${threadId}`);
@@ -448,7 +466,18 @@ namespace GmailService {
         threadId: thread.getId()
       });
       
-      const fullPrompt = classificationPrompt + '\n' + body + '\n---------- EMAIL END ----------';
+      // T-12: Redact PII before sending to AI
+      const redactionResult = Redaction.redactPII(body, thread.getId());
+      const redactedBody = redactionResult.redactedText;
+      
+      if (redactionResult.redactionCount > 0) {
+        AppLogger.info('🔒 PII REDACTED FOR CLASSIFICATION', {
+          threadId: thread.getId(),
+          tokensRedacted: redactionResult.redactionCount
+        });
+      }
+      
+      const fullPrompt = classificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------';
       const classificationResult = AI.callGemini(apiKey, fullPrompt);
       
       if (!classificationResult.success) {
@@ -487,11 +516,13 @@ namespace GmailService {
             threadId: thread.getId()
           });
           
-          const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
+          // T-12: Use redacted body for reply generation (already redacted above)
+          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------';
           const replyResult = AI.callGemini(apiKey, replyPrompt);
           
           if (replyResult.success && replyResult.data) {
-            const replyBody = replyResult.data;
+            // T-12: Restore PII in the reply before sending/saving
+            const replyBody = Redaction.restorePII(replyResult.data, thread.getId());
             if (autoReply) {
               thread.reply(replyBody, { htmlBody: replyBody });
               AppLogger.info('📤 EMAIL SENT', {
@@ -508,6 +539,9 @@ namespace GmailService {
                 threadId: thread.getId()
               });
             }
+            
+            // T-12: Clear redaction cache after successful processing
+            Redaction.clearRedactionCache(thread.getId());
           }
         }
       } else {
