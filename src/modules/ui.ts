@@ -483,7 +483,7 @@ namespace UI {
         } else if (logEntry.message.includes('❌')) {
           icon = '❌';
           importance = 'high';
-        } else if (logEntry.message.includes('✅ BATCH CLASSIFICATION COMPLETE')) {
+        } else if (logEntry.message.includes('CLASSIFICATION COMPLETE') || logEntry.message.includes('BATCH COMPLETE')) {
           icon = '🏁';
           importance = 'high';
         } else if (logEntry.message.includes('📤 PROMPT SENT')) {

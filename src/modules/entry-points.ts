@@ -27,6 +27,18 @@ namespace EntryPoints {
     try {
       AppLogger.initSpreadsheet();
       
+      // T-19: Migrate existing labels to cache on first load
+      try {
+        const props = PropertiesService.getUserProperties();
+        const migrationFlag = props.getProperty('LABEL_CACHE_MIGRATED');
+        if (!migrationFlag) {
+          LabelCache.migrateExistingLabels();
+          props.setProperty('LABEL_CACHE_MIGRATED', 'true');
+        }
+      } catch (error) {
+        Utils.logWarning('migrate label cache', error);
+      }
+      
       // Clear any stale processing flags on add-on load
       const props = PropertiesService.getUserProperties();
       const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
@@ -90,6 +102,18 @@ namespace EntryPoints {
       // T-05: Write heartbeat timestamp to UserProperties
       writeHeartbeat();
       
+      // T-19: Ensure label cache migration on Gmail context too
+      try {
+        const props = PropertiesService.getUserProperties();
+        const migrationFlag = props.getProperty('LABEL_CACHE_MIGRATED');
+        if (!migrationFlag) {
+          LabelCache.migrateExistingLabels();
+          props.setProperty('LABEL_CACHE_MIGRATED', 'true');
+        }
+      } catch (error) {
+        Utils.logWarning('migrate label cache in Gmail context', error);
+      }
+      
       // T-11: Use contextual actions card for per-message actions
       return ContextualActions.createContextualActionsCard(e);
     } catch (error) {
@@ -111,7 +135,7 @@ namespace EntryPoints {
       });
     } catch (error) {
       // Don't let heartbeat errors break the add-on
-      AppLogger.error('Failed to write heartbeat', { error: String(error) });
+      Utils.logError('write heartbeat', error);
     }
   }
 }

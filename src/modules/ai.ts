@@ -375,11 +375,10 @@ namespace AI {
       }
     }
     
-    AppLogger.info('✅ BATCH CLASSIFICATION COMPLETE', {
+    Utils.logBatchComplete('ai batch classification', {
       totalEmails: emails.length,
       successCount: results.filter(r => !r.error).length,
-      errorCount: results.filter(r => r.error).length,
-      requestId
+      errorCount: results.filter(r => r.error).length
     });
     
     return results;

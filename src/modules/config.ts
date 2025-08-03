@@ -14,7 +14,8 @@ namespace Config {
     SUPPORT: 'Support',
     NOT_SUPPORT: 'undefined', 
     AI_PROCESSED: 'ai✓',
-    AI_ERROR: 'aiX'
+    AI_ERROR: 'aiX',
+    AI_GUARDRAILS_FAILED: 'ai✗'
   };
   
   export const VERSION = '__VERSION__';

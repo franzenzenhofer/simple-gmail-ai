@@ -181,9 +181,8 @@ namespace TestMode {
         const thread = GmailApp.getThreadById(config.testEmailId);
         return thread ? [thread] : [];
       } catch (error) {
-        AppLogger.error('Failed to get test email by ID', {
-          emailId: config.testEmailId,
-          error: String(error)
+        Utils.logError('get test email by ID', error, {
+          emailId: config.testEmailId
         });
         return [];
       }
@@ -300,7 +299,7 @@ namespace TestMode {
       );
       
     } catch (error) {
-      AppLogger.error('Failed to save test run history', { error: String(error) });
+      Utils.logError('save test run history', error);
     }
   }
   

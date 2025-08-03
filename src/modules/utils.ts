@@ -67,6 +67,103 @@ namespace Utils {
     return errorDetails.message;
   }
 
+  /**
+   * DRY-01: Standardized error logging utilities
+   * Eliminates duplicate error handling patterns
+   */
+  export function logError(operation: string, error: unknown, additionalContext?: Record<string, any>): void {
+    const errorDetails = preserveErrorStack(error);
+    AppLogger.error(`Failed to ${operation}`, {
+      error: errorDetails.fullError,
+      stack: errorDetails.stack,
+      ...additionalContext
+    });
+  }
+
+  export function logWarning(operation: string, error: unknown, additionalContext?: Record<string, any>): void {
+    const errorDetails = preserveErrorStack(error);
+    AppLogger.warn(`Failed to ${operation}, continuing with fallback`, {
+      error: errorDetails.fullError,
+      ...additionalContext
+    });
+  }
+
+  export function logAndSilentFail(operation: string, error: unknown, additionalContext?: Record<string, any>): void {
+    const errorDetails = preserveErrorStack(error);
+    AppLogger.warn(`${operation} failed silently`, {
+      error: errorDetails.message,
+      ...additionalContext
+    });
+  }
+
+  /**
+   * DRY-02: Centralized label creation utility
+   * Eliminates duplicate label creation patterns
+   */
+  export function getOrCreateLabelDirect(labelName: string): GoogleAppsScript.Gmail.GmailLabel {
+    let label = GmailApp.getUserLabelByName(labelName);
+    if (!label) {
+      label = GmailApp.createLabel(labelName);
+      AppLogger.info('Created new Gmail label', { labelName: labelName });
+    }
+    return label;
+  }
+
+  /**
+   * DRY-03: Standardized batch processing logging utilities
+   * Eliminates duplicate batch completion logging patterns
+   */
+  export function logBatchComplete(context: string, stats: {
+    totalEmails: number;
+    successCount: number;
+    errorCount: number;
+    processingTime?: number;
+    shortMessage?: string;
+  }): void {
+    AppLogger.info(`✅ ${context.toUpperCase()} COMPLETE`, {
+      shortMessage: stats.shortMessage || `${context} complete: ${stats.successCount}/${stats.totalEmails} processed`,
+      totalEmails: stats.totalEmails,
+      successCount: stats.successCount,
+      errorCount: stats.errorCount,
+      processingTime: stats.processingTime
+    });
+  }
+
+  export function logProcessingStart(context: string, count: number, mode?: string): void {
+    AppLogger.info(`📦 ${context.toUpperCase()} START`, {
+      count: count,
+      mode: mode
+    });
+  }
+
+  /**
+   * DRY-04: Centralized configuration access utilities
+   * Eliminates duplicate label retrieval patterns
+   */
+  export interface StandardLabels {
+    support: GoogleAppsScript.Gmail.GmailLabel;
+    notSupport: GoogleAppsScript.Gmail.GmailLabel;
+    processed: GoogleAppsScript.Gmail.GmailLabel;
+    error?: GoogleAppsScript.Gmail.GmailLabel;
+    guardrailsFailed?: GoogleAppsScript.Gmail.GmailLabel;
+  }
+
+  export function getStandardLabels(includeOptional: boolean = false): StandardLabels {
+    // Use the existing getOrCreateLabelDirect to avoid module dependencies
+    const result: StandardLabels = {
+      support: getOrCreateLabelDirect(Config.LABELS.SUPPORT),
+      notSupport: getOrCreateLabelDirect(Config.LABELS.NOT_SUPPORT),
+      processed: getOrCreateLabelDirect(Config.LABELS.AI_PROCESSED)
+    };
+
+    if (includeOptional) {
+      result.error = getOrCreateLabelDirect(Config.LABELS.AI_ERROR);
+      result.guardrailsFailed = getOrCreateLabelDirect(Config.LABELS.AI_GUARDRAILS_FAILED);
+    }
+
+    return result;
+  }
+
   export function validateApiKeyFormat(apiKey: string): { isValid: boolean; message: string } {
     if (!apiKey || apiKey.trim() === '') {
       return { isValid: false, message: 'API key is required' };

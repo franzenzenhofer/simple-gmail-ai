@@ -10,30 +10,12 @@ namespace GmailService {
     error?: string;
   }
   
-  // Escape label names for Gmail search queries
-  function escapeLabelForSearch(label: string): string {
-    // Gmail requires quotes around labels with spaces or special characters
-    if (label.includes(' ') || label.includes('(') || label.includes(')') || label.includes('✓') || label.includes('✗')) {
-      return '"' + label + '"';
-    }
-    return label;
-  }
   
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
     try {
-      let label = GmailApp.getUserLabelByName(name);
-      if (!label) {
-        // Try to create the label
-        label = GmailApp.createLabel(name);
-        AppLogger.info('Created new Gmail label', { labelName: name });
-      }
-      return label;
+      // T-19: Use label cache for resilient label operations
+      return LabelCache.getOrCreateLabel(name);
     } catch (error) {
-      // Label might have been created by concurrent execution
-      const label = GmailApp.getUserLabelByName(name);
-      if (label) {
-        return label;
-      }
       // Re-throw as structured error
       throw ErrorTaxonomy.createError(
         ErrorTaxonomy.AppErrorType.GMAIL_LABEL_CREATE_FAILED,
@@ -44,43 +26,13 @@ namespace GmailService {
   }
   
   export function getUnprocessedThreads(): GoogleAppsScript.Gmail.GmailThread[] {
-    // CRITICAL: Exclude BOTH AI_PROCESSED and AI_ERROR labels to prevent reprocessing
-    const escapedProcessedLabel = escapeLabelForSearch(Config.LABELS.AI_PROCESSED);
-    const escapedErrorLabel = escapeLabelForSearch(Config.LABELS.AI_ERROR);
+    // T-20: Use smart delta processing instead of manual search queries
+    const scanResult = HistoryDelta.getEmailsToProcess();
     
-    // Build query to exclude any email that has been touched by AI
-    const recentQuery = 'in:inbox -label:' + escapedProcessedLabel + ' -label:' + escapedErrorLabel;
-    const unreadQuery = 'in:inbox is:unread -label:' + escapedProcessedLabel + ' -label:' + escapedErrorLabel;
-    
-    AppLogger.info('🔍 SEARCHING FOR UNPROCESSED EMAILS', {
-      recentQuery: recentQuery,
-      unreadQuery: unreadQuery,
-      excludedLabels: [Config.LABELS.AI_PROCESSED, Config.LABELS.AI_ERROR]
-    });
-    
-    const recent = GmailApp.search(recentQuery, 0, 50);
-    const unread = GmailApp.search(unreadQuery);
-    
-    AppLogger.info('📊 SEARCH RESULTS', {
-      recentCount: recent.length,
-      unreadCount: unread.length,
-      totalBeforeDedup: recent.length + unread.length
-    });
-    
-    const threadIds = new Set<string>();
-    const threads: GoogleAppsScript.Gmail.GmailThread[] = [];
-    
-    [...recent, ...unread].forEach(thread => {
-      const id = thread.getId();
-      if (!threadIds.has(id)) {
-        threadIds.add(id);
-        threads.push(thread);
-      }
-    });
-    
-    AppLogger.info('✅ FINAL THREAD LIST', {
-      uniqueThreads: threads.length,
-      threadIds: threads.slice(0, 5).map(t => t.getId()) // Show first 5 IDs
+    AppLogger.info('📊 DELTA SCAN COMPLETE', {
+      scanType: scanResult.scanType,
+      threadsFound: scanResult.threads.length,
+      summary: scanResult.summary
     });
     
     // T-10: Check if test mode is active and limit results
@@ -91,14 +43,14 @@ namespace GmailService {
         const testConfig = JSON.parse(testModeConfigStr);
         if (testConfig.enabled) {
           AppLogger.info('🧪 TEST MODE: Limiting results to 1 email');
-          return threads.slice(0, 1);
+          return scanResult.threads.slice(0, 1);
         }
       }
     } catch (e) {
       // Ignore test mode check errors
     }
     
-    return threads;
+    return scanResult.threads;
   }
   
   export function processThreadsWithContinuation(
@@ -372,35 +324,57 @@ namespace GmailService {
             
             // T-12: Restore PII in the reply
             const replyBody = Redaction.restorePII(replyData.reply || replyData, threadId);
-            if (autoReply) {
-              thread.reply(replyBody, { htmlBody: replyBody });
-              AppLogger.info('📤 EMAIL SENT', {
-                shortMessage: 'Sent reply to "' + subject + '" → ' + sender,
+            
+            // T-16: Validate reply with guardrails before sending/drafting
+            const validation = Guardrails.validateReply(replyBody);
+            if (!validation.isValid) {
+              // Apply guardrails failed label and skip sending
+              Guardrails.applyGuardrailsLabel(thread, validation.failureReasons.join('; '));
+              AppLogger.warn('🚫 REPLY BLOCKED BY GUARDRAILS', {
+                shortMessage: 'Reply blocked for "' + subject + '" - ' + validation.failureReasons[0],
                 subject: subject,
-                to: sender,
-                replyLength: replyBody.length,
-                threadId: threadId
+                threadId: threadId,
+                reasons: validation.failureReasons,
+                replyLength: replyBody.length
               });
-              // Clear any draft metadata since we sent the email
-              DraftTracker.clearDraftMetadata(threadId);
+              
+              // Update result to show guardrails failure
+              const existingResult = results.get(threadId);
+              if (existingResult) {
+                existingResult.error = 'Guardrails failed: ' + validation.failureReasons.join('; ');
+              }
             } else {
-              // Check for duplicate drafts before creating
-              if (DraftTracker.isDuplicateDraft(threadId, replyBody)) {
-                AppLogger.info('⏭️ DRAFT SKIPPED (DUPLICATE)', {
-                  shortMessage: 'Duplicate draft skipped for: ' + subject,
+              // Guardrails passed - proceed with reply/draft
+              if (autoReply) {
+                thread.reply(replyBody, { htmlBody: replyBody });
+                AppLogger.info('📤 EMAIL SENT', {
+                  shortMessage: 'Sent reply to "' + subject + '" → ' + sender,
                   subject: subject,
+                  to: sender,
+                  replyLength: replyBody.length,
                   threadId: threadId
                 });
+                // Clear any draft metadata since we sent the email
+                DraftTracker.clearDraftMetadata(threadId);
               } else {
-                thread.createDraftReply(replyBody, { htmlBody: replyBody });
-                // Record the draft creation
-                DraftTracker.recordDraftCreation(threadId, replyBody);
-                AppLogger.info('✍️ DRAFT CREATED', {
-                  shortMessage: 'Draft created for: ' + subject,
-                  subject: subject,
-                  draftLength: replyBody.length,
-                  threadId: threadId
-                });
+                // Check for duplicate drafts before creating
+                if (DraftTracker.isDuplicateDraft(threadId, replyBody)) {
+                  AppLogger.info('⏭️ DRAFT SKIPPED (DUPLICATE)', {
+                    shortMessage: 'Duplicate draft skipped for: ' + subject,
+                    subject: subject,
+                    threadId: threadId
+                  });
+                } else {
+                  thread.createDraftReply(replyBody, { htmlBody: replyBody });
+                  // Record the draft creation
+                  DraftTracker.recordDraftCreation(threadId, replyBody);
+                  AppLogger.info('✍️ DRAFT CREATED', {
+                    shortMessage: 'Draft created for: ' + subject,
+                    subject: subject,
+                    draftLength: replyBody.length,
+                    threadId: threadId
+                  });
+                }
               }
             }
             
@@ -419,16 +393,13 @@ namespace GmailService {
     }
     
     const successCount = Array.from(results.values()).filter(r => !r.error).length;
-    const supportCount = Array.from(results.values()).filter(r => r.isSupport).length;
     const errorCount = Array.from(results.values()).filter(r => r.error).length;
     
-    AppLogger.info('✅ BATCH CLASSIFICATION COMPLETE', {
-      shortMessage: 'Batch complete: ' + successCount + '/' + threads.length + ' emails classified',
-      totalThreads: threads.length,
+    Utils.logBatchComplete('batch classification', {
       totalEmails: threads.length,
       successCount: successCount,
-      supportCount: supportCount,
-      errorCount: errorCount
+      errorCount: errorCount,
+      shortMessage: 'Batch complete: ' + successCount + '/' + threads.length + ' emails classified'
     });
     
     return results;
@@ -614,21 +585,38 @@ namespace GmailService {
             
             // T-12: Restore PII in the reply before sending/saving
             const replyBody = Redaction.restorePII(replyData.reply || replyData, thread.getId());
-            if (autoReply) {
-              thread.reply(replyBody, { htmlBody: replyBody });
-              AppLogger.info('📤 EMAIL SENT', {
+            
+            // T-16: Validate reply with guardrails before sending/drafting
+            const validation = Guardrails.validateReply(replyBody);
+            if (!validation.isValid) {
+              // Apply guardrails failed label and skip sending
+              Guardrails.applyGuardrailsLabel(thread, validation.failureReasons.join('; '));
+              AppLogger.warn('🚫 REPLY BLOCKED BY GUARDRAILS', {
                 subject: subject,
-                to: sender,
-                replyLength: replyBody.length,
-                threadId: thread.getId()
+                threadId: thread.getId(),
+                reasons: validation.failureReasons,
+                replyLength: replyBody.length
               });
+              // Return error to indicate guardrails failure
+              return { isSupport, error: 'Guardrails failed: ' + validation.failureReasons.join('; ') };
             } else {
-              thread.createDraftReply(replyBody, { htmlBody: replyBody });
-              AppLogger.info('📝 DRAFT CREATED', {
-                subject: subject,
-                replyLength: replyBody.length,
-                threadId: thread.getId()
-              });
+              // Guardrails passed - proceed with reply/draft
+              if (autoReply) {
+                thread.reply(replyBody, { htmlBody: replyBody });
+                AppLogger.info('📤 EMAIL SENT', {
+                  subject: subject,
+                  to: sender,
+                  replyLength: replyBody.length,
+                  threadId: thread.getId()
+                });
+              } else {
+                thread.createDraftReply(replyBody, { htmlBody: replyBody });
+                AppLogger.info('📝 DRAFT CREATED', {
+                  subject: subject,
+                  replyLength: replyBody.length,
+                  threadId: thread.getId()
+                });
+              }
             }
             
             // T-12: Clear redaction cache after successful processing

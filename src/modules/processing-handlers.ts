@@ -73,6 +73,9 @@ namespace ProcessingHandlers {
       const props = PropertiesService.getUserProperties();
       props.setProperty('ANALYSIS_RUNNING', 'false');
       
+      // T-20: Mark first run as complete for delta processing
+      HistoryDelta.markFirstRunDone();
+      
       // Save last execution time and stats
       const executionTime = new Date().toLocaleString('de-AT', {
         year: 'numeric',
@@ -178,6 +181,9 @@ namespace ProcessingHandlers {
       // Mark analysis as complete and save execution info
       const props = PropertiesService.getUserProperties();
       props.setProperty('ANALYSIS_RUNNING', 'false');
+      
+      // T-20: Mark first run as complete for delta processing
+      HistoryDelta.markFirstRunDone();
       
       // Save last execution time and stats
       const executionTime = new Date().toLocaleString('de-AT', {

@@ -118,7 +118,7 @@ namespace DarkMode {
       };
       
     } catch (error) {
-      AppLogger.error('Failed to detect theme', { error: String(error) });
+      Utils.logError('detect theme', error);
       return { isDarkMode: false };
     }
   }
