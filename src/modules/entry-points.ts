@@ -79,15 +79,19 @@ namespace EntryPoints {
   /**
    * Entry point for Gmail message context
    */
-  export function onGmailMessage(_e: any): GoogleAppsScript.Card_Service.Card {
+  export function onGmailMessage(e: any): GoogleAppsScript.Card_Service.Card {
     try {
       AppLogger.initSpreadsheet();
-      AppLogger.info('Gmail message context opened');
+      AppLogger.info('Gmail message context opened', {
+        messageId: e.messageMetadata?.messageId,
+        accessToken: e.messageMetadata?.accessToken ? 'present' : 'missing'
+      });
       
       // T-05: Write heartbeat timestamp to UserProperties
       writeHeartbeat();
       
-      return UI.buildHomepage();
+      // T-11: Use contextual actions card for per-message actions
+      return ContextualActions.createContextualActionsCard(e);
     } catch (error) {
       return ErrorHandling.handleGlobalError(error);
     }
