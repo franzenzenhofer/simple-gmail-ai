@@ -192,67 +192,57 @@ namespace AppLogger {
       Logger.log(JSON.stringify(entry));
       
       // ALSO log to CacheService for live view (FAST and LARGER!)
+      // === SIMPLE WRITE-BOTH STRATEGY ===
+      // Write to both CacheService AND PropertiesService for maximum reliability
+      // Eliminates complex state tracking and fragile fallback logic
+      
+      const logEntry = {
+        timestamp: entry.timestamp,
+        level: entry.level,
+        message: message,
+        shortMessage: context?.shortMessage || '',
+        context: context ? JSON.stringify(entry.context) : ''
+      };
+      
+      const logKey = 'LIVE_LOG_' + executionId;
+      const props = PropertiesService.getUserProperties();
+      
+      // Always set current execution ID for persistence
+      props.setProperty('CURRENT_EXECUTION_ID', executionId);
+      
+      // Write to CacheService (fast access for UI)
       try {
         const cache = CacheService.getUserCache();
-        const logKey = 'LIVE_LOG_' + executionId;
+        const existingCacheLogs = cache.get(logKey) || '[]';
+        const cacheLogs = JSON.parse(existingCacheLogs);
         
-        // CacheService has 100KB limit per key (vs 9KB for PropertiesService)
-        // and 600 seconds (10 min) default expiration
-        const existingLogsJson = cache.get(logKey);
-        const logs = existingLogsJson ? JSON.parse(existingLogsJson) : [];
+        cacheLogs.push(logEntry);
         
-        // Add new log entry
-        logs.push({
-          timestamp: entry.timestamp,
-          level: entry.level,
-          message: message,
-          shortMessage: context?.shortMessage || '', // Include shortMessage for UI
-          context: context ? JSON.stringify(entry.context) : ''
-        });
-        
-        // Keep only last 100 entries (more than before since we have more space)
-        if (logs.length > 100) {
-          logs.splice(0, logs.length - 100);
+        // Keep last 100 entries in cache (more space available)
+        if (cacheLogs.length > 100) {
+          cacheLogs.splice(0, cacheLogs.length - 100);
         }
         
-        // Store in cache with 30 minute expiration (1800 seconds)
-        cache.put(logKey, JSON.stringify(logs), 1800);
-        
-        // Also set current execution ID in PropertiesService for persistence
-        PropertiesService.getUserProperties().setProperty('CURRENT_EXECUTION_ID', executionId);
-        
-        // Mark that we successfully wrote to cache
-        PropertiesService.getUserProperties().setProperty('LOG_STORAGE_' + executionId, 'cache');
-        
+        cache.put(logKey, JSON.stringify(cacheLogs), 1800); // 30 min expiration
       } catch (cacheError) {
-        Logger.log('Failed to write to cache:', String(cacheError));
-        // Fallback to PropertiesService if cache fails
-        try {
-          const props = PropertiesService.getUserProperties();
-          const logKey = 'LIVE_LOG_' + executionId;
-          const existingLogs = props.getProperty(logKey) || '[]';
-          const logs = JSON.parse(existingLogs);
-          
-          logs.push({
-            timestamp: entry.timestamp,
-            level: entry.level,
-            message: message,
-            shortMessage: context?.shortMessage || '', // Include shortMessage for UI
-            context: context ? JSON.stringify(entry.context) : ''
-          });
-          
-          // Keep only last 30 entries for PropertiesService (less space)
-          if (logs.length > 30) {
-            logs.splice(0, logs.length - 30);
-          }
-          
-          props.setProperty(logKey, JSON.stringify(logs));
-          
-          // Mark that we wrote to properties
-          props.setProperty('LOG_STORAGE_' + executionId, 'properties');
-        } catch (fallbackError) {
-          Logger.log('Fallback to properties also failed:', String(fallbackError));
+        Logger.log('Cache write failed (non-critical):', String(cacheError));
+      }
+      
+      // Write to PropertiesService (persistent backup)
+      try {
+        const existingPropLogs = props.getProperty(logKey) || '[]';
+        const propLogs = JSON.parse(existingPropLogs);
+        
+        propLogs.push(logEntry);
+        
+        // Keep last 30 entries in properties (space-constrained)
+        if (propLogs.length > 30) {
+          propLogs.splice(0, propLogs.length - 30);
         }
+        
+        props.setProperty(logKey, JSON.stringify(propLogs));
+      } catch (propError) {
+        Logger.log('Properties write failed (critical):', String(propError));
       }
       
       // CRITICAL: Spreadsheet logging MUST work for persistent storage
@@ -310,34 +300,33 @@ namespace AppLogger {
    * Get recent logs with metadata
    */
   export function getRecentLogs(limit: number = 50): Array<{timestamp: number; level: string; message: string; context?: string}> {
-    const props = PropertiesService.getUserProperties();
-    const storageLocation = props.getProperty('LOG_STORAGE_' + executionId);
+    // === SIMPLE READ-BOTH STRATEGY ===
+    // Try cache first (fast), then properties (persistent backup)
+    // No complex state tracking needed
     
-    // Check where logs were written and try that first
-    if (storageLocation === 'cache') {
-      try {
-        const cache = CacheService.getUserCache();
-        const logKey = 'LIVE_LOG_' + executionId;
-        const cachedLogs = cache.get(logKey);
-        
-        if (cachedLogs) {
-          const logs = JSON.parse(cachedLogs);
-          return logs.slice(-limit).map((entry: any) => ({
-            timestamp: new Date(entry.timestamp).getTime(),
-            level: entry.level.toLowerCase(),
-            message: entry.message,
-            context: entry.context ? JSON.stringify(entry.context) : undefined
-          }));
-        }
-      } catch (e) {
-        // Log cache retrieval failure for debugging
-        Logger.log('Cache retrieval failed, falling back to properties: ' + String(e));
+    const logKey = 'LIVE_LOG_' + executionId;
+    
+    // Try CacheService first (faster, more recent data)
+    try {
+      const cache = CacheService.getUserCache();
+      const cachedLogs = cache.get(logKey);
+      
+      if (cachedLogs) {
+        const logs = JSON.parse(cachedLogs);
+        return logs.slice(-limit).map((entry: any) => ({
+          timestamp: new Date(entry.timestamp).getTime(),
+          level: entry.level.toLowerCase(),
+          message: entry.message,
+          context: entry.context ? JSON.stringify(entry.context) : undefined
+        }));
       }
+    } catch (cacheError) {
+      Logger.log('Cache read failed, trying properties: ' + String(cacheError));
     }
     
-    // Try properties (either as primary or fallback)
+    // Try PropertiesService (persistent backup)
     try {
-      const logKey = 'LIVE_LOG_' + executionId;
+      const props = PropertiesService.getUserProperties();
       const propLogs = props.getProperty(logKey);
       
       if (propLogs) {
@@ -349,9 +338,8 @@ namespace AppLogger {
           context: entry.context ? JSON.stringify(entry.context) : undefined
         }));
       }
-    } catch (e2) {
-      // Log properties retrieval failure
-      Logger.log('Properties retrieval also failed: ' + String(e2));
+    } catch (propError) {
+      Logger.log('Properties read also failed: ' + String(propError));
     }
     
     // Return empty array if both storage methods failed
