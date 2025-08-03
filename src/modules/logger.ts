@@ -221,6 +221,9 @@ namespace AppLogger {
         // Also set current execution ID in PropertiesService for persistence
         PropertiesService.getUserProperties().setProperty('CURRENT_EXECUTION_ID', executionId);
         
+        // Mark that we successfully wrote to cache
+        PropertiesService.getUserProperties().setProperty('LOG_STORAGE_' + executionId, 'cache');
+        
       } catch (cacheError) {
         Logger.log('Failed to write to cache:', String(cacheError));
         // Fallback to PropertiesService if cache fails
@@ -244,6 +247,9 @@ namespace AppLogger {
           }
           
           props.setProperty(logKey, JSON.stringify(logs));
+          
+          // Mark that we wrote to properties
+          props.setProperty('LOG_STORAGE_' + executionId, 'properties');
         } catch (fallbackError) {
           Logger.log('Fallback to properties also failed:', String(fallbackError));
         }
@@ -304,30 +310,18 @@ namespace AppLogger {
    * Get recent logs with metadata
    */
   export function getRecentLogs(limit: number = 50): Array<{timestamp: number; level: string; message: string; context?: string}> {
-    // Try to get from cache first
-    try {
-      const cache = CacheService.getUserCache();
-      const logKey = 'LIVE_LOG_' + executionId;
-      const cachedLogs = cache.get(logKey);
-      
-      if (cachedLogs) {
-        const logs = JSON.parse(cachedLogs);
-        return logs.slice(-limit).map((entry: any) => ({
-          timestamp: new Date(entry.timestamp).getTime(),
-          level: entry.level.toLowerCase(),
-          message: entry.message,
-          context: entry.context ? JSON.stringify(entry.context) : undefined
-        }));
-      }
-    } catch (e) {
-      // Fall back to properties
+    const props = PropertiesService.getUserProperties();
+    const storageLocation = props.getProperty('LOG_STORAGE_' + executionId);
+    
+    // Check where logs were written and try that first
+    if (storageLocation === 'cache') {
       try {
-        const props = PropertiesService.getUserProperties();
+        const cache = CacheService.getUserCache();
         const logKey = 'LIVE_LOG_' + executionId;
-        const propLogs = props.getProperty(logKey);
+        const cachedLogs = cache.get(logKey);
         
-        if (propLogs) {
-          const logs = JSON.parse(propLogs);
+        if (cachedLogs) {
+          const logs = JSON.parse(cachedLogs);
           return logs.slice(-limit).map((entry: any) => ({
             timestamp: new Date(entry.timestamp).getTime(),
             level: entry.level.toLowerCase(),
@@ -335,11 +329,32 @@ namespace AppLogger {
             context: entry.context ? JSON.stringify(entry.context) : undefined
           }));
         }
-      } catch (e2) {
-        // Ignore
+      } catch (e) {
+        // Log cache retrieval failure for debugging
+        Logger.log('Cache retrieval failed, falling back to properties: ' + String(e));
       }
     }
     
+    // Try properties (either as primary or fallback)
+    try {
+      const logKey = 'LIVE_LOG_' + executionId;
+      const propLogs = props.getProperty(logKey);
+      
+      if (propLogs) {
+        const logs = JSON.parse(propLogs);
+        return logs.slice(-limit).map((entry: any) => ({
+          timestamp: new Date(entry.timestamp).getTime(),
+          level: entry.level.toLowerCase(),
+          message: entry.message,
+          context: entry.context ? JSON.stringify(entry.context) : undefined
+        }));
+      }
+    } catch (e2) {
+      // Log properties retrieval failure
+      Logger.log('Properties retrieval also failed: ' + String(e2));
+    }
+    
+    // Return empty array if both storage methods failed
     return [];
   }
   
