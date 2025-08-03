@@ -26,7 +26,9 @@ describe('Security: No Hardcoded API Keys', () => {
     '.env',
     '.env.local',
     'package-lock.json',
-    'no-hardcoded-keys.test.ts' // This test file itself
+    'no-hardcoded-keys.test.ts', // This test file itself
+    'api-key-masking-enhanced.test.ts', // Contains test API keys for masking validation
+    'utils-masking.test.ts' // Contains test API keys for masking validation
   ];
   
   function scanFile(filePath: string): string[] {

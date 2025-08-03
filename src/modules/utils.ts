@@ -189,33 +189,71 @@ namespace Utils {
 
   /**
    * Mask sensitive API keys in strings for safe logging
-   * Supports multiple API key formats:
-   * - Gemini: AIza... (39 chars)
-   * - OpenAI: sk-... 
+   * Enhanced coverage for multiple API key formats:
+   * - Gemini: AIza... (various lengths)
+   * - OpenAI: sk-... (various lengths)
    * - Anthropic: sk-ant-...
-   * - Generic: xxx-xxx-xxx patterns
+   * - Azure OpenAI: various formats
+   * - Cohere, Hugging Face, etc.
+   * - Generic patterns and Bearer tokens
+   * - Base64-encoded keys
+   * WARNING: This is a blacklist approach - new key formats may not be covered
    */
   export function maskApiKeys(text: string): string {
     if (!text || typeof text !== 'string') return text;
     
-    // Gemini API keys: AIza followed by 35 chars
-    text = text.replace(/AIza[0-9A-Za-z\-_]{35}/g, (match) => {
+    // Gemini API keys: AIza followed by 30-50 chars (flexible length)
+    text = text.replace(/AIza[0-9A-Za-z\-_]{30,50}/g, (match) => {
       return match.substring(0, 8) + '...' + match.substring(match.length - 4);
     });
     
-    // OpenAI API keys: sk- followed by alphanumeric
-    text = text.replace(/sk-[a-zA-Z0-9]{48,}/g, (match) => {
+    // OpenAI API keys: sk- followed by alphanumeric (flexible length)
+    text = text.replace(/sk-[a-zA-Z0-9]{32,64}/g, (match) => {
       return 'sk-....' + match.substring(match.length - 4);
     });
     
     // Anthropic API keys: sk-ant- followed by alphanumeric
-    text = text.replace(/sk-ant-[a-zA-Z0-9]{40,}/g, (match) => {
+    text = text.replace(/sk-ant-[a-zA-Z0-9]{32,64}/g, (match) => {
       return 'sk-ant-....' + match.substring(match.length - 4);
     });
     
+    // Azure OpenAI keys: various formats
+    text = text.replace(/[a-f0-9]{32}/g, (match) => {
+      // Only mask if it looks like a hex key (common Azure pattern)
+      return match.substring(0, 4) + '...' + match.substring(match.length - 4);
+    });
+    
+    // Cohere API keys: typically start with specific patterns
+    text = text.replace(/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/g, (match) => {
+      return match.substring(0, 8) + '...' + match.substring(match.length - 12);
+    });
+    
+    // Hugging Face tokens: hf_xxx
+    text = text.replace(/hf_[a-zA-Z0-9]{20,}/g, (match) => {
+      return 'hf_....' + match.substring(match.length - 4);
+    });
+    
+    // GitHub tokens: ghp_, gho_, ghs_, ghr_
+    text = text.replace(/gh[pors]_[a-zA-Z0-9]{36}/g, (match) => {
+      return match.substring(0, 8) + '...' + match.substring(match.length - 4);
+    });
+    
+    // Base64-encoded keys (common pattern: 40+ chars of base64)
+    text = text.replace(/[A-Za-z0-9+/]{40,}={0,2}/g, (match) => {
+      // Only mask if it looks like base64 and is long enough to be a key
+      if (match.length >= 40) {
+        return match.substring(0, 8) + '...' + match.substring(match.length - 4);
+      }
+      return match;
+    });
+    
     // Generic API key patterns (handles various formats)
-    // Matches: key=xxx, apikey=xxx, api_key=xxx, etc.
+    // Matches: key=xxx, apikey=xxx, api_key=xxx, token=xxx, etc.
     text = text.replace(/([aA][pP][iI][-_]?[kK][eE][yY]\s*[=:]\s*)([a-zA-Z0-9\-_]{20,})/g, (_match, prefix, key) => {
+      return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4);
+    });
+    
+    text = text.replace(/([tT][oO][kK][eE][nN]\s*[=:]\s*)([a-zA-Z0-9\-_]{20,})/g, (_match, prefix, key) => {
       return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4);
     });
     
@@ -224,8 +262,17 @@ namespace Utils {
       return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4) + suffix;
     });
     
+    text = text.replace(/([?&]token=)([a-zA-Z0-9\-_]{20,})(&|$)/g, (_match, prefix, key, suffix) => {
+      return prefix + key.substring(0, 4) + '...' + key.substring(key.length - 4) + suffix;
+    });
+    
     // Bearer tokens
     text = text.replace(/(Bearer\s+)([a-zA-Z0-9\-_.]{30,})/g, (_match, prefix, token) => {
+      return prefix + token.substring(0, 4) + '...' + token.substring(token.length - 4);
+    });
+    
+    // Authorization headers
+    text = text.replace(/(Authorization:\s*[^,\s]+\s+)([a-zA-Z0-9\-_.+/]{30,})/gi, (_match, prefix, token) => {
       return prefix + token.substring(0, 4) + '...' + token.substring(token.length - 4);
     });
     
