@@ -25,7 +25,7 @@ module.exports = {
   resetMocks: true, // Clear all mocks between tests to avoid pollution
   reporters: [
     'default',
-    '<rootDir>/jest-json-reporter.js'
+    '<rootDir>/tests/config/jest-json-reporter.js'
   ],
   // Increase timeout for Google Apps Script mock stability
   testTimeout: 15000,
