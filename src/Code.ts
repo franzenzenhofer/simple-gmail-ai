@@ -29,6 +29,8 @@
 /// <reference path="modules/action-handlers.ts" />
 /// <reference path="modules/processing-handlers.ts" />
 /// <reference path="modules/universal-actions.ts" />
+/// <reference path="modules/docs-prompt-editor.ts" />
+/// <reference path="modules/docs-prompt-handlers.ts" />
 
 // ===== GLOBAL FUNCTION EXPORTS =====
 // These functions must be globally accessible for Google Apps Script
@@ -296,4 +298,21 @@ function clearLogs(): GoogleAppsScript.Card_Service.ActionResponse {
 
 function resetStatistics(): GoogleAppsScript.Card_Service.ActionResponse {
   return UIImprovements.resetStatistics();
+}
+
+// Docs Prompt Editor Handlers
+function showPromptEditor(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.showPromptEditor();
+}
+
+function createPromptEditorCard(): GoogleAppsScript.Card_Service.Card {
+  return DocsPromptHandlers.createPromptEditorCard();
+}
+
+function createPromptDocument(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.createPromptDocument();
+}
+
+function compilePrompts(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.compilePrompts();
 }

@@ -24,7 +24,7 @@ module.exports = {
     // TypeScript specific - be more lenient
     '@typescript-eslint/no-unused-vars': ['warn', { 
       'argsIgnorePattern': '^_',
-      'varsIgnorePattern': '^(Config|AppLogger|AI|GmailService|UI|Utils|Types|EntryPoints|ActionHandlers|ProcessingHandlers|NavigationHandlers|UniversalActions|ErrorHandling|ProcessingOverlay)$'
+      'varsIgnorePattern': '^(Config|AppLogger|AI|GmailService|UI|Utils|Types|EntryPoints|ActionHandlers|ProcessingHandlers|NavigationHandlers|UniversalActions|ErrorHandling|ProcessingOverlay|AISchemas|BatchProcessor|ContextualActions|ContinuationHandlers|ContinuationTriggers|DarkMode|DocsPromptEditor|DocsPromptHandlers|DraftTracker|ErrorTaxonomy|FunctionCalling|Guardrails|HistoryDelta|JsonValidator|LabelCache|Redaction|StructuredAI|TestMode|UIImprovements|WelcomeFlow)$'
     }],
     '@typescript-eslint/explicit-function-return-type': 'off', // Too strict for this codebase
     '@typescript-eslint/no-explicit-any': 'warn',
@@ -54,6 +54,7 @@ module.exports = {
     'UrlFetchApp': 'readonly',
     'SpreadsheetApp': 'readonly',
     'DriveApp': 'readonly',
+    'DocumentApp': 'readonly',
     'Session': 'readonly',
     'Utilities': 'readonly',
     'GoogleAppsScript': 'readonly',

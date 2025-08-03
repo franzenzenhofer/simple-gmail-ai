@@ -79,7 +79,7 @@ namespace Guardrails {
     }
     
     // Check for URLs (even plain text ones)
-    const urlMatches = content.match(/https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi);
+    const urlMatches = content.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/gi);
     if (urlMatches && urlMatches.length > 0) {
       // Allow up to 2 URLs (might be legitimate references)
       if (urlMatches.length > 2) {
@@ -116,7 +116,8 @@ namespace Guardrails {
     }
     
     // Check for non-ASCII characters that might be problematic
-    const nonAsciiCount = (content.match(/[^\x00-\x7F]/g) || []).length;
+    // Using a character class that excludes control characters and allows printable ASCII
+    const nonAsciiCount = (content.match(/[^\x20-\x7E\r\n\t]/g) || []).length;
     if (nonAsciiCount > content.length * 0.1) {
       failureReasons.push('Contains too many non-ASCII characters');
     }
