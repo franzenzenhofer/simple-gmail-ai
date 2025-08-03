@@ -151,4 +151,11 @@ namespace Utils {
     
     return Math.abs(hash).toString(36); // Convert to base36 for shorter string
   }
+  
+  /**
+   * Generate a unique identifier
+   */
+  export function generateId(): string {
+    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
 }

@@ -11,6 +11,8 @@
 /// <reference path="modules/json-validator.ts" />
 /// <reference path="modules/ai-schemas.ts" />
 /// <reference path="modules/batch-processor.ts" />
+/// <reference path="modules/continuation-triggers.ts" />
+/// <reference path="modules/continuation-handlers.ts" />
 /// <reference path="modules/ai.ts" />
 /// <reference path="modules/structured-ai.ts" />
 /// <reference path="modules/gmail.ts" />
@@ -104,4 +106,9 @@ function showSettingsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActi
 
 function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
   return UniversalActions.showLiveLogTabUniversal();
+}
+
+// Continuation Processing Handler
+function continueLargeInboxProcessing(): void {
+  return ContinuationHandlers.continueLargeInboxProcessing();
 }

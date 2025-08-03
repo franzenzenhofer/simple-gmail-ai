@@ -82,6 +82,71 @@ namespace GmailService {
     return threads;
   }
   
+  export function processThreadsWithContinuation(
+    threads: GoogleAppsScript.Gmail.GmailThread[],
+    apiKey: string,
+    createDrafts: boolean,
+    autoReply: boolean,
+    classificationPrompt: string,
+    responsePrompt: string
+  ): {
+    results: Map<string, ProcessingResult>;
+    needsContinuation: boolean;
+    continuationState?: any;
+  } {
+    // Check if we need continuation support
+    const continuationCheck = ContinuationTriggers.processThreadsWithContinuation(
+      threads,
+      apiKey,
+      createDrafts,
+      autoReply,
+      classificationPrompt,
+      responsePrompt
+    );
+    
+    if (continuationCheck.needsContinuation) {
+      // Process as many threads as we can in this execution
+      const batchSize = Math.min(50, threads.length);
+      const batchThreads = threads.slice(0, batchSize);
+      
+      const results = processThreads(
+        batchThreads,
+        apiKey,
+        createDrafts,
+        autoReply,
+        classificationPrompt,
+        responsePrompt
+      );
+      
+      AppLogger.info('🔄 PROCESSED INITIAL BATCH FOR CONTINUATION', {
+        processedCount: results.size,
+        totalThreads: threads.length,
+        continuationRequired: true
+      });
+      
+      return {
+        results,
+        needsContinuation: true,
+        continuationState: continuationCheck.continuationState
+      };
+    }
+    
+    // For smaller inboxes, process normally
+    const results = processThreads(
+      threads,
+      apiKey,
+      createDrafts,
+      autoReply,
+      classificationPrompt,
+      responsePrompt
+    );
+    
+    return {
+      results,
+      needsContinuation: false
+    };
+  }
+
   export function processThreads(
     threads: GoogleAppsScript.Gmail.GmailThread[],
     apiKey: string,
