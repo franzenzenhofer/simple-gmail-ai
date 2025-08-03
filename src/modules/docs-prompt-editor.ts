@@ -21,7 +21,7 @@ namespace DocsPromptEditor {
   }
   
   export interface ValidationError {
-    type: 'duplicate_labels' | 'missing_undefined' | 'invalid_order';
+    type: 'duplicate_labels' | 'missing_general' | 'invalid_order';
     message: string;
     details?: string[];
   }
@@ -35,7 +35,7 @@ namespace DocsPromptEditor {
   export interface ParsedDocument {
     overallPrompt: string;
     labels: LabelRule[];
-    undefinedPrompt: string;
+    generalPrompt: string;
     actionPrompts: Record<string, string>;
   }
   
@@ -119,7 +119,7 @@ This document contains all AI prompts and labeling rules for the Gmail AI Assist
 | Support | mentions "help", "support", or "issue" | 10 | YES |
 | Refund | mentions "refund", "money back", or "chargeback" | 20 | YES |
 | Bug | mentions "bug", "error", or "broken" | 30 | YES |
-| undefined |  | 9999 | YES |
+| General |  | 9999 | YES |
 
 ## C.1 · Overall Prompt
 
@@ -147,7 +147,7 @@ Return your response in JSON format with the label and a brief explanation.
 {"instructions": "Draft a response asking for reproduction steps and technical details", "tone": "technical but approachable"}
 \`\`\`
 
-## D · Prompt · undefined
+## D · Prompt · General
 
 \`\`\`text
 {"instructions": "labelOnly", "note": "No specific action - just apply appropriate label"}
@@ -178,7 +178,7 @@ Return your response in JSON format with the label and a brief explanation.
       ['Support', 'mentions "help", "support", or "issue"', '10', 'YES'],
       ['Refund', 'mentions "refund", "money back", or "chargeback"', '20', 'YES'],
       ['Bug', 'mentions "bug", "error", or "broken"', '30', 'YES'],
-      ['undefined', '', '9999', 'YES']
+      ['General', '', '9999', 'YES']
     ]);
     
     // Style table header
@@ -203,7 +203,7 @@ Return your response in JSON format with the label and a brief explanation.
     body.appendParagraph('{"instructions": "Draft a response asking for reproduction steps and technical details", "tone": "technical but approachable"}');
     
     // Section D
-    body.appendParagraph('D · Prompt · undefined').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    body.appendParagraph('D · Prompt · General').setHeading(DocumentApp.ParagraphHeading.HEADING1);
     body.appendParagraph('{"instructions": "labelOnly", "note": "No specific action - just apply appropriate label"}');
   }
   
@@ -238,7 +238,7 @@ Return your response in JSON format with the label and a brief explanation.
       return {
         success: false,
         labelsCount: 0,
-        errors: [{ type: 'missing_undefined', message: 'No prompt document found' }],
+        errors: [{ type: 'missing_general', message: 'No prompt document found' }],
         warnings: []
       };
     }
@@ -275,7 +275,7 @@ Return your response in JSON format with the label and a brief explanation.
       return {
         success: false,
         labelsCount: 0,
-        errors: [{ type: 'missing_undefined', message: 'Failed to read document: ' + Utils.handleError(e) }],
+        errors: [{ type: 'missing_general', message: 'Failed to read document: ' + Utils.handleError(e) }],
         warnings: []
       };
     }
@@ -291,7 +291,7 @@ Return your response in JSON format with the label and a brief explanation.
     const result: ParsedDocument = {
       overallPrompt: '',
       labels: [],
-      undefinedPrompt: '',
+      generalPrompt: '',
       actionPrompts: {}
     };
     
@@ -334,8 +334,8 @@ Return your response in JSON format with the label and a brief explanation.
       const text = paragraph.getText().trim();
       
       if (heading === DocumentApp.ParagraphHeading.HEADING1) {
-        if (text.includes('D · Prompt · undefined')) {
-          currentSection = 'undefined';
+        if (text.includes('D · Prompt · General')) {
+          currentSection = 'general';
         }
       } else if (heading === DocumentApp.ParagraphHeading.HEADING2) {
         if (text.includes('C.1 · Overall Prompt')) {
@@ -351,8 +351,8 @@ Return your response in JSON format with the label and a brief explanation.
         // Capture content based on current section
         if (currentSection === 'overall' && text.length > 10) {
           result.overallPrompt = text;
-        } else if (currentSection === 'undefined' && text.length > 10) {
-          result.undefinedPrompt = text;
+        } else if (currentSection === 'general' && text.length > 10) {
+          result.generalPrompt = text;
         } else if (currentSection === 'action' && currentPromptLabel && text.length > 10) {
           result.actionPrompts[currentPromptLabel] = text;
         }
@@ -387,12 +387,12 @@ Return your response in JSON format with the label and a brief explanation.
       });
     }
     
-    // Check for undefined label
-    const hasUndefined = parsed.labels.some(rule => rule.label === 'undefined');
-    if (!hasUndefined) {
+    // Check for General label
+    const hasGeneral = parsed.labels.some(rule => rule.label === 'General');
+    if (!hasGeneral) {
       errors.push({
-        type: 'missing_undefined',
-        message: 'Missing required "undefined" label in registry'
+        type: 'missing_general',
+        message: 'Missing required "General" label in registry'
       });
     }
     
@@ -410,7 +410,7 @@ Return your response in JSON format with the label and a brief explanation.
     }
     
     // Check for missing prompts
-    const labelsWithActions = parsed.labels.filter(rule => rule.hasActions && rule.label !== 'undefined');
+    const labelsWithActions = parsed.labels.filter(rule => rule.hasActions && rule.label !== 'General');
     const missingPrompts = labelsWithActions
       .filter(rule => !parsed.actionPrompts[rule.label])
       .map(rule => rule.label);
@@ -524,8 +524,8 @@ Return your response in JSON format with the label and a brief explanation.
           return prompt;
         }
         
-        // Check for default/undefined
-        if ((prompt.label.toLowerCase() === 'default' || prompt.label === 'undefined') && !bestMatch) {
+        // Check for default/General
+        if ((prompt.label.toLowerCase() === 'default' || prompt.label === 'General') && !bestMatch) {
           bestMatch = prompt;
         }
       }
