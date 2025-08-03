@@ -65,6 +65,22 @@ namespace UI {
         .addItem('Labels + Send', Config.ProcessingMode.AUTO_SEND, savedMode === Config.ProcessingMode.AUTO_SEND)
     );
     
+    // T-10: Add test mode toggle
+    const isTestMode = TestMode.isTestModeActive();
+    mainSection.addWidget(
+      CardService.newDecoratedText()
+        .setText('🧪 Test Run (1 email)')
+        .setBottomLabel(isTestMode ? 'Test mode active - safe dry-run' : 'Process normally')
+        .setSwitchControl(
+          CardService.newSwitch()
+            .setFieldName('testMode')
+            .setValue(isTestMode ? 'true' : 'false')
+            .setOnChangeAction(
+              CardService.newAction().setFunctionName('toggleTestModeQuick')
+            )
+        )
+    );
+    
     card.addSection(mainSection);
     
     // Classification Prompt - Large editor

@@ -403,4 +403,102 @@ namespace TestMode {
     
     return card.build();
   }
+  
+  /**
+   * T-10: Create test result display card
+   */
+  export function createTestResultCard(result: TestRunResult): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder()
+      .setHeader(CardService.newCardHeader()
+        .setTitle('🧪 Test Run Results')
+        .setSubtitle(`Processed ${result.emailsProcessed} email(s)`)
+      );
+    
+    // Summary section
+    const summarySection = CardService.newCardSection();
+    
+    if (result.success) {
+      summarySection.addWidget(CardService.newTextParagraph()
+        .setText(`✅ Test completed successfully in ${result.executionTime}ms`)
+      );
+    } else {
+      summarySection.addWidget(CardService.newTextParagraph()
+        .setText(`❌ Test encountered ${result.errors.length} error(s)`)
+      );
+      
+      // Show errors
+      result.errors.forEach(error => {
+        summarySection.addWidget(CardService.newTextParagraph()
+          .setText(`• ${error}`)
+        );
+      });
+    }
+    
+    card.addSection(summarySection);
+    
+    // Results for each email
+    result.classifications.forEach((classification, index) => {
+      const resultSection = CardService.newCardSection()
+        .setHeader(`Email ${index + 1}`);
+      
+      // Email details
+      resultSection.addWidget(CardService.newKeyValue()
+        .setTopLabel('Subject')
+        .setContent(classification.subject.substring(0, 100))
+        .setMultiline(true)
+      );
+      
+      // Classification result
+      resultSection.addWidget(CardService.newKeyValue()
+        .setTopLabel('Classification')
+        .setContent(classification.classification === 'support' ? '🎯 Support Request' : '📧 Not Support')
+      );
+      
+      // What would happen (no actual mutations)
+      if (classification.wouldApplyLabels.length > 0) {
+        resultSection.addWidget(CardService.newKeyValue()
+          .setTopLabel('Would Apply Labels')
+          .setContent(classification.wouldApplyLabels.join(', '))
+        );
+      }
+      
+      if (classification.wouldCreateDraft) {
+        resultSection.addWidget(CardService.newKeyValue()
+          .setTopLabel('Would Create Draft')
+          .setContent('Yes - AI-generated reply')
+        );
+        
+        if (classification.draftPreview) {
+          resultSection.addWidget(CardService.newTextParagraph()
+            .setText('<b>Draft Preview:</b>')
+          );
+          
+          resultSection.addWidget(CardService.newTextParagraph()
+            .setText(classification.draftPreview)
+          );
+        }
+      }
+      
+      card.addSection(resultSection);
+    });
+    
+    // Actions
+    const actionSection = CardService.newCardSection();
+    
+    actionSection.addWidget(CardService.newTextButton()
+      .setText('← Back to Test Mode')
+      .setOnClickAction(CardService.newAction()
+        .setFunctionName('showTestModeCard'))
+    );
+    
+    actionSection.addWidget(CardService.newTextButton()
+      .setText('← Back to Main')
+      .setOnClickAction(CardService.newAction()
+        .setFunctionName('backToMain'))
+    );
+    
+    card.addSection(actionSection);
+    
+    return card.build();
+  }
 }

@@ -83,6 +83,21 @@ namespace GmailService {
       threadIds: threads.slice(0, 5).map(t => t.getId()) // Show first 5 IDs
     });
     
+    // T-10: Check if test mode is active and limit results
+    // Use dynamic check to avoid circular dependency
+    try {
+      const testModeConfigStr = PropertiesService.getUserProperties().getProperty('TEST_MODE_CONFIG');
+      if (testModeConfigStr) {
+        const testConfig = JSON.parse(testModeConfigStr);
+        if (testConfig.enabled) {
+          AppLogger.info('🧪 TEST MODE: Limiting results to 1 email');
+          return threads.slice(0, 1);
+        }
+      }
+    } catch (e) {
+      // Ignore test mode check errors
+    }
+    
     return threads;
   }
   
@@ -388,6 +403,31 @@ namespace GmailService {
     classificationPrompt: string,
     responsePrompt: string
   ): { isSupport: boolean; error?: string } {
+    // T-10: Check if test mode is active
+    // Use dynamic check to avoid circular dependency
+    let testConfig: any = null;
+    try {
+      const testModeConfigStr = PropertiesService.getUserProperties().getProperty('TEST_MODE_CONFIG');
+      if (testModeConfigStr) {
+        testConfig = JSON.parse(testModeConfigStr);
+        if (testConfig.enabled) {
+          AppLogger.info('🧪 TEST MODE: Processing thread without mutations', {
+            threadId: thread.getId(),
+            skipLabeling: testConfig.skipLabeling,
+            skipDraftCreation: testConfig.skipDraftCreation
+          });
+          
+          // Override settings for test mode
+          if (testConfig.skipDraftCreation) {
+            createDrafts = false;
+            autoReply = false;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore test mode check errors
+    }
+    
     try {
       const messages = thread.getMessages();
       if (messages.length === 0) return { isSupport: false };
@@ -431,9 +471,14 @@ namespace GmailService {
       const notSupportLabel = getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
       const processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
       
+      // T-10: Skip labeling in test mode if configured
+      const shouldApplyLabels = !(testConfig && testConfig.enabled && testConfig.skipLabeling);
+      
       if (isSupport) {
-        thread.addLabel(supportLabel);
-        thread.removeLabel(notSupportLabel);
+        if (shouldApplyLabels) {
+          thread.addLabel(supportLabel);
+          thread.removeLabel(notSupportLabel);
+        }
         
         if (createDrafts || autoReply) {
           AppLogger.info('✍️ GENERATING REPLY', {
@@ -466,11 +511,16 @@ namespace GmailService {
           }
         }
       } else {
-        thread.addLabel(notSupportLabel);
-        thread.removeLabel(supportLabel);
+        if (shouldApplyLabels) {
+          thread.addLabel(notSupportLabel);
+          thread.removeLabel(supportLabel);
+        }
       }
       
-      thread.addLabel(processedLabel);
+      if (shouldApplyLabels) {
+        thread.addLabel(processedLabel);
+      }
+      
       return { isSupport };
       
     } catch (error) {

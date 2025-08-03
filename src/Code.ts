@@ -147,7 +147,7 @@ function toggleTestMode(): GoogleAppsScript.Card_Service.ActionResponse {
 }
 
 function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
-  const apiKey = PropertiesService.getUserProperties().getProperty('apiKey');
+  const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
   if (!apiKey) {
     return CardService.newActionResponseBuilder()
       .setNotification(CardService.newNotification()
@@ -157,17 +157,45 @@ function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
   
   const result = TestMode.runTestAnalysis(
     apiKey,
-    PropertiesService.getUserProperties().getProperty('classificationPrompt') || Config.DEFAULT_CLASSIFICATION_PROMPT,
-    PropertiesService.getUserProperties().getProperty('responsePrompt') || Config.DEFAULT_RESPONSE_PROMPT
+    PropertiesService.getUserProperties().getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION,
+    PropertiesService.getUserProperties().getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE
   );
   
+  // T-10: Show results inline on card
   return CardService.newActionResponseBuilder()
-    .setNotification(CardService.newNotification()
-      .setText(result.success 
-        ? `✅ Test complete: ${result.emailsProcessed} email(s) analyzed`
-        : `❌ Test failed: ${result.errors[0]}`))
     .setNavigation(CardService.newNavigation()
-      .updateCard(TestMode.createTestModeCard()))
+      .pushCard(TestMode.createTestResultCard(result)))
+    .build();
+}
+
+// T-10: Quick test mode toggle from main UI
+function toggleTestModeQuick(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const isEnabled = e.formInput.testMode === 'true';
+  
+  if (isEnabled) {
+    TestMode.enableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('🧪 Test mode enabled - will process only 1 email'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(UI.buildHomepage()))
+      .build();
+  } else {
+    TestMode.disableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('✅ Test mode disabled - normal processing'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(UI.buildHomepage()))
+      .build();
+  }
+}
+
+// Navigate to test mode card
+function showTestModeCard(): GoogleAppsScript.Card_Service.ActionResponse {
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation()
+      .pushCard(TestMode.createTestModeCard()))
     .build();
 }
 
