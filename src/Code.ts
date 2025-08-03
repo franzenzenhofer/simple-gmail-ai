@@ -34,8 +34,13 @@
 
 // ===== GLOBAL FUNCTION EXPORTS =====
 // These functions must be globally accessible for Google Apps Script
+// Organized by functional category for better maintainability
 
-// Entry Points
+// =============================================================================
+// 🚀 ADD-ON TRIGGERS & ENTRY POINTS
+// Core functions called by Google Apps Script runtime
+// =============================================================================
+
 function onAddOnOpen(e: any): void {
   return EntryPoints.onAddOnOpen(e);
 }
@@ -48,7 +53,11 @@ function onGmailMessage(e: any): GoogleAppsScript.Card_Service.Card {
   return EntryPoints.onGmailMessage(e);
 }
 
-// Navigation Handlers
+// =============================================================================
+// 🧭 NAVIGATION HANDLERS  
+// Tab switching and page navigation within the add-on UI
+// =============================================================================
+
 function showApiKeyTab(): GoogleAppsScript.Card_Service.ActionResponse {
   return NavigationHandlers.showApiKeyTab();
 }
@@ -69,7 +78,11 @@ function refreshLiveLog(): GoogleAppsScript.Card_Service.ActionResponse {
   return NavigationHandlers.refreshLiveLog();
 }
 
-// Action Handlers
+// =============================================================================
+// ⚡ ACTION HANDLERS
+// Core user actions: settings, configuration, email processing
+// =============================================================================
+
 function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   return ActionHandlers.saveApiKey(e);
 }
@@ -94,12 +107,20 @@ function toggleSpreadsheetLogging(e: any): GoogleAppsScript.Card_Service.ActionR
   return ActionHandlers.toggleSpreadsheetLogging(e);
 }
 
-// Processing Handlers
+// =============================================================================
+// 🔄 PROCESSING HANDLERS
+// Long-running email processing and continuation logic
+// =============================================================================
+
 function continueProcessing(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   return ProcessingHandlers.continueProcessing(e);
 }
 
-// Universal Actions
+// =============================================================================
+// 🌐 UNIVERSAL ACTIONS
+// Three-dot menu actions available from any screen
+// =============================================================================
+
 function viewLogsUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
   return UniversalActions.viewLogsUniversal();
 }
@@ -120,12 +141,20 @@ function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActio
   return UniversalActions.showLiveLogTabUniversal();
 }
 
-// Continuation Processing Handler
+// =============================================================================
+// ⏳ CONTINUATION HANDLERS
+// Background processing for large inbox operations
+// =============================================================================
+
 function continueLargeInboxProcessing(): void {
   return ContinuationHandlers.continueLargeInboxProcessing();
 }
 
-// Test Mode Handlers
+// =============================================================================
+// 🧪 TEST MODE HANDLERS
+// Safe testing with limited email processing
+// =============================================================================
+
 function toggleTestMode(): GoogleAppsScript.Card_Service.ActionResponse {
   const isActive = TestMode.isTestModeActive();
   
@@ -201,7 +230,11 @@ function showTestModeCard(): GoogleAppsScript.Card_Service.ActionResponse {
     .build();
 }
 
-// Dark Mode Handler
+// =============================================================================
+// 🎨 THEME & UI HANDLERS
+// Dark mode and visual preferences
+// =============================================================================
+
 function toggleDarkMode(): GoogleAppsScript.Card_Service.ActionResponse {
   const newMode = DarkMode.toggleDarkMode();
   
@@ -213,7 +246,11 @@ function toggleDarkMode(): GoogleAppsScript.Card_Service.ActionResponse {
     .build();
 }
 
-// Welcome Flow Handlers
+// =============================================================================
+// 👋 WELCOME FLOW HANDLERS
+// First-time user onboarding experience
+// =============================================================================
+
 function startWelcomeFlow(): GoogleAppsScript.Card_Service.ActionResponse {
   return WelcomeFlow.startWelcomeFlow();
 }
@@ -238,7 +275,11 @@ function finishWelcomeFlow(e: any): GoogleAppsScript.Card_Service.ActionResponse
   return WelcomeFlow.finishWelcomeFlow(e);
 }
 
-// Contextual Actions Handler
+// =============================================================================
+// 📨 CONTEXTUAL ACTIONS
+// Email-specific actions and smart suggestions
+// =============================================================================
+
 function executeContextualAction(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   const actionId = e.parameters.actionId;
   const messageId = e.parameters.messageId;
@@ -275,7 +316,11 @@ function executeContextualAction(e: any): GoogleAppsScript.Card_Service.ActionRe
     .build();
 }
 
-// UI Improvements Handlers
+// =============================================================================
+// 🎛️ UI IMPROVEMENTS HANDLERS
+// Enhanced interface features and controls
+// =============================================================================
+
 function toggleSectionState(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   return UIImprovements.toggleSectionState(e);
 }
@@ -300,7 +345,11 @@ function resetStatistics(): GoogleAppsScript.Card_Service.ActionResponse {
   return UIImprovements.resetStatistics();
 }
 
-// Docs Prompt Editor Handlers
+// =============================================================================
+// 📝 DOCS PROMPT EDITOR HANDLERS
+// Advanced prompt management via Google Docs
+// =============================================================================
+
 function showPromptEditor(): GoogleAppsScript.Card_Service.ActionResponse {
   return DocsPromptHandlers.showPromptEditor();
 }
