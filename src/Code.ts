@@ -34,6 +34,10 @@
 // These functions must be globally accessible for Google Apps Script
 
 // Entry Points
+function onAddOnOpen(e: any): void {
+  return EntryPoints.onAddOnOpen(e);
+}
+
 function onHomepage(): GoogleAppsScript.Card_Service.Card {
   return EntryPoints.onHomepage();
 }

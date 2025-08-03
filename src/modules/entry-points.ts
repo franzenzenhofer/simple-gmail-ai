@@ -5,6 +5,22 @@
 
 namespace EntryPoints {
   /**
+   * T-05: Simple trigger when add-on is opened
+   * Writes heartbeat timestamp for monitoring
+   */
+  export function onAddOnOpen(_e: any): void {
+    try {
+      const timestamp = new Date().toISOString();
+      PropertiesService.getUserProperties().setProperty('AI_HEARTBEAT', timestamp);
+      
+      // Don't initialize logger for simple triggers - it's too heavy
+      console.log('Heartbeat written on add-on open:', timestamp);
+    } catch (error) {
+      console.error('Failed to write heartbeat on open:', error);
+    }
+  }
+  
+  /**
    * Entry point for Gmail add-on homepage
    */
   export function onHomepage(): GoogleAppsScript.Card_Service.Card {
@@ -35,6 +51,9 @@ namespace EntryPoints {
         executionId: AppLogger.executionId
       });
       
+      // T-05: Write heartbeat timestamp to UserProperties
+      writeHeartbeat();
+      
       // Initialize dark mode settings
       DarkMode.initializeDarkMode();
       // Apply theme colors to Config
@@ -64,9 +83,31 @@ namespace EntryPoints {
     try {
       AppLogger.initSpreadsheet();
       AppLogger.info('Gmail message context opened');
+      
+      // T-05: Write heartbeat timestamp to UserProperties
+      writeHeartbeat();
+      
       return UI.buildHomepage();
     } catch (error) {
       return ErrorHandling.handleGlobalError(error);
+    }
+  }
+  
+  /**
+   * T-05: Write heartbeat timestamp to UserProperties for monitoring
+   */
+  function writeHeartbeat(): void {
+    try {
+      const timestamp = new Date().toISOString();
+      PropertiesService.getUserProperties().setProperty('AI_HEARTBEAT', timestamp);
+      
+      AppLogger.info('💓 HEARTBEAT WRITTEN', {
+        timestamp: timestamp,
+        executionId: AppLogger.executionId
+      });
+    } catch (error) {
+      // Don't let heartbeat errors break the add-on
+      AppLogger.error('Failed to write heartbeat', { error: String(error) });
     }
   }
 }

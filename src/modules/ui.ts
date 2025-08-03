@@ -316,6 +316,21 @@ namespace UI {
         .setBottomLabel('Deployed: ' + Config.DEPLOY_TIME)
     );
     
+    // T-05: Show last heartbeat for monitoring
+    const lastHeartbeat = PropertiesService.getUserProperties().getProperty('AI_HEARTBEAT');
+    if (lastHeartbeat) {
+      const heartbeatDate = new Date(lastHeartbeat);
+      const now = new Date();
+      const diffMinutes = Math.floor((now.getTime() - heartbeatDate.getTime()) / 60000);
+      
+      mainSection.addWidget(
+        CardService.newKeyValue()
+          .setTopLabel('Last Heartbeat')
+          .setContent(heartbeatDate.toLocaleString())
+          .setBottomLabel(diffMinutes === 0 ? 'Just now' : diffMinutes + ' minutes ago')
+      );
+    }
+    
     card.addSection(mainSection);
     
     // Back button
