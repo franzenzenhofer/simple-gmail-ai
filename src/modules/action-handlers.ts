@@ -149,8 +149,8 @@ namespace ActionHandlers {
 
   export function cancelProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      const props = PropertiesService.getUserProperties();
-      const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
+      // Use LockManager as single source of truth for lock state
+      const isProcessing = LockManager.isLocked();
       
       if (!isProcessing) {
         return UI.showNotification('No processing to cancel');
@@ -158,6 +158,7 @@ namespace ActionHandlers {
       
       // Force release lock and mark as cancelled
       LockManager.releaseLock();
+      const props = PropertiesService.getUserProperties();
       props.setProperty('ANALYSIS_CANCELLED', 'true');
       
       AppLogger.info('🛑 PROCESSING CANCELLED BY USER', {

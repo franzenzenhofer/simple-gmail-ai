@@ -406,7 +406,7 @@ namespace UI {
     
     AppLogger.info('📊 BUILDING STATS SECTION', {
       isRunning: isRunning,
-      analysisRunning: PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING')
+      lockManagerState: LockManager.isLocked()
     });
     
     // Get current stats from properties
