@@ -6,9 +6,16 @@
 
 An intelligent Gmail add-on that automatically classifies and responds to customer support emails using Google's Gemini 2.5 Flash AI model.
 
-## 🚀 What's New in v1.9.0
+## 🚀 What's New in v2.6.0
 
-- **Modular Architecture**: Clean, maintainable code structure with 7 focused modules
+- **Google Docs Prompt Editor**: Advanced prompt management with per-label customization
+- **Smart Email Delta Processing**: Efficient scanning of new emails since last run
+- **Enhanced Error Recovery**: Graceful fallback when Docs API fails
+- **Improved Modularity**: Better code organization with 30+ focused modules
+- **Comprehensive Test Coverage**: 380+ tests ensuring reliability
+
+### Previous Updates (v1.9.0)
+- **Modular Architecture**: Clean, maintainable code structure
 - **Enhanced UI/UX**: Tab-based navigation for better user experience
 - **Comprehensive Logging**: Automatic spreadsheet logging with daily rotation
 - **Shorter Labels: `Support`, `undefined`, `ai✓`, `aiX`
@@ -23,6 +30,8 @@ An intelligent Gmail add-on that automatically classifies and responds to custom
 - 📊 **Spreadsheet Logging**: All activity logged to Google Sheets with daily rotation
 - 🎨 **Customizable Prompts**: Tailor AI behavior to your needs
 - 🗂️ **Tab Navigation**: Clean interface with Main, API Key, Logs, and Settings tabs
+- 📝 **Google Docs Prompt Editor**: Advanced per-label prompt customization
+- 🔄 **Smart Delta Processing**: Only process new emails since last run
 
 ## Safety Notice ⚠️
 
@@ -125,6 +134,15 @@ npm run open
 - **View Logs**: Quick access to logs from anywhere
 - **Toggle Debug Mode**: Enable/disable verbose logging
 
+### Google Docs Prompt Editor (Advanced)
+For more sophisticated prompt management:
+1. Click **"📝 Open Docs Prompt Editor"** from the main interface
+2. Create or open your prompt configuration document
+3. Define per-label prompts and classification rules
+4. Save and compile your changes
+
+See [docs-prompt-editor.md](documentation/docs-prompt-editor.md) for detailed instructions.
+
 ## Development
 
 ### Project Structure
@@ -138,6 +156,8 @@ simple-gmail-ai/
 │   │   ├── ai.ts        # Gemini API integration
 │   │   ├── gmail.ts     # Gmail processing
 │   │   ├── ui.ts        # UI building functions
+│   │   ├── docs-prompt-editor.ts  # Google Docs integration
+│   │   └── ... (30+ modules)
 │   │   └── utils.ts     # Utility functions
 │   ├── Code.ts          # Main entry point
 │   ├── SafetyConfig.ts  # Safety mechanisms

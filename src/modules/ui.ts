@@ -106,6 +106,23 @@ namespace UI {
     
     card.addSection(promptSection);
     
+    // Docs Prompt Editor Button
+    const docsEditorSection = CardService.newCardSection();
+    docsEditorSection.addWidget(
+      CardService.newTextButton()
+        .setText('📝 Open Docs Prompt Editor')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('showPromptEditor')
+        )
+    );
+    docsEditorSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<i>Advanced: Manage prompts in Google Docs with per-label customization</i>')
+    );
+    card.addSection(docsEditorSection);
+    
     // Last Execution section
     const lastExecSection = CardService.newCardSection();
     const lastExecTime = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_TIME');

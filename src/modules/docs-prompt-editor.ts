@@ -58,8 +58,9 @@ namespace DocsPromptEditor {
    * Create initial prompt document with template
    */
   export function createPromptDocument(): string {
-    const doc = DocumentApp.create('Gmail AI Prompts - ' + new Date().toISOString().split('T')[0]);
-    const docId = doc.getId();
+    try {
+      const doc = DocumentApp.create('Gmail AI Prompts - ' + new Date().toISOString().split('T')[0]);
+      const docId = doc.getId();
     
     // Clear default content and add template
     const body = doc.getBody();
@@ -85,6 +86,10 @@ namespace DocsPromptEditor {
     AppLogger.info('Created prompt document', { docId: docId });
     
     return docId;
+    } catch (error) {
+      AppLogger.error('Failed to create prompt document', { error: Utils.handleError(error) });
+      throw new Error('Unable to create prompt document. Please check permissions and try again.');
+    }
   }
   
   /**
@@ -437,6 +442,99 @@ Return your response in JSON format with the label and a brief explanation.
       errors,
       warnings
     };
+  }
+  
+  /**
+   * Check if compiled prompts exist
+   */
+  export function hasCompiledPrompts(): boolean {
+    try {
+      const props = PropertiesService.getUserProperties();
+      const compiledStr = props.getProperty(COMPILED_PROMPTS_KEY);
+      return compiledStr !== null && compiledStr.trim() !== '';
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  /**
+   * Prompt configuration interface
+   */
+  export interface PromptConfig {
+    label: string;
+    classificationPrompt?: string;
+    responsePrompt?: string;
+  }
+  
+  /**
+   * Compiled prompts interface
+   */
+  export interface CompiledPrompts {
+    prompts: PromptConfig[];
+  }
+  
+  /**
+   * Get prompt configuration for specific labels
+   */
+  export function getPromptForLabels(threadLabels: string[]): PromptConfig | null {
+    try {
+      const props = PropertiesService.getUserProperties();
+      const compiledStr = props.getProperty(COMPILED_PROMPTS_KEY);
+      
+      if (!compiledStr) {
+        return null;
+      }
+      
+      const parsed: ParsedDocument = JSON.parse(compiledStr);
+      
+      // Build prompt configurations from parsed document
+      const prompts: PromptConfig[] = [];
+      
+      // Add label-specific prompts
+      for (const labelRule of parsed.labels) {
+        const config: PromptConfig = {
+          label: labelRule.label
+        };
+        
+        // Use overall prompt as classification prompt
+        if (parsed.overallPrompt) {
+          config.classificationPrompt = parsed.overallPrompt;
+        }
+        
+        // Use action prompt as response prompt
+        if (parsed.actionPrompts[labelRule.label]) {
+          config.responsePrompt = parsed.actionPrompts[labelRule.label];
+        }
+        
+        prompts.push(config);
+      }
+      
+      // Find the most specific matching prompt
+      // Priority: exact label match > default
+      let bestMatch: PromptConfig | null = null;
+      
+      for (const prompt of prompts) {
+        // Skip invalid prompts
+        if (!prompt.label || (!prompt.classificationPrompt && !prompt.responsePrompt)) {
+          continue;
+        }
+        
+        // Check for exact match
+        if (threadLabels.includes(prompt.label)) {
+          return prompt;
+        }
+        
+        // Check for default/undefined
+        if ((prompt.label.toLowerCase() === 'default' || prompt.label === 'undefined') && !bestMatch) {
+          bestMatch = prompt;
+        }
+      }
+      
+      return bestMatch;
+    } catch (error) {
+      AppLogger.warn('Failed to get prompts for labels', { error: String(error) });
+      return null;
+    }
   }
   
   /**

@@ -10,6 +10,89 @@ namespace GmailService {
     error?: string;
   }
   
+  /**
+   * Get the appropriate prompt for classification - either from Docs or default
+   */
+  function getClassificationPrompt(basePrompt: string, threadLabels: string[]): string {
+    try {
+      // Check if Docs prompt editor is configured
+      const hasDocsPrompts = DocsPromptEditor.hasCompiledPrompts();
+      if (!hasDocsPrompts) {
+        return basePrompt;
+      }
+      
+      // Get prompt for the thread's labels
+      const promptConfig = DocsPromptEditor.getPromptForLabels(threadLabels);
+      if (promptConfig && promptConfig.classificationPrompt) {
+        AppLogger.info('📝 Using Docs prompt for labels', { 
+          labels: threadLabels,
+          promptLabel: promptConfig.label 
+        });
+        return promptConfig.classificationPrompt;
+      }
+      
+      // Fall back to base prompt
+      return basePrompt;
+    } catch (error) {
+      // Error recovery: log the issue but continue with default prompt
+      AppLogger.warn('Docs prompt error - falling back to default', { 
+        error: String(error),
+        labels: threadLabels 
+      });
+      
+      // Optional: Store error for user notification
+      try {
+        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty('DOCS_PROMPT_ERROR_COUNT') || '0');
+        PropertiesService.getUserProperties().setProperty('DOCS_PROMPT_ERROR_COUNT', String(errorCount + 1));
+      } catch (e) {
+        // Ignore property storage errors
+      }
+      
+      return basePrompt;
+    }
+  }
+  
+  /**
+   * Get the appropriate response prompt - either from Docs or default
+   */
+  function getResponsePrompt(basePrompt: string, threadLabels: string[]): string {
+    try {
+      // Check if Docs prompt editor is configured
+      const hasDocsPrompts = DocsPromptEditor.hasCompiledPrompts();
+      if (!hasDocsPrompts) {
+        return basePrompt;
+      }
+      
+      // Get prompt for the thread's labels
+      const promptConfig = DocsPromptEditor.getPromptForLabels(threadLabels);
+      if (promptConfig && promptConfig.responsePrompt) {
+        AppLogger.info('📝 Using Docs response prompt for labels', { 
+          labels: threadLabels,
+          promptLabel: promptConfig.label 
+        });
+        return promptConfig.responsePrompt;
+      }
+      
+      // Fall back to base prompt
+      return basePrompt;
+    } catch (error) {
+      // Error recovery: log the issue but continue with default prompt
+      AppLogger.warn('Docs response prompt error - falling back to default', { 
+        error: String(error),
+        labels: threadLabels 
+      });
+      
+      // Optional: Store error for user notification
+      try {
+        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty('DOCS_PROMPT_ERROR_COUNT') || '0');
+        PropertiesService.getUserProperties().setProperty('DOCS_PROMPT_ERROR_COUNT', String(errorCount + 1));
+      } catch (e) {
+        // Ignore property storage errors
+      }
+      
+      return basePrompt;
+    }
+  }
   
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
     try {
@@ -204,30 +287,55 @@ namespace GmailService {
       return results;
     }
     
-    // Batch classify all emails using the new BatchProcessor
-    const savings = BatchProcessor.calculateBatchSavings(emailsToClassify.length);
-    AppLogger.info('📊 BATCH PROCESSING SAVINGS', {
-      totalEmails: emailsToClassify.length,
-      individualCalls: savings.individualCalls,
-      batchCalls: savings.batchCalls,
-      savedCalls: savings.savedCalls,
-      savePercentage: savings.savePercentage
-    });
-
-    const classifications = BatchProcessor.processAllBatches(
-      apiKey, 
-      emailsToClassify, 
-      classificationPrompt,
-      (batchResponse, batchIndex, totalBatches) => {
-        AppLogger.info('🔄 BATCH PROGRESS', {
-          batchIndex,
-          totalBatches,
-          emailsInBatch: batchResponse.results.length,
-          processingTime: batchResponse.processingTime,
-          success: batchResponse.success
-        });
+    // Group emails by label combinations for batch processing with appropriate prompts
+    const emailsByPrompt = new Map<string, {prompt: string, emails: typeof emailsToClassify}>();
+    
+    emailsToClassify.forEach(email => {
+      const threadData = threadMap.get(email.id);
+      if (threadData) {
+        const threadLabels = threadData.thread.getLabels().map(l => l.getName());
+        const activePrompt = getClassificationPrompt(classificationPrompt, threadLabels);
+        
+        // Group by prompt
+        if (!emailsByPrompt.has(activePrompt)) {
+          emailsByPrompt.set(activePrompt, { prompt: activePrompt, emails: [] });
+        }
+        emailsByPrompt.get(activePrompt)!.emails.push(email);
       }
-    );
+    });
+    
+    // Process each prompt group separately
+    const allClassifications: Array<{id: string; label: string; confidence?: number; error?: string}> = [];
+    
+    emailsByPrompt.forEach(({prompt, emails}) => {
+      const savings = BatchProcessor.calculateBatchSavings(emails.length);
+      AppLogger.info('📊 BATCH PROCESSING GROUP', {
+        totalEmails: emails.length,
+        promptPreview: prompt.substring(0, 50) + '...',
+        batchCalls: savings.batchCalls,
+        savePercentage: savings.savePercentage
+      });
+
+      const classifications = BatchProcessor.processAllBatches(
+        apiKey, 
+        emails, 
+        prompt,
+        (batchResponse, batchIndex, totalBatches) => {
+          AppLogger.info('🔄 BATCH PROGRESS', {
+            batchIndex,
+            totalBatches,
+            emailsInBatch: batchResponse.results.length,
+            processingTime: batchResponse.processingTime,
+            success: batchResponse.success
+          });
+        }
+      );
+      
+      allClassifications.push(...classifications);
+    });
+    
+    // Use all classifications for processing
+    const classifications = allClassifications;
     
     // Step 3: Process classification results and apply labels
     const supportLabel = getOrCreateLabel(Config.LABELS.SUPPORT);
@@ -307,7 +415,11 @@ namespace GmailService {
             required: ['reply']
           };
           
-          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
+          // Get thread labels for response prompt selection
+          const threadLabels = thread.getLabels().map(label => label.getName());
+          const activeResponsePrompt = getResponsePrompt(responsePrompt, threadLabels);
+          
+          const replyPrompt = activeResponsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
           const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
@@ -491,7 +603,11 @@ namespace GmailService {
         required: ['label']
       };
       
-      const fullPrompt = classificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------\n\nRespond with JSON containing "label" field with value "support" or "not".';
+      // Get thread labels for prompt selection
+      const threadLabels = thread.getLabels().map(label => label.getName());
+      const activeClassificationPrompt = getClassificationPrompt(classificationPrompt, threadLabels);
+      
+      const fullPrompt = activeClassificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------\n\nRespond with JSON containing "label" field with value "support" or "not".';
       const classificationResult = AI.callGemini(apiKey, fullPrompt, classificationSchema);
       
       if (!classificationResult.success) {
@@ -564,7 +680,11 @@ namespace GmailService {
             required: ['reply']
           };
           
-          const replyPrompt = responsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
+          // Get thread labels for response prompt selection
+          const threadLabels = thread.getLabels().map(label => label.getName());
+          const activeResponsePrompt = getResponsePrompt(responsePrompt, threadLabels);
+          
+          const replyPrompt = activeResponsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
           const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
