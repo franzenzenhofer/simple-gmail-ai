@@ -38,11 +38,14 @@
         "label": "API Key",
         "runFunction": "showApiKeyTabUniversal"
       }, {
-        "label": "Prompt Editor",
-        "runFunction": "showPromptEditorUniversal"
-      }, {
         "label": "Test Mode",
         "runFunction": "showTestModeUniversal"
+      }, {
+        "label": "Welcome Flow",
+        "runFunction": "showWelcomeFlowUniversal"
+      }, {
+        "label": "Prompt Editor",
+        "runFunction": "showPromptEditorUniversal"
       }, {
         "label": "Live Log",
         "runFunction": "showLiveLogTabUniversal"

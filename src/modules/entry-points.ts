@@ -74,8 +74,8 @@ namespace EntryPoints {
         return TestMode.createTestModeCard();
       }
       
-      // Use condensed UI
-      return UIImprovements.createCondensedMainCard();
+      // Use unified home page
+      return UI.buildHomepage();
     } catch (error) {
       return ErrorHandling.handleGlobalError(error);
     }

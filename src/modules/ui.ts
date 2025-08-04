@@ -22,8 +22,10 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('Home')
+          .setTitle('Gmail AI Assistant')
           .setSubtitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
+          .setImageUrl('https://www.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png')
+          .setImageStyle(CardService.ImageStyle.CIRCLE)
       );
     
     if (!hasApiKey) {

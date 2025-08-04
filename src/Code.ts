@@ -153,6 +153,10 @@ function showTestModeUniversal(): GoogleAppsScript.Card_Service.UniversalActionR
   return UniversalActions.showTestModeUniversal();
 }
 
+function showWelcomeFlowUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showWelcomeFlowUniversal();
+}
+
 // =============================================================================
 // ⏳ CONTINUATION HANDLERS
 // Background processing for large inbox operations

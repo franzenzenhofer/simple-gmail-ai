@@ -51,4 +51,10 @@ namespace UniversalActions {
       .displayAddOnCards([TestMode.createTestModeCard()])
       .build();
   }
+
+  export function showWelcomeFlowUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+    return CardService.newUniversalActionResponseBuilder()
+      .displayAddOnCards([WelcomeFlow.createWelcomeCard()])
+      .build();
+  }
 }

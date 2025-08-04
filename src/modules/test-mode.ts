@@ -332,6 +332,18 @@ namespace TestMode {
     
     const section = CardService.newCardSection();
     
+    // Explanation
+    section.addWidget(CardService.newTextParagraph()
+      .setText(
+        '<b>What is Test Mode?</b><br>' +
+        'Test Mode lets you safely test the AI assistant with a limited number of emails before running it on your entire inbox. Perfect for:<br>' +
+        '• Testing new prompts<br>' +
+        '• Verifying settings work correctly<br>' +
+        '• Learning how the assistant works<br>' +
+        '• Avoiding accidental mass email processing'
+      )
+    );
+    
     // Status
     section.addWidget(CardService.newTextParagraph()
       .setText(isEnabled 
