@@ -107,19 +107,32 @@ This document contains all AI prompts and labeling rules for the Gmail AI Assist
 **Versioning tips**: Use File ▸ Version history ▸ Name current version after each change.
 
 **Golden rules**: 
-- One label per row in Section B
+- Use simple markdown format below
 - Never rename section headings  
-- Keep code blocks unwrapped
 - Test changes before going live
+- Add new labels by copying the format
 
-## B · Label registry
+## B · Label Registry
 
-| Label | Criteria | Order | Actions? |
-|-------|----------|-------|----------|
-| Support | mentions "help", "support", or "issue" | 10 | YES |
-| Refund | mentions "refund", "money back", or "chargeback" | 20 | YES |
-| Bug | mentions "bug", "error", or "broken" | 30 | YES |
-| General |  | 9999 | YES |
+### Label: Support
+**Priority:** 10
+**Criteria:** mentions "help", "support", or "issue"
+**Actions:** YES
+
+### Label: Refund  
+**Priority:** 20
+**Criteria:** mentions "refund", "money back", or "chargeback"
+**Actions:** YES
+
+### Label: Bug
+**Priority:** 30
+**Criteria:** mentions "bug", "error", or "broken"  
+**Actions:** YES
+
+### Label: General
+**Priority:** 9999
+**Criteria:** (catch-all for everything else)
+**Actions:** YES
 
 ## C.1 · Overall Prompt
 
@@ -184,33 +197,45 @@ This category catches all emails that don't require a specific support response.
     body.appendParagraph('Versioning tips: Use File ▸ Version history ▸ Name current version after each change.');
     
     const rulesText = body.appendParagraph('Golden rules:');
-    rulesText.appendText('\n• One label per row in Section B');
+    rulesText.appendText('\n• Use simple markdown format below');
     rulesText.appendText('\n• Never rename section headings');
-    rulesText.appendText('\n• Keep code blocks unwrapped');
     rulesText.appendText('\n• Test changes before going live');
+    rulesText.appendText('\n• Add new labels by copying the format');
     
-    // Section B - Label Registry
-    body.appendParagraph('B · Label registry').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    // Section B - Label Registry (Markdown format)
+    body.appendParagraph('B · Label Registry').setHeading(DocumentApp.ParagraphHeading.HEADING1);
     
-    const table = body.appendTable([
-      ['Label', 'Criteria', 'Order', 'Actions?'],
-      ['Support', 'mentions "help", "support", or "issue"', '10', 'YES'],
-      ['Refund', 'mentions "refund", "money back", or "chargeback"', '20', 'YES'],
-      ['Bug', 'mentions "bug", "error", or "broken"', '30', 'YES'],
-      ['General', '', '9999', 'YES']
-    ]);
+    // Support label
+    body.appendParagraph('Label: Support').setHeading(DocumentApp.ParagraphHeading.HEADING3);
+    body.appendParagraph('Priority: 10').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Criteria: mentions "help", "support", or "issue"').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph(''); // spacing
     
-    // Style table header
-    const headerRow = table.getRow(0);
-    for (let i = 0; i < 4; i++) {
-      headerRow.getCell(i).getChild(0).asParagraph().setAttributes({
-        [DocumentApp.Attribute.BOLD]: true
-      });
-    }
+    // Refund label
+    body.appendParagraph('Label: Refund').setHeading(DocumentApp.ParagraphHeading.HEADING3);
+    body.appendParagraph('Priority: 20').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Criteria: mentions "refund", "money back", or "chargeback"').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph(''); // spacing
+    
+    // Bug label
+    body.appendParagraph('Label: Bug').setHeading(DocumentApp.ParagraphHeading.HEADING3);
+    body.appendParagraph('Priority: 30').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Criteria: mentions "bug", "error", or "broken"').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph(''); // spacing
+    
+    // General label
+    body.appendParagraph('Label: General').setHeading(DocumentApp.ParagraphHeading.HEADING3);
+    body.appendParagraph('Priority: 9999').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Criteria: (catch-all for everything else)').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
+    body.appendParagraph(''); // spacing
     
     // Section C - Prompts
     body.appendParagraph('C.1 · Overall Prompt').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the labels defined above. Choose the most specific label that matches the email content.\n\nImportant:\n- Review the Label Registry above for classification rules\n- Return only the label name, nothing else\n- If no specific label applies, return "General"');
+    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the labels defined in the Label Registry above.\n\nImportant:\n- Review the Label Registry (Section B) for available labels and their criteria\n- Return ONLY the exact label name from the registry\n- Choose the most specific label that matches the email content\n- If no specific label applies, return "General"\n- The label you return will be created in Gmail if it doesn\'t exist');
     
     body.appendParagraph('C.2 · Prompt · Support').setHeading(DocumentApp.ParagraphHeading.HEADING2);
     body.appendParagraph('Draft a helpful and professional response to this support request.\n\nGuidelines:\n- Acknowledge their issue\n- Provide clear next steps or initial guidance\n- Be empathetic and solution-focused\n- Keep it concise but thorough');
@@ -316,36 +341,18 @@ This category catches all emails that don't require a specific support response.
     
     let currentSection = '';
     let currentPromptLabel = '';
+    let currentLabel = '';
+    let currentLabelData: {
+      label: string;
+      priority?: number;
+      criteria?: string;
+      actions?: boolean;
+    } = {
+      label: ''
+    };
     
-    // Find table in Section B
-    const tables = body.getTables();
-    if (tables.length > 0) {
-      const table = tables[0];
-      if (table) {
-        const numRows = table.getNumRows();
-        
-        // Skip header row, parse data rows
-        for (let i = 1; i < numRows; i++) {
-          const row = table.getRow(i);
-          if (row.getNumCells() >= 4) {
-            const label = row.getCell(0).getText().trim();
-            const criteria = row.getCell(1).getText().trim();
-            const orderText = row.getCell(2).getText().trim();
-            const actionsText = row.getCell(3).getText().trim();
-            
-            if (label) {
-              const order = parseInt(orderText) || 0;
-              result.labels.push({
-                label,
-                criteria,
-                order,
-                hasActions: actionsText.toUpperCase() === 'YES'
-              });
-            }
-          }
-        }
-      }
-    }
+    // Parse markdown-style labels from Section B
+    // No longer using tables - parse markdown format instead
     
     // Parse headings and content
     for (const paragraph of paragraphs) {
@@ -355,6 +362,8 @@ This category catches all emails that don't require a specific support response.
       if (heading === DocumentApp.ParagraphHeading.HEADING1) {
         if (text.includes('D · Prompt · General')) {
           currentSection = 'general';
+        } else if (text.includes('B · Label Registry')) {
+          currentSection = 'labels';
         }
       } else if (heading === DocumentApp.ParagraphHeading.HEADING2) {
         if (text.includes('C.1 · Overall Prompt')) {
@@ -366,6 +375,26 @@ This category catches all emails that don't require a specific support response.
             currentSection = 'action';
           }
         }
+      } else if (heading === DocumentApp.ParagraphHeading.HEADING3) {
+        // Handle markdown-style label definitions: "Label: Support"
+        if (text.startsWith('Label: ')) {
+          // Save previous label if it exists
+          if (currentLabelData.label) {
+            result.labels.push({
+              label: currentLabelData.label,
+              criteria: currentLabelData.criteria || '',
+              order: currentLabelData.priority || 9999,
+              hasActions: currentLabelData.actions || false
+            });
+          }
+          
+          // Start new label
+          currentLabel = text.replace('Label: ', '').trim();
+          currentLabelData = {
+            label: currentLabel
+          };
+          currentSection = 'label_data';
+        }
       } else if (text && currentSection) {
         // Capture content based on current section
         if (currentSection === 'overall' && text.length > 10) {
@@ -374,8 +403,29 @@ This category catches all emails that don't require a specific support response.
           result.generalPrompt = text;
         } else if (currentSection === 'action' && currentPromptLabel && text.length > 10) {
           result.actionPrompts[currentPromptLabel] = text;
+        } else if (currentSection === 'label_data') {
+          // Parse label properties in markdown format
+          if (text.startsWith('Priority: ')) {
+            const priorityText = text.replace('Priority: ', '').trim();
+            currentLabelData.priority = parseInt(priorityText) || 9999;
+          } else if (text.startsWith('Criteria: ')) {
+            currentLabelData.criteria = text.replace('Criteria: ', '').trim();
+          } else if (text.startsWith('Actions: ')) {
+            const actionsText = text.replace('Actions: ', '').trim();
+            currentLabelData.actions = actionsText.toUpperCase() === 'YES';
+          }
         }
       }
+    }
+    
+    // Don't forget to save the last label
+    if (currentLabelData.label) {
+      result.labels.push({
+        label: currentLabelData.label,
+        criteria: currentLabelData.criteria || '',
+        order: currentLabelData.priority || 9999,
+        hasActions: currentLabelData.actions || false
+      });
     }
     
     return result;

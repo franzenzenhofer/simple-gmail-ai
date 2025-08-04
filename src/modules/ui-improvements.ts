@@ -173,23 +173,17 @@ namespace UIImprovements {
       mainSettingsWidgets
     ));
     
-    // Prompts section (collapsible)
+    // Prompts are now managed ONLY through Google Docs
+    // No on-page editing allowed - redirect to docs
     const promptsWidgets: GoogleAppsScript.Card_Service.Widget[] = [];
     
-    promptsWidgets.push(CardService.newTextInput()
-      .setFieldName('classificationPrompt')
-      .setTitle('Classification Prompt')
-      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.classificationPrompt) || 'Classify this email according to the configured labels.')
-      .setMultiline(true));
-    
-    promptsWidgets.push(CardService.newTextInput()
-      .setFieldName('responsePrompt')
-      .setTitle('Response Prompt')
-      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || 'Generate an appropriate response to this email.')
-      .setMultiline(true));
+    promptsWidgets.push(CardService.newTextParagraph()
+      .setText('📝 <b>All prompts are now managed in Google Docs</b><br>' +
+               'Use the Docs Prompt Editor below to edit labels and prompts.<br>' +
+               'This ensures consistency and prevents conflicting configurations.'));
     
     card.addSection(createCollapsibleSection(
-      '💬 AI Prompts',
+      '💬 AI Prompts (Docs Only)',
       'prompts',
       promptsWidgets
     ));
