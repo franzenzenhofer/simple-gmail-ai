@@ -122,7 +122,7 @@ namespace ProcessingHandlers {
     }
   }
 
-  export function continueProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function continueProcessing(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     const userProps = PropertiesService.getUserProperties();
     
     try {

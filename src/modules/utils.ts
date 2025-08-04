@@ -4,11 +4,12 @@
  */
 
 namespace Utils {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function getFormValue(e: any, field: string, fallback?: string): string {
     const formInput = e.formInput || {};
-    const formInputs = (e.formInputs || {}) as Types.FormInputs;
+    const formInputs = (e.commonEventObject?.formInputs || {}) as Types.FormInputs;
     
-    let value = formInput[field];
+    let value: string | undefined = formInput[field];
     
     if (!value && formInputs[field]) {
       const fieldData = formInputs[field];
@@ -71,7 +72,7 @@ namespace Utils {
    * DRY-01: Standardized error logging utilities
    * Eliminates duplicate error handling patterns
    */
-  export function logError(operation: string, error: unknown, additionalContext?: Record<string, any>): void {
+  export function logError(operation: string, error: unknown, additionalContext?: Record<string, unknown>): void {
     const errorDetails = preserveErrorStack(error);
     AppLogger.error(`Failed to ${operation}`, {
       error: errorDetails.fullError,
@@ -80,7 +81,7 @@ namespace Utils {
     });
   }
 
-  export function logWarning(operation: string, error: unknown, additionalContext?: Record<string, any>): void {
+  export function logWarning(operation: string, error: unknown, additionalContext?: Record<string, unknown>): void {
     const errorDetails = preserveErrorStack(error);
     AppLogger.warn(`Failed to ${operation}, continuing with fallback`, {
       error: errorDetails.fullError,
@@ -88,7 +89,7 @@ namespace Utils {
     });
   }
 
-  export function logAndSilentFail(operation: string, error: unknown, additionalContext?: Record<string, any>): void {
+  export function logAndSilentFail(operation: string, error: unknown, additionalContext?: Record<string, unknown>): void {
     const errorDetails = preserveErrorStack(error);
     AppLogger.warn(`${operation} failed silently`, {
       error: errorDetails.message,
