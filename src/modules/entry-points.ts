@@ -22,11 +22,28 @@ namespace EntryPoints {
   
   /**
    * Entry point for Gmail add-on homepage
+   * ALWAYS checks welcome flow first to ensure proper user onboarding
    */
   export function onHomepage(): GoogleAppsScript.Card_Service.Card {
     try {
       AppLogger.initSpreadsheet();
       
+      // T-05: Write heartbeat timestamp to UserProperties
+      writeHeartbeat();
+      
+      AppLogger.info('Gmail Add-on started', {
+        version: Config.VERSION,
+        executionId: AppLogger.executionId
+      });
+      
+      // STEP 1: ALWAYS check if user needs welcome flow FIRST
+      // This ensures proper onboarding after factory reset or first-time use
+      if (WelcomeFlow.needsWelcomeFlow()) {
+        AppLogger.info('Redirecting to welcome flow - user needs onboarding');
+        return WelcomeFlow.createWelcomeCard();
+      }
+      
+      // STEP 2: Initialize system components only after welcome flow is complete
       // T-19: Migrate existing labels to cache on first load
       try {
         const props = PropertiesService.getUserProperties();
@@ -51,30 +68,19 @@ namespace EntryPoints {
         // Lock manager will automatically handle stale locks based on timeout
       }
       
-      AppLogger.info('Gmail Add-on started', {
-        version: Config.VERSION,
-        executionId: AppLogger.executionId
-      });
-      
-      // T-05: Write heartbeat timestamp to UserProperties
-      writeHeartbeat();
-      
       // Initialize dark mode settings
       DarkMode.initializeDarkMode();
       // Apply theme colors to Config
       DarkMode.applyThemeToConfig();
       
-      // Check if user needs welcome flow
-      if (WelcomeFlow.needsWelcomeFlow()) {
-        return WelcomeFlow.createWelcomeCard();
-      }
-      
-      // Check if test mode is active
+      // STEP 3: Check for special modes (test mode overrides main screen)
       if (TestMode.isTestModeActive()) {
+        AppLogger.info('Redirecting to test mode - active test configuration detected');
         return TestMode.createTestModeCard();
       }
       
-      // Use unified home page
+      // STEP 4: Show main application screen
+      AppLogger.info('Loading main application screen');
       return UI.buildHomepage();
     } catch (error) {
       return ErrorHandling.handleGlobalError(error);

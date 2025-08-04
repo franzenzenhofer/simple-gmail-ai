@@ -76,7 +76,15 @@ namespace FactoryReset {
     'TEST_RUN_HISTORY',
     'DOCS_PROMPT_EDITOR_STATE',
     'DOCS_PROMPT_COMPILED_CONFIG',
-    'LAST_ERROR_NOTIFICATION_TIME'
+    'LAST_ERROR_NOTIFICATION_TIME',
+    
+    // Welcome Flow properties
+    'ONBOARDING_PROGRESS',
+    'WELCOME_FLOW_SHOWN',
+    
+    // UI Improvements properties  
+    'UI_SECTION_STATES',
+    'LIVE_LOG_SETTINGS'
   ];
   
   /**
@@ -327,10 +335,10 @@ namespace FactoryReset {
         .setText(
           result.success ?
           '<b>✅ Next Steps:</b><br>' +
-          '1. Close and reopen the add-on<br>' +
-          '2. Complete the welcome flow<br>' +
-          '3. Enter your API key<br>' +
-          '4. Configure your settings' :
+          '1. <b>Close and reopen the add-on</b><br>' +
+          '2. The welcome flow will automatically start<br>' +
+          '3. Enter your API key to get started again<br>' +
+          '4. Set up your prompts and labels' :
           '<b>⚠️ Partial Reset:</b><br>' +
           'Some items could not be deleted. You may need to manually remove them.'
         )

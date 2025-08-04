@@ -38,12 +38,34 @@ namespace WelcomeFlow {
   
   /**
    * Check if user needs welcome flow
+   * Returns true if:
+   * 1. No API key is configured, OR
+   * 2. Welcome flow was never completed, OR  
+   * 3. Factory reset was performed (all user properties cleared)
    */
   export function needsWelcomeFlow(): boolean {
-    const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
-    const welcomeShown = PropertiesService.getUserProperties().getProperty(WELCOME_SHOWN_KEY);
+    const props = PropertiesService.getUserProperties();
+    const apiKey = props.getProperty(Config.PROP_KEYS.API_KEY);
+    const onboardingProgress = getOnboardingProgress();
     
-    return !apiKey && !welcomeShown;
+    // If no API key is configured, definitely need welcome flow
+    if (!apiKey) {
+      return true;
+    }
+    
+    // If onboarding was never completed, need welcome flow
+    if (onboardingProgress.state !== WelcomeState.COMPLETED) {
+      return true;
+    }
+    
+    // Additional check: if user has API key but no onboarding completed timestamp,
+    // it likely means they went through an old flow - force new welcome
+    if (!onboardingProgress.completedAt) {
+      return true;
+    }
+    
+    // All checks passed - user has completed onboarding
+    return false;
   }
   
   /**
