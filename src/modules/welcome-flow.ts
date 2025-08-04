@@ -454,8 +454,8 @@ namespace WelcomeFlow {
       
       const result = TestMode.runTestAnalysis(
         apiKey,
-        Config.DEFAULT_CLASSIFICATION_PROMPT,
-        Config.DEFAULT_RESPONSE_PROMPT
+        'Classify this email according to the configured labels.',
+        'Generate an appropriate response to this email.'
       );
       
       TestMode.disableTestMode();

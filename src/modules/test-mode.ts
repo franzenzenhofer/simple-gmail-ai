@@ -23,7 +23,7 @@ namespace TestMode {
     classifications: Array<{
       threadId: string;
       subject: string;
-      classification: 'support' | 'not';
+      classification: string; // Dynamic label from AI/docs
       confidence?: number;
       wouldApplyLabels: string[];
       wouldCreateDraft: boolean;
@@ -266,7 +266,7 @@ namespace TestMode {
     const result = {
       threadId: thread.getId(),
       subject,
-      classification: isSupport ? 'support' : 'not' as 'support' | 'not',
+      classification: labelToApply, // Use the actual dynamic label from AI
       confidence: 0.85, // Mock confidence for now
       wouldApplyLabels,
       wouldCreateDraft,

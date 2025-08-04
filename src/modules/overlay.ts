@@ -32,7 +32,7 @@ namespace ProcessingOverlay {
       .addWidget(
         CardService.newTextParagraph()
           .setText(
-            'Will scan emails and apply Support/undefined labels' +
+            'Will scan emails and apply labels from your Google Docs configuration' +
             (mode !== Config.ProcessingMode.LABEL_ONLY ? '\n+ ' + 
               (mode === Config.ProcessingMode.CREATE_DRAFTS ? 'create drafts' : 'send replies') : '')
           )

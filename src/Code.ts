@@ -204,8 +204,8 @@ function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
   
   const result = TestMode.runTestAnalysis(
     apiKey,
-    PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_1) || Config.PROMPTS.CLASSIFICATION,
-    PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_2) || Config.PROMPTS.RESPONSE
+    'Classify this email according to the configured labels.',
+    'Generate an appropriate response to this email.'
   );
   
   // T-10: Show results inline on card

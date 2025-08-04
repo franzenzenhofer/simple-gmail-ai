@@ -928,12 +928,13 @@ namespace GmailService {
       }
       
       // T-14: Use structured JSON response for classification
+      // Schema allows ANY label name - labels are managed in Google Docs
       const classificationSchema = {
         type: 'object',
         properties: {
           label: {
-            type: 'string',
-            enum: ['support', 'not']
+            type: 'string'
+            // No enum - AI can return any label name from the docs
           },
           confidence: {
             type: 'number',
@@ -941,8 +942,8 @@ namespace GmailService {
             maximum: 1
           },
           category: {
-            type: 'string',
-            enum: ['technical', 'billing', 'feature_request', 'bug_report', 'general', 'not_support']
+            type: 'string'
+            // Optional category for additional context
           }
         },
         required: ['label']
@@ -952,7 +953,7 @@ namespace GmailService {
       const threadLabels = thread.getLabels().map(label => label.getName());
       const activeClassificationPrompt = getClassificationPrompt(classificationPrompt, threadLabels);
       
-      const fullPrompt = activeClassificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------\n\nRespond with JSON containing "label" field with value "support" or "not".';
+      const fullPrompt = activeClassificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------\n\nRespond with JSON containing a "label" field with the appropriate label name.';
       const classificationResult = AI.callGemini(apiKey, fullPrompt, classificationSchema);
       
       if (!classificationResult.success) {
@@ -971,7 +972,9 @@ namespace GmailService {
           response: classificationResult.data,
           error: String(e)
         });
-        classificationData = { label: String(classificationResult.data).toLowerCase().includes('support') ? 'support' : 'not' };
+        // Try to extract any label-like word from the response
+        const responseText = String(classificationResult.data).trim();
+        classificationData = { label: responseText || 'General' };
       }
       
       const classData = classificationData as { label?: string; confidence?: number; category?: string };

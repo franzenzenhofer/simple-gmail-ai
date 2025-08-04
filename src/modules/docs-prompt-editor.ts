@@ -123,12 +123,14 @@ This document contains all AI prompts and labeling rules for the Gmail AI Assist
 
 ## C.1 · Overall Prompt
 
-You are an email classification assistant. Analyze the email content and classify it according to the labels defined above. Choose the most specific label that matches the email content.
+You are an email classification assistant. Analyze the email content and classify it according to the labels defined in the Label Registry above.
 
 Important:
-- Review the Label Registry above for classification rules
-- Return only the label name, nothing else
+- Review the Label Registry (Section B) for available labels and their criteria
+- Return ONLY the exact label name from the registry
+- Choose the most specific label that matches the email content
 - If no specific label applies, return "General"
+- The label you return will be created in Gmail if it doesn't exist
 
 ## C.2 · Prompt · Support
 

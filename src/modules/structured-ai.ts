@@ -18,7 +18,7 @@ namespace StructuredAI {
     emailContent: string,
     customPrompt?: string
   ): StructuredResult<AISchemas.ClassificationResponse> {
-    const prompt = customPrompt || Config.PROMPTS.CLASSIFICATION;
+    const prompt = customPrompt || 'Classify this email according to the configured labels.';
     const fullPrompt = AISchemas.createPromptForSchema(
       prompt + '\n\n' + emailContent,
       'classification'
@@ -51,7 +51,7 @@ namespace StructuredAI {
     emailContent: string,
     customPrompt?: string
   ): StructuredResult<AISchemas.ReplyResponse> {
-    const prompt = customPrompt || Config.PROMPTS.RESPONSE;
+    const prompt = customPrompt || 'Generate an appropriate response to this email.';
     const fullPrompt = AISchemas.createPromptForSchema(
       prompt + '\n\n' + emailContent,
       'reply'
@@ -92,7 +92,7 @@ namespace StructuredAI {
       };
     }
     
-    const prompt = customPrompt || Config.PROMPTS.CLASSIFICATION;
+    const prompt = customPrompt || 'Classify this email according to the configured labels.';
     let batchPrompt = prompt + '\n\nClassify each email below:\n\n';
     
     emails.forEach((email, index) => {
@@ -189,7 +189,7 @@ namespace StructuredAI {
     }
     
     // Fallback to legacy string-based classification
-    const legacyResult = AI.callGemini(apiKey, (customPrompt || Config.PROMPTS.CLASSIFICATION) + '\n\n' + emailContent);
+    const legacyResult = AI.callGemini(apiKey, (customPrompt || 'Classify this email according to the configured labels.') + '\n\n' + emailContent);
     const classification = legacyResult.success 
       ? (legacyResult.data.toLowerCase().indexOf('support') === 0 ? 'support' : 'not')
       : 'not';

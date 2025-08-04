@@ -21,7 +21,7 @@ namespace BatchProcessor {
 
   export interface BatchResult {
     id: string;
-    label: 'support' | 'not';
+    label: string; // Dynamic label from AI/docs
     confidence?: number;
     reasoning?: string;
     error?: string;
@@ -47,7 +47,7 @@ namespace BatchProcessor {
       'required': ['id', 'label'],
       'properties': {
         'id': { 'type': 'string' },
-        'label': { 'type': 'string', 'enum': ['support', 'not'] },
+        'label': { 'type': 'string', 'description': 'Dynamic label from docs - can be any label name' },
         'confidence': { 'type': 'number', 'minimum': 0, 'maximum': 1 },
         'reasoning': { 'type': 'string', 'maxLength': 200 }
       },
@@ -89,8 +89,8 @@ namespace BatchProcessor {
 
     let prompt = basePrompt + '\n\n';
     prompt += 'CRITICAL: Classify each email and respond with ONLY a valid JSON array.\n';
-    prompt += 'Each array element must have: "id" (string), "label" ("support" or "not"), optionally "confidence" (0-1) and "reasoning" (brief).\n';
-    prompt += 'Example format: [{"id":"email1","label":"support","confidence":0.9,"reasoning":"customer asking for help"}]\n\n';
+    prompt += 'Each array element must have: "id" (string), "label" (exact label name from docs), optionally "confidence" (0-1) and "reasoning" (brief).\n';
+    prompt += 'Example format: [{"id":"email1","label":"Support","confidence":0.9,"reasoning":"customer asking for help"}]\n\n';
 
     emails.forEach((email, index) => {
       const truncatedBody = email.body.length > CONFIG.MAX_EMAIL_LENGTH 
@@ -187,7 +187,7 @@ namespace BatchProcessor {
         // Return error result for all emails in batch
         const errorResults: BatchResult[] = batch.map(email => ({
           id: email.id,
-          label: 'not' as const,
+          label: 'General',
           error: result.error
         }));
 
@@ -216,7 +216,7 @@ namespace BatchProcessor {
         missingIds.forEach(id => {
           result.data.push({
             id,
-            label: 'not',
+            label: 'General',
             confidence: 0,
             reasoning: 'Missing from batch response'
           });
@@ -253,7 +253,7 @@ namespace BatchProcessor {
       // Return error result for all emails in batch
       const errorResults: BatchResult[] = batch.map(email => ({
         id: email.id,
-        label: 'not' as const,
+        label: 'General',
         error: errorMessage
       }));
 

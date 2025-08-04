@@ -36,8 +36,7 @@ namespace FunctionCalling {
       properties: {
         classification: {
           type: 'string',
-          enum: ['support', 'not'],
-          description: 'Whether the email is a support request'
+          description: 'Dynamic label from docs - can be any label name'
         },
         confidence: {
           type: 'number',
@@ -100,8 +99,7 @@ namespace FunctionCalling {
       properties: {
         classification: {
           type: 'string',
-          enum: ['support', 'not'],
-          description: 'Whether the email is a support request'
+          description: 'Dynamic label from docs - can be any label name'
         },
         sentiment: {
           type: 'string',
@@ -244,7 +242,7 @@ namespace FunctionCalling {
     useAdvancedAnalysis: boolean = false
   ): {
     success: boolean;
-    classification?: 'support' | 'not';
+    classification?: string; // Dynamic label from AI/docs
     metadata?: unknown;
     error?: string;
   } {
@@ -283,7 +281,7 @@ namespace FunctionCalling {
           const paramsObj = params as { classification?: string };
           return {
             success: true,
-            classification: (paramsObj?.classification || 'not') as 'support' | 'not',
+            classification: paramsObj?.classification || 'General',
             metadata: params
           };
         }
@@ -297,7 +295,7 @@ namespace FunctionCalling {
       const fcParams = functionCall.parameters as { classification?: string };
       return {
         success: true,
-        classification: (fcParams?.classification || 'not') as 'support' | 'not',
+        classification: fcParams?.classification || 'General',
         metadata: functionCall.parameters
       };
       

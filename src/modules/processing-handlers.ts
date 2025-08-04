@@ -84,7 +84,7 @@ namespace ProcessingHandlers {
       minute: '2-digit',
       timeZone: Session.getScriptTimeZone()
     });
-    const statsString = `${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
+    const statsString = `${stats.scanned} analyzed | ${stats.supports} labeled | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
     
     props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_TIME, executionTime);
     props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_STATS, statsString);

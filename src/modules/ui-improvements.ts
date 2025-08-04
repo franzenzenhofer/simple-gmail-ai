@@ -179,13 +179,13 @@ namespace UIImprovements {
     promptsWidgets.push(CardService.newTextInput()
       .setFieldName('classificationPrompt')
       .setTitle('Classification Prompt')
-      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.classificationPrompt) || Config.DEFAULT_CLASSIFICATION_PROMPT)
+      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.classificationPrompt) || 'Classify this email according to the configured labels.')
       .setMultiline(true));
     
     promptsWidgets.push(CardService.newTextInput()
       .setFieldName('responsePrompt')
       .setTitle('Response Prompt')
-      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || Config.DEFAULT_RESPONSE_PROMPT)
+      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || 'Generate an appropriate response to this email.')
       .setMultiline(true));
     
     card.addSection(createCollapsibleSection(

@@ -463,7 +463,7 @@ namespace UI {
         CardService.newTextParagraph()
           .setText('<b>📊 LIVE STATS:</b> ' + 
             '📧 ' + currentStats.scanned + ' processed | ' +
-            '🎯 ' + currentStats.supports + ' support | ' +
+            '🎯 ' + currentStats.supports + ' labeled | ' +
             '📝 ' + currentStats.drafted + ' drafts | ' +
             '📤 ' + currentStats.sent + ' sent' +
             (currentStats.errors > 0 ? ' | ❌ ' + currentStats.errors + ' errors' : ''))

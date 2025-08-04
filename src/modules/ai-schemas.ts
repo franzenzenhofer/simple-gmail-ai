@@ -12,7 +12,7 @@ namespace AISchemas {
     'properties': {
       'label': {
         'type': 'string',
-        'enum': ['support', 'not']
+        'description': 'Dynamic label from docs - can be any label name'
       },
       'confidence': {
         'type': 'number',
@@ -63,7 +63,7 @@ namespace AISchemas {
         },
         'label': {
           'type': 'string',
-          'enum': ['support', 'not']
+          'description': 'Dynamic label from docs - can be any label name'
         },
         'confidence': {
           'type': 'number',
@@ -79,7 +79,7 @@ namespace AISchemas {
   
   // TypeScript interfaces for structured responses
   export interface ClassificationResponse {
-    label: 'support' | 'not';
+    label: string; // Dynamic label from AI/docs
     confidence?: number;
     reasoning?: string;
   }
@@ -92,7 +92,7 @@ namespace AISchemas {
   
   export interface BatchResponse {
     id: string;
-    label: 'support' | 'not';
+    label: string; // Dynamic label from AI/docs
     confidence?: number;
   }
   
@@ -114,13 +114,13 @@ namespace AISchemas {
     
     switch (schemaType) {
       case 'classification':
-        promptSuffix = '\n\nRespond with JSON in this exact format: {"label": "support" or "not", "confidence": 0.0-1.0, "reasoning": "brief explanation"}';
+        promptSuffix = '\n\nRespond with JSON in this exact format: {"label": "exact_label_name_from_docs", "confidence": 0.0-1.0, "reasoning": "brief explanation"}';
         break;
       case 'reply':
         promptSuffix = '\n\nRespond with JSON in this exact format: {"reply": "your response", "tone": "formal/friendly/neutral", "category": "inquiry/complaint/request/feedback/other"}';
         break;
       case 'batch':
-        promptSuffix = '\n\nRespond with JSON array in this exact format: [{"id": "email_id", "label": "support" or "not", "confidence": 0.0-1.0}]';
+        promptSuffix = '\n\nRespond with JSON array in this exact format: [{"id": "email_id", "label": "exact_label_name_from_docs", "confidence": 0.0-1.0}]';
         break;
     }
     

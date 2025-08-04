@@ -30,7 +30,7 @@ namespace ContextualActions {
   
   // Analysis result for message
   export interface MessageAnalysis {
-    classification: 'support' | 'not';
+    classification: string; // Dynamic label from AI/docs
     confidence: number;
     sentiment?: 'positive' | 'neutral' | 'negative' | 'urgent';
     suggestedActions: string[];
@@ -147,7 +147,7 @@ namespace ContextualActions {
         const analysis = analyzeMessage(apiKey, context);
         
         // Apply dynamic label from AI
-        const labelToApply = analysis.classification === 'support' ? 'Support' : 'General';
+        const labelToApply = analysis.classification || 'General';
         const dynamicLabel = GmailService.getOrCreateLabel(labelToApply);
         const processedLabel = GmailService.getOrCreateLabel(Config.LABELS.AI_PROCESSED);
         
@@ -186,7 +186,7 @@ namespace ContextualActions {
       }
       
       try {
-        const responsePrompt = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || Config.DEFAULT_RESPONSE_PROMPT;
+        const responsePrompt = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || 'Generate a helpful response to this email.';
         const fullPrompt = responsePrompt + '\n' + context.body + '\n---------- END ----------';
         
         const result = AI.callGemini(apiKey, fullPrompt);
