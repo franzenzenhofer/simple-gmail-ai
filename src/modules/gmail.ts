@@ -375,6 +375,61 @@ namespace GmailService {
     };
   }
   
+  /**
+   * Build recipient context for AI prompts
+   * Provides the AI with information about who should receive the response
+   */
+  export function buildRecipientContext(
+    emailContext: EmailContext,
+    recipientDecision: RecipientDecision
+  ): string {
+    const lines: string[] = [];
+    
+    lines.push('\n--- RECIPIENT CONTEXT ---');
+    lines.push('Original sender: ' + emailContext.originalSender);
+    
+    if (emailContext.allRecipients.to.length > 0) {
+      lines.push('To: ' + emailContext.allRecipients.to.join(', '));
+    }
+    
+    if (emailContext.allRecipients.cc.length > 0) {
+      lines.push('CC: ' + emailContext.allRecipients.cc.join(', '));
+    }
+    
+    if (emailContext.replyTo) {
+      lines.push('Reply-To: ' + emailContext.replyTo);
+    }
+    
+    if (emailContext.isMailingList) {
+      lines.push('⚠️ This is a mailing list email');
+    }
+    
+    if (emailContext.hasNoReply) {
+      lines.push('⚠️ WARNING: Sender is a no-reply address');
+    }
+    
+    lines.push('\nSuggested recipient mode: ' + recipientDecision.mode.toUpperCase());
+    lines.push('Reason: ' + recipientDecision.reason);
+    
+    if (recipientDecision.warnings && recipientDecision.warnings.length > 0) {
+      lines.push('\nWarnings:');
+      recipientDecision.warnings.forEach(warning => lines.push('- ' + warning));
+    }
+    
+    if (recipientDecision.to.length > 0) {
+      lines.push('\nResponse will be sent to: ' + recipientDecision.to.join(', '));
+      if (recipientDecision.cc && recipientDecision.cc.length > 0) {
+        lines.push('CC: ' + recipientDecision.cc.join(', '));
+      }
+    } else {
+      lines.push('\n❌ NO RECIPIENTS - Response blocked');
+    }
+    
+    lines.push('--- END RECIPIENT CONTEXT ---\n');
+    
+    return lines.join('\n');
+  }
+  
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
     try {
       // T-19: Use label cache for resilient label operations
@@ -682,8 +737,32 @@ namespace GmailService {
         mode: autoReply ? 'AUTO-SEND' : 'DRAFT'
       });
       
-      supportThreads.forEach(({threadId, thread, redactedBody, subject, sender}) => {
+      supportThreads.forEach(({threadId, thread, redactedBody, subject, sender, body}) => {
         try {
+          // Extract thread context for recipient determination
+          const emailContext = extractThreadContext(thread);
+          const recipientDecision = determineRecipients(emailContext, body);
+          
+          // Check if we should block the response
+          if (recipientDecision.to.length === 0) {
+            AppLogger.warn('🚫 RESPONSE BLOCKED - NO VALID RECIPIENTS', {
+              threadId: threadId,
+              subject: subject,
+              reason: recipientDecision.reason,
+              warnings: recipientDecision.warnings
+            });
+            
+            // Apply a special label to indicate blocked response
+            try {
+              const blockedLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+              thread.addLabel(blockedLabel);
+            } catch (e) {
+              // Ignore label errors
+            }
+            
+            return; // Skip this thread
+          }
+          
           // T-12: Use redacted body for AI reply generation
           // T-14: Use structured JSON response for batch reply generation
           const replySchema = {
@@ -700,7 +779,11 @@ namespace GmailService {
           const threadLabels = thread.getLabels().map(label => label.getName());
           const activeResponsePrompt = getResponsePrompt(responsePrompt, threadLabels);
           
-          const replyPrompt = activeResponsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
+          // Build recipient context for AI
+          const recipientContext = buildRecipientContext(emailContext, recipientDecision);
+          
+          // Include recipient context in the prompt
+          const replyPrompt = activeResponsePrompt + '\n' + recipientContext + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response. Consider the recipient context when crafting your response.';
           const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
@@ -936,10 +1019,31 @@ namespace GmailService {
         }
         
         if (createDrafts || autoReply) {
+          // Extract thread context for recipient determination
+          const emailContext = extractThreadContext(thread);
+          const recipientDecision = determineRecipients(emailContext, body);
+          
+          // Check if we should block the response
+          if (recipientDecision.to.length === 0) {
+            AppLogger.warn('🚫 RESPONSE BLOCKED - NO VALID RECIPIENTS', {
+              threadId: thread.getId(),
+              subject: subject,
+              reason: recipientDecision.reason,
+              warnings: recipientDecision.warnings
+            });
+            
+            // Apply error label and return
+            const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+            thread.addLabel(errorLabel);
+            return { isSupport, error: 'No valid recipients: ' + recipientDecision.reason };
+          }
+          
           AppLogger.info('✍️ GENERATING REPLY', {
             subject: subject,
             mode: autoReply ? 'AUTO-SEND' : 'DRAFT',
-            threadId: thread.getId()
+            threadId: thread.getId(),
+            recipientMode: recipientDecision.mode,
+            recipientCount: recipientDecision.to.length
           });
           
           // T-12: Use redacted body for reply generation (already redacted above)
@@ -965,7 +1069,11 @@ namespace GmailService {
           const threadLabels = thread.getLabels().map(label => label.getName());
           const activeResponsePrompt = getResponsePrompt(responsePrompt, threadLabels);
           
-          const replyPrompt = activeResponsePrompt + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response.';
+          // Build recipient context for AI
+          const recipientContext = buildRecipientContext(emailContext, recipientDecision);
+          
+          // Include recipient context in the prompt
+          const replyPrompt = activeResponsePrompt + '\n' + recipientContext + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response. Consider the recipient context when crafting your response.';
           const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
