@@ -27,7 +27,7 @@ namespace ContinuationHandlers {
       }
       
       // Check for cancellation
-      if (PropertiesService.getUserProperties().getProperty('ANALYSIS_CANCELLED') === 'true') {
+      if (PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED) === 'true') {
         AppLogger.info('🛑 Continuation cancelled by user');
         ContinuationTriggers.clearContinuationState();
         ContinuationTriggers.deleteContinuationTriggers();
@@ -115,7 +115,7 @@ namespace ContinuationHandlers {
       AppLogger.info('🛑 CANCELLING CONTINUATION PROCESSING');
       
       // Set cancellation flag
-      PropertiesService.getUserProperties().setProperty('ANALYSIS_CANCELLED', 'true');
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED, 'true');
       
       // Clean up continuation state and triggers
       ContinuationTriggers.clearContinuationState();
@@ -150,7 +150,7 @@ namespace ContinuationHandlers {
       ContinuationTriggers.cleanupOldContinuationStates();
       
       // Clear any existing cancellation flags
-      PropertiesService.getUserProperties().deleteProperty('ANALYSIS_CANCELLED');
+      PropertiesService.getUserProperties().deleteProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED);
       
       AppLogger.info('🚀 INITIALIZING LARGE INBOX PROCESSING', {
         totalThreads: threads.length,

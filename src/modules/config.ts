@@ -102,7 +102,7 @@ namespace Config {
     EMAILS_TOTAL: 'EMAILS_TOTAL',
     PROCESSING_STATS: 'PROCESSING_STATS',
     
-    // Continuation System
+    // Continuation & State
     ACTIVE_CONTINUATION_KEY: 'ACTIVE_CONTINUATION_KEY'
   };
   

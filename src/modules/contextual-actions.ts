@@ -191,7 +191,7 @@ namespace ContextualActions {
       }
       
       try {
-        const responsePrompt = PropertiesService.getUserProperties().getProperty('responsePrompt') || Config.DEFAULT_RESPONSE_PROMPT;
+        const responsePrompt = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || Config.DEFAULT_RESPONSE_PROMPT;
         const fullPrompt = responsePrompt + '\n' + context.body + '\n---------- END ----------';
         
         const result = AI.callGemini(apiKey, fullPrompt);

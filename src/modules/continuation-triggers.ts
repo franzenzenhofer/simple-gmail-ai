@@ -64,7 +64,7 @@ namespace ContinuationTriggers {
       const serializedState = JSON.stringify(state);
       
       PropertiesService.getUserProperties().setProperty(stateKey, serializedState);
-      PropertiesService.getUserProperties().setProperty('ACTIVE_CONTINUATION_KEY', stateKey);
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.ACTIVE_CONTINUATION_KEY, stateKey);
       
       AppLogger.info('💾 CONTINUATION STATE SAVED', {
         stateKey,
@@ -84,7 +84,7 @@ namespace ContinuationTriggers {
    */
   export function loadContinuationState(): ContinuationState | null {
     try {
-      const activeKey = PropertiesService.getUserProperties().getProperty('ACTIVE_CONTINUATION_KEY');
+      const activeKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ACTIVE_CONTINUATION_KEY);
       if (!activeKey) return null;
       
       const serializedState = PropertiesService.getUserProperties().getProperty(activeKey);
@@ -112,10 +112,10 @@ namespace ContinuationTriggers {
    */
   export function clearContinuationState(): void {
     try {
-      const activeKey = PropertiesService.getUserProperties().getProperty('ACTIVE_CONTINUATION_KEY');
+      const activeKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ACTIVE_CONTINUATION_KEY);
       if (activeKey) {
         PropertiesService.getUserProperties().deleteProperty(activeKey);
-        PropertiesService.getUserProperties().deleteProperty('ACTIVE_CONTINUATION_KEY');
+        PropertiesService.getUserProperties().deleteProperty(Config.PROP_KEYS.ACTIVE_CONTINUATION_KEY);
         
         AppLogger.info('🗑️ CONTINUATION STATE CLEARED', { stateKey: activeKey });
       }

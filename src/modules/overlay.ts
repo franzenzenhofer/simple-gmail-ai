@@ -13,7 +13,7 @@ namespace ProcessingOverlay {
     
     // Get current processing stats
     const props = PropertiesService.getUserProperties();
-    const mode = props.getProperty('PROCESSING_MODE') || Config.ProcessingMode.LABEL_ONLY;
+    const mode = props.getProperty(Config.PROP_KEYS.PROCESSING_MODE) || Config.ProcessingMode.LABEL_ONLY;
     
     // Main status section
     const statusSection = CardService.newCardSection()

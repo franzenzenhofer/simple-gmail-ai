@@ -164,13 +164,13 @@ namespace UIImprovements {
     promptsWidgets.push(CardService.newTextInput()
       .setFieldName('classificationPrompt')
       .setTitle('Classification Prompt')
-      .setValue(PropertiesService.getUserProperties().getProperty('classificationPrompt') || Config.DEFAULT_CLASSIFICATION_PROMPT)
+      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.classificationPrompt) || Config.DEFAULT_CLASSIFICATION_PROMPT)
       .setMultiline(true));
     
     promptsWidgets.push(CardService.newTextInput()
       .setFieldName('responsePrompt')
       .setTitle('Response Prompt')
-      .setValue(PropertiesService.getUserProperties().getProperty('responsePrompt') || Config.DEFAULT_RESPONSE_PROMPT)
+      .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || Config.DEFAULT_RESPONSE_PROMPT)
       .setMultiline(true));
     
     card.addSection(createCollapsibleSection(
@@ -202,7 +202,7 @@ namespace UIImprovements {
       .setBottomLabel('Extra logging for troubleshooting')
       .setSwitchControl(CardService.newSwitch()
         .setFieldName('debugMode')
-        .setValue(String(PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true'))));
+        .setValue(String(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DEBUG_MODE) === 'true'))));
     
     card.addSection(createCollapsibleSection(
       '🔧 Advanced Settings',
@@ -433,8 +433,8 @@ namespace UIImprovements {
     }
     
     // Default progress
-    const processed = parseInt(PropertiesService.getUserProperties().getProperty('EMAILS_PROCESSED') || '0');
-    const total = parseInt(PropertiesService.getUserProperties().getProperty('EMAILS_TOTAL') || '0');
+    const processed = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.EMAILS_PROCESSED) || '0');
+    const total = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.EMAILS_TOTAL) || '0');
     
     return {
       current: processed,
@@ -457,7 +457,7 @@ namespace UIImprovements {
     };
     
     try {
-      const statsStr = PropertiesService.getUserProperties().getProperty('PROCESSING_STATS');
+      const statsStr = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROCESSING_STATS);
       if (statsStr) {
         Object.assign(stats, JSON.parse(statsStr));
       }
@@ -472,7 +472,7 @@ namespace UIImprovements {
    * Reset statistics
    */
   export function resetStatistics(): GoogleAppsScript.Card_Service.ActionResponse {
-    PropertiesService.getUserProperties().deleteProperty('PROCESSING_STATS');
+    PropertiesService.getUserProperties().deleteProperty(Config.PROP_KEYS.PROCESSING_STATS);
     
     return CardService.newActionResponseBuilder()
       .setNotification(CardService.newNotification()

@@ -178,7 +178,7 @@ function toggleTestMode(): GoogleAppsScript.Card_Service.ActionResponse {
 }
 
 function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
-  const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
+  const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
   if (!apiKey) {
     return CardService.newActionResponseBuilder()
       .setNotification(CardService.newNotification()
@@ -188,8 +188,8 @@ function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
   
   const result = TestMode.runTestAnalysis(
     apiKey,
-    PropertiesService.getUserProperties().getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION,
-    PropertiesService.getUserProperties().getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE
+    PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_1) || Config.PROMPTS.CLASSIFICATION,
+    PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_2) || Config.PROMPTS.RESPONSE
   );
   
   // T-10: Show results inline on card

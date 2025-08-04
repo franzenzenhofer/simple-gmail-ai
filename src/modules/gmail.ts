@@ -73,8 +73,8 @@ namespace GmailService {
       
       // Optional: Store error for user notification
       try {
-        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty('DOCS_PROMPT_ERROR_COUNT') || '0');
-        PropertiesService.getUserProperties().setProperty('DOCS_PROMPT_ERROR_COUNT', String(errorCount + 1));
+        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT) || '0');
+        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT, String(errorCount + 1));
       } catch (e) {
         // Ignore property storage errors
       }
@@ -115,8 +115,8 @@ namespace GmailService {
       
       // Optional: Store error for user notification
       try {
-        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty('DOCS_PROMPT_ERROR_COUNT') || '0');
-        PropertiesService.getUserProperties().setProperty('DOCS_PROMPT_ERROR_COUNT', String(errorCount + 1));
+        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT) || '0');
+        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT, String(errorCount + 1));
       } catch (e) {
         // Ignore property storage errors
       }
@@ -457,7 +457,7 @@ namespace GmailService {
     // T-10: Check if test mode is active and limit results
     // Use dynamic check to avoid circular dependency
     try {
-      const testModeConfigStr = PropertiesService.getUserProperties().getProperty('TEST_MODE_CONFIG');
+      const testModeConfigStr = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.TEST_MODE_CONFIG);
       if (testModeConfigStr) {
         const testConfig = JSON.parse(testModeConfigStr);
         if (testConfig.enabled) {
@@ -618,7 +618,7 @@ namespace GmailService {
     });
     
     // Step 2: Check for cancellation before batch classification
-    if (PropertiesService.getUserProperties().getProperty('ANALYSIS_CANCELLED') === 'true') {
+    if (PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED) === 'true') {
       AppLogger.info('🛑 Processing cancelled before classification');
       return results;
     }
@@ -682,7 +682,7 @@ namespace GmailService {
     
     classifications.forEach(result => {
       // Check for cancellation on each thread
-      if (PropertiesService.getUserProperties().getProperty('ANALYSIS_CANCELLED') === 'true') {
+      if (PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED) === 'true') {
         AppLogger.info('🛑 Processing cancelled during labeling');
         return; // Stop processing remaining threads
       }
@@ -894,7 +894,7 @@ namespace GmailService {
     // Use dynamic check to avoid circular dependency
     let testConfig: any = null;
     try {
-      const testModeConfigStr = PropertiesService.getUserProperties().getProperty('TEST_MODE_CONFIG');
+      const testModeConfigStr = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.TEST_MODE_CONFIG);
       if (testModeConfigStr) {
         testConfig = JSON.parse(testModeConfigStr);
         if (testConfig.enabled) {

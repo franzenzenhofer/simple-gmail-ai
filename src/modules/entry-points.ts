@@ -11,7 +11,7 @@ namespace EntryPoints {
   export function onAddOnOpen(_e: any): void {
     try {
       const timestamp = new Date().toISOString();
-      PropertiesService.getUserProperties().setProperty('AI_HEARTBEAT', timestamp);
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.AI_HEARTBEAT, timestamp);
       
       // Don't initialize logger for simple triggers - it's too heavy
       console.log('Heartbeat written on add-on open:', timestamp);
@@ -30,10 +30,10 @@ namespace EntryPoints {
       // T-19: Migrate existing labels to cache on first load
       try {
         const props = PropertiesService.getUserProperties();
-        const migrationFlag = props.getProperty('LABEL_CACHE_MIGRATED');
+        const migrationFlag = props.getProperty(Config.PROP_KEYS.LABEL_CACHE_MIGRATED);
         if (!migrationFlag) {
           LabelCache.migrateExistingLabels();
-          props.setProperty('LABEL_CACHE_MIGRATED', 'true');
+          props.setProperty(Config.PROP_KEYS.LABEL_CACHE_MIGRATED, 'true');
         }
       } catch (error) {
         Utils.logWarning('migrate label cache', error);
@@ -98,10 +98,10 @@ namespace EntryPoints {
       // T-19: Ensure label cache migration on Gmail context too
       try {
         const props = PropertiesService.getUserProperties();
-        const migrationFlag = props.getProperty('LABEL_CACHE_MIGRATED');
+        const migrationFlag = props.getProperty(Config.PROP_KEYS.LABEL_CACHE_MIGRATED);
         if (!migrationFlag) {
           LabelCache.migrateExistingLabels();
-          props.setProperty('LABEL_CACHE_MIGRATED', 'true');
+          props.setProperty(Config.PROP_KEYS.LABEL_CACHE_MIGRATED, 'true');
         }
       } catch (error) {
         Utils.logWarning('migrate label cache in Gmail context', error);
@@ -120,7 +120,7 @@ namespace EntryPoints {
   function writeHeartbeat(): void {
     try {
       const timestamp = new Date().toISOString();
-      PropertiesService.getUserProperties().setProperty('AI_HEARTBEAT', timestamp);
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.AI_HEARTBEAT, timestamp);
       
       AppLogger.info('💓 HEARTBEAT WRITTEN', {
         timestamp: timestamp,

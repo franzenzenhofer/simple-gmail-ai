@@ -141,7 +141,7 @@ namespace DarkMode {
       }
       
       // Fallback to user properties for saved preference
-      const savedPreference = PropertiesService.getUserProperties().getProperty('DARK_MODE_ENABLED');
+      const savedPreference = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DARK_MODE_ENABLED);
       if (savedPreference !== null) {
         return savedPreference === 'true';
       }
@@ -161,7 +161,7 @@ namespace DarkMode {
     const currentMode = isDarkModeEnabled();
     const newMode = !currentMode;
     
-    PropertiesService.getUserProperties().setProperty('DARK_MODE_ENABLED', String(newMode));
+    PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DARK_MODE_ENABLED, String(newMode));
     
     AppLogger.info('🌓 DARK MODE TOGGLED', {
       previousMode: currentMode ? 'dark' : 'light',
@@ -285,13 +285,13 @@ namespace DarkMode {
    */
   export function initializeDarkMode(): void {
     // Check if this is first run
-    const initialized = PropertiesService.getUserProperties().getProperty('DARK_MODE_INITIALIZED');
+    const initialized = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DARK_MODE_INITIALIZED);
     
     if (!initialized) {
       // Set default based on system preference (if we could detect it)
       // For now, default to light mode
-      PropertiesService.getUserProperties().setProperty('DARK_MODE_ENABLED', 'false');
-      PropertiesService.getUserProperties().setProperty('DARK_MODE_INITIALIZED', 'true');
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DARK_MODE_ENABLED, 'false');
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DARK_MODE_INITIALIZED, 'true');
       
       AppLogger.info('🌓 DARK MODE INITIALIZED', {
         defaultMode: 'light'

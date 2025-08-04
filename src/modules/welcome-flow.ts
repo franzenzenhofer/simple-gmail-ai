@@ -489,11 +489,11 @@ namespace WelcomeFlow {
       }
       
       if (e.formInput.autoCreateDrafts === 'true') {
-        PropertiesService.getUserProperties().setProperty('autoCreateDrafts', 'true');
+        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.autoCreateDrafts, 'true');
       }
       
       if (e.formInput.sensitivity) {
-        PropertiesService.getUserProperties().setProperty('classificationSensitivity', e.formInput.sensitivity);
+        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.classificationSensitivity, e.formInput.sensitivity);
       }
     }
     

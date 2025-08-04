@@ -189,8 +189,8 @@ namespace LockManager {
     
     const props = PropertiesService.getUserProperties();
     props.deleteProperty(LOCK_INFO_KEY);
-    props.setProperty('ANALYSIS_RUNNING', 'false');
-    props.deleteProperty('ANALYSIS_START_TIME');
+    props.setProperty(Config.PROP_KEYS.ANALYSIS_RUNNING, 'false');
+    props.deleteProperty(Config.PROP_KEYS.ANALYSIS_START_TIME);
     
     AppLogger.warn('Force cleared all analysis locks (ATOMIC)');
   }
