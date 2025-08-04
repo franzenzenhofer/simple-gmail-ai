@@ -419,24 +419,23 @@ For general emails that don't match specific categories, we just apply the "Gene
         }
       } else if (text && currentSection) {
         // Capture content based on current section
-        if (currentSection === 'overall' && text.length > 10 && !text.startsWith('*') && !text.startsWith('**')) {
-          // Skip instruction text and capture the actual prompt
-          if (!text.includes('tells the AI') && !text.toLowerCase().includes('instructions:') && !text.toLowerCase().includes('response format:')) {
+        if (currentSection === 'overall' && text.length > 10) {
+          // Skip explanatory text but capture everything else
+          if (!text.startsWith('*This tells the AI') && !text.startsWith('*These tell the AI')) {
             if (result.overallPrompt) {
               result.overallPrompt += '\n' + text;
-            } else if (text.includes('email classification') || text.includes('Analyze the email')) {
+            } else {
               result.overallPrompt = text;
             }
           }
         } else if (currentSection === 'action' && currentPromptLabel && text.length > 10) {
-          // Skip guideline headers and capture the actual prompt
-          if (!text.startsWith('**Guidelines:**') && !text.startsWith('*This label') && !text.startsWith('For general emails')) {
-            if (text.includes('Draft') || text.includes('response') || result.actionPrompts[currentPromptLabel]) {
-              if (result.actionPrompts[currentPromptLabel]) {
-                result.actionPrompts[currentPromptLabel] += '\n' + text;
-              } else {
-                result.actionPrompts[currentPromptLabel] = text;
-              }
+          // Skip explanation headers but capture the actual prompt content
+          if (!text.startsWith('*This label') && !text.startsWith('*These tell the AI') && !text.startsWith('For general emails')) {
+            // Capture all content including guidelines
+            if (result.actionPrompts[currentPromptLabel]) {
+              result.actionPrompts[currentPromptLabel] += '\n' + text;
+            } else {
+              result.actionPrompts[currentPromptLabel] = text;
             }
           }
         }
