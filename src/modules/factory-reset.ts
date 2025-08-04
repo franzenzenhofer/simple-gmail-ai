@@ -88,7 +88,7 @@ namespace FactoryReset {
     const errors: string[] = [];
     let propertiesCleared = 0;
     let labelsRemoved = 0;
-    let spreadsheetsDeleted = 0;
+    const spreadsheetsDeleted = 0;
     
     AppLogger.warn('🏭 FACTORY RESET INITIATED', {
       timestamp: new Date().toISOString(),
