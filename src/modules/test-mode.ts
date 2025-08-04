@@ -330,8 +330,8 @@ namespace TestMode {
     
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
-        .setTitle('🧪 Test Mode')
-        .setSubtitle(isEnabled ? 'Active' : 'Inactive')
+        .setTitle('🧪 Test Mode • Safe Testing')
+        .setSubtitle(isEnabled ? '✅ Active • Limited processing enabled' : '⚠️ Inactive • Full processing will occur')
         .setImageStyle(CardService.ImageStyle.SQUARE)
         .setImageUrl('https://www.gstatic.com/images/icons/material/system/2x/science_black_48dp.png')
       );
@@ -427,8 +427,8 @@ namespace TestMode {
   export function createTestResultCard(result: TestRunResult): GoogleAppsScript.Card_Service.Card {
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
-        .setTitle('🧪 Test Run Results')
-        .setSubtitle(`Processed ${result.emailsProcessed} email(s)`)
+        .setTitle('🧪 Test Results • Analysis Complete')
+        .setSubtitle(`✅ Processed ${result.emailsProcessed} email(s) • Safe mode active`)
       );
     
     // Summary section

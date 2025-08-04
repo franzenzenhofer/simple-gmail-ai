@@ -25,8 +25,8 @@ namespace DocsPromptHandlers {
       // Show welcome card with create button
       return CardService.newCardBuilder()
         .setHeader(CardService.newCardHeader()
-          .setTitle('📝 Prompt Editor')
-          .setSubtitle('Google Docs-based prompt management'))
+          .setTitle('📝 Docs Prompt Editor • Configuration')
+          .setSubtitle('🎯 Google Docs-based prompt management • Single source of truth'))
         .addSection(CardService.newCardSection()
           .addWidget(CardService.newTextParagraph()
             .setText('Welcome! Click below to create your prompt configuration document.'))
@@ -69,7 +69,7 @@ namespace DocsPromptHandlers {
     
     return CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
-        .setTitle('📝 Prompt Editor')
+        .setTitle('📝 Docs Prompt Editor • Configuration')
         .setSubtitle('Manage your AI prompts'))
       .addSection(section)
       .build();
