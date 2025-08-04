@@ -237,16 +237,23 @@ namespace Redaction {
     totalPIICount: number;
     disclaimer: string;
   } {
+    // Helper function to safely test regex without state issues
+    const safeTest = (pattern: RegExp, text: string): boolean => {
+      const result = pattern.test(text);
+      pattern.lastIndex = 0; // Reset to prevent stateful behavior
+      return result;
+    };
+    
     const analysis = {
-      hasEmail: PII_PATTERNS.email.test(text),
-      hasPhone: PII_PATTERNS.phone.test(text),
-      hasOrderNumber: PII_PATTERNS.orderNumber.test(text),
-      hasCreditCard: PII_PATTERNS.creditCard.test(text),
-      hasSSN: PII_PATTERNS.ssn.test(text),
-      hasSensitiveUrl: PII_PATTERNS.sensitiveUrl.test(text),
-      hasIpAddress: PII_PATTERNS.ipAddress.test(text),
-      hasAccountNumber: PII_PATTERNS.accountNumber.test(text),
-      hasDriverLicense: PII_PATTERNS.driverLicense.test(text),
+      hasEmail: safeTest(PII_PATTERNS.email, text),
+      hasPhone: safeTest(PII_PATTERNS.phone, text),
+      hasOrderNumber: safeTest(PII_PATTERNS.orderNumber, text),
+      hasCreditCard: safeTest(PII_PATTERNS.creditCard, text),
+      hasSSN: safeTest(PII_PATTERNS.ssn, text),
+      hasSensitiveUrl: safeTest(PII_PATTERNS.sensitiveUrl, text),
+      hasIpAddress: safeTest(PII_PATTERNS.ipAddress, text),
+      hasAccountNumber: safeTest(PII_PATTERNS.accountNumber, text),
+      hasDriverLicense: safeTest(PII_PATTERNS.driverLicense, text),
       totalPIICount: 0,
       disclaimer: 'WARNING: This PII detection is INCOMPLETE and may miss many forms of personal data'
     };
