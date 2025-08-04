@@ -59,30 +59,41 @@ namespace ErrorTaxonomy {
   }
   
   /**
+   * Interface for internal AppError properties
+   */
+  interface AppErrorInternal {
+    _type: AppErrorType;
+    _severity: ErrorSeverity;
+    _context: unknown;
+    _timestamp: string;
+    _recoverable: boolean;
+  }
+  
+  /**
    * Structured error class
    */
   export class AppError extends Error {
     // Declare properties using type assertions to avoid ES6 syntax
-    get type(): AppErrorType { return (this as any)._type; }
-    get severity(): ErrorSeverity { return (this as any)._severity; }
-    get context(): any { return (this as any)._context; }
-    get timestamp(): string { return (this as any)._timestamp; }
-    get recoverable(): boolean { return (this as any)._recoverable; }
+    get type(): AppErrorType { return (this as unknown as AppErrorInternal)._type; }
+    get severity(): ErrorSeverity { return (this as unknown as AppErrorInternal)._severity; }
+    get context(): unknown { return (this as unknown as AppErrorInternal)._context; }
+    get timestamp(): string { return (this as unknown as AppErrorInternal)._timestamp; }
+    get recoverable(): boolean { return (this as unknown as AppErrorInternal)._recoverable; }
     
     constructor(
       type: AppErrorType,
       message: string,
       severity: ErrorSeverity = ErrorSeverity.MEDIUM,
       recoverable: boolean = false,
-      context?: any
+      context?: unknown
     ) {
       super(message);
       this.name = 'AppError';
-      (this as any)._type = type;
-      (this as any)._severity = severity;
-      (this as any)._recoverable = recoverable;
-      (this as any)._context = context;
-      (this as any)._timestamp = new Date().toISOString();
+      (this as unknown as AppErrorInternal)._type = type;
+      (this as unknown as AppErrorInternal)._severity = severity;
+      (this as unknown as AppErrorInternal)._recoverable = recoverable;
+      (this as unknown as AppErrorInternal)._context = context;
+      (this as unknown as AppErrorInternal)._timestamp = new Date().toISOString();
       
       // Maintain proper stack trace (not available in Apps Script environment)
       // In a browser/node environment, we would use Error.captureStackTrace
@@ -157,7 +168,7 @@ namespace ErrorTaxonomy {
   /**
    * Create error from common scenarios
    */
-  export function createError(type: AppErrorType, details?: string, context?: any): AppError {
+  export function createError(type: AppErrorType, details?: string, context?: unknown): AppError {
     const message = details || getUserMessage(type);
     const severity = getDefaultSeverity(type);
     const recoverable = isRecoverable(type);
@@ -216,7 +227,7 @@ namespace ErrorTaxonomy {
   export function wrapWithErrorHandling<T>(
     fn: () => T,
     errorType: AppErrorType = AppErrorType.UNKNOWN,
-    context?: any
+    context?: unknown
   ): T {
     try {
       return fn();
@@ -229,7 +240,7 @@ namespace ErrorTaxonomy {
       const appError = createError(
         errorType,
         error instanceof Error ? error.message : String(error),
-        { ...context, originalError: error }
+        Object.assign({}, context || {}, { originalError: error })
       );
       
       throw appError;
@@ -242,7 +253,7 @@ namespace ErrorTaxonomy {
   export async function wrapWithErrorHandlingAsync<T>(
     fn: () => Promise<T>,
     errorType: AppErrorType = AppErrorType.UNKNOWN,
-    context?: any
+    context?: unknown
   ): Promise<T> {
     try {
       return await fn();
@@ -255,7 +266,7 @@ namespace ErrorTaxonomy {
       const appError = createError(
         errorType,
         error instanceof Error ? error.message : String(error),
-        { ...context, originalError: error }
+        Object.assign({}, context || {}, { originalError: error })
       );
       
       throw appError;
@@ -271,16 +282,16 @@ namespace ErrorTaxonomy {
       
       switch (error.severity) {
         case ErrorSeverity.CRITICAL:
-          AppLogger.error('CRITICAL ERROR', logData);
+          AppLogger.error('CRITICAL ERROR', logData as AppLogger.LogContext);
           break;
         case ErrorSeverity.HIGH:
-          AppLogger.error('High severity error', logData);
+          AppLogger.error('High severity error', logData as AppLogger.LogContext);
           break;
         case ErrorSeverity.MEDIUM:
-          AppLogger.warn('Medium severity error', logData);
+          AppLogger.warn('Medium severity error', logData as AppLogger.LogContext);
           break;
         case ErrorSeverity.LOW:
-          AppLogger.info('Low severity error', logData);
+          AppLogger.info('Low severity error', logData as AppLogger.LogContext);
           break;
       }
     } else {
@@ -328,7 +339,7 @@ namespace ErrorTaxonomy {
   /**
    * Parse error from various sources
    */
-  export function parseError(error: any): AppError {
+  export function parseError(error: unknown): AppError {
     // Already an AppError
     if (error instanceof AppError) {
       return error;
@@ -336,52 +347,53 @@ namespace ErrorTaxonomy {
     
     // Check for common error patterns
     const errorString = String(error).toLowerCase();
-    const message = error?.message?.toLowerCase() || errorString;
+    const errorObj = error as { message?: string };
+    const message = errorObj?.message?.toLowerCase() || errorString;
     
     // Network errors
     if (message.includes('timeout') || message.includes('timed out')) {
-      return createError(AppErrorType.NETWORK_TIMEOUT, error.message);
+      return createError(AppErrorType.NETWORK_TIMEOUT, errorObj?.message || 'Network timeout');
     }
     
     if (message.includes('offline') || message.includes('network')) {
-      return createError(AppErrorType.NETWORK_OFFLINE, error.message);
+      return createError(AppErrorType.NETWORK_OFFLINE, errorObj?.message || 'Network offline');
     }
     
     // API errors
     if (message.includes('api key') || message.includes('apikey')) {
       if (message.includes('invalid') || message.includes('unauthorized')) {
-        return createError(AppErrorType.API_KEY_INVALID, error.message);
+        return createError(AppErrorType.API_KEY_INVALID, errorObj?.message || 'Invalid API key');
       }
       if (message.includes('missing') || message.includes('required')) {
-        return createError(AppErrorType.API_KEY_MISSING, error.message);
+        return createError(AppErrorType.API_KEY_MISSING, errorObj?.message || 'API key missing');
       }
     }
     
     if (message.includes('quota') || message.includes('limit exceeded')) {
       if (message.includes('gmail')) {
-        return createError(AppErrorType.GMAIL_QUOTA_EXCEEDED, error.message);
+        return createError(AppErrorType.GMAIL_QUOTA_EXCEEDED, errorObj?.message || 'Gmail quota exceeded');
       }
-      return createError(AppErrorType.API_QUOTA_EXCEEDED, error.message);
+      return createError(AppErrorType.API_QUOTA_EXCEEDED, errorObj?.message || 'API quota exceeded');
     }
     
     if (message.includes('rate limit') || message.includes('too many requests')) {
-      return createError(AppErrorType.API_RATE_LIMITED, error.message);
+      return createError(AppErrorType.API_RATE_LIMITED, errorObj?.message || 'Rate limited');
     }
     
     // Gmail errors
     if (message.includes('permission') || message.includes('access denied')) {
-      return createError(AppErrorType.GMAIL_PERMISSION_DENIED, error.message);
+      return createError(AppErrorType.GMAIL_PERMISSION_DENIED, errorObj?.message || 'Permission denied');
     }
     
     if (message.includes('label') && message.includes('fail')) {
-      return createError(AppErrorType.GMAIL_LABEL_CREATE_FAILED, error.message);
+      return createError(AppErrorType.GMAIL_LABEL_CREATE_FAILED, errorObj?.message || 'Label creation failed');
     }
     
     if (message.includes('draft') && message.includes('fail')) {
-      return createError(AppErrorType.GMAIL_DRAFT_CREATE_FAILED, error.message);
+      return createError(AppErrorType.GMAIL_DRAFT_CREATE_FAILED, errorObj?.message || 'Draft creation failed');
     }
     
     // Default unknown error
-    return createError(AppErrorType.UNKNOWN, error.message || 'Unknown error');
+    return createError(AppErrorType.UNKNOWN, errorObj?.message || 'Unknown error');
   }
 }

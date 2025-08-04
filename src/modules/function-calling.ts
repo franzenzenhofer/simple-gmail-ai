@@ -11,7 +11,18 @@ namespace FunctionCalling {
     description: string;
     parameters: {
       type: string;
-      properties: Record<string, any>;
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
+  }
+  
+  // Gemini schema format
+  export interface GeminiSchema {
+    name: string;
+    description: string;
+    parameters: {
+      type: string;
+      properties: Record<string, unknown>;
       required?: string[];
     };
   }
@@ -167,7 +178,7 @@ namespace FunctionCalling {
    */
   export function parseFunctionCallResponse(response: string): {
     functionName: string;
-    parameters: any;
+    parameters: unknown;
   } | null {
     try {
       // Handle potential markdown code blocks
@@ -212,7 +223,7 @@ namespace FunctionCalling {
   /**
    * Convert function schema to Gemini-compatible format
    */
-  export function toGeminiSchema(func: FunctionDefinition): any {
+  export function toGeminiSchema(func: FunctionDefinition): GeminiSchema {
     return {
       name: func.name,
       description: func.description,
@@ -234,7 +245,7 @@ namespace FunctionCalling {
   ): {
     success: boolean;
     classification?: 'support' | 'not';
-    metadata?: any;
+    metadata?: unknown;
     error?: string;
   } {
     try {
@@ -268,10 +279,11 @@ namespace FunctionCalling {
       if (!functionCall) {
         // Fallback to direct parsing
         if (result.data && typeof result.data === 'object' && 'parameters' in result.data) {
-          const params = (result.data as any).parameters;
+          const params = (result.data as { parameters: unknown }).parameters;
+          const paramsObj = params as { classification?: string };
           return {
             success: true,
-            classification: params.classification as 'support' | 'not',
+            classification: (paramsObj?.classification || 'not') as 'support' | 'not',
             metadata: params
           };
         }
@@ -282,9 +294,10 @@ namespace FunctionCalling {
         };
       }
       
+      const fcParams = functionCall.parameters as { classification?: string };
       return {
         success: true,
-        classification: functionCall.parameters.classification as 'support' | 'not',
+        classification: (fcParams?.classification || 'not') as 'support' | 'not',
         metadata: functionCall.parameters
       };
       
@@ -306,7 +319,7 @@ namespace FunctionCalling {
   ): {
     success: boolean;
     reply?: string;
-    metadata?: any;
+    metadata?: unknown;
     error?: string;
   } {
     try {
@@ -338,11 +351,12 @@ namespace FunctionCalling {
       if (!functionCall) {
         // Fallback handling
         if (result.data && typeof result.data === 'object' && 'parameters' in result.data) {
-          const params = (result.data as any).parameters;
-          if (params?.reply) {
+          const params = (result.data as { parameters: unknown }).parameters;
+          const paramsObj = params as { reply?: string };
+          if (paramsObj?.reply) {
             return {
               success: true,
-              reply: params.reply,
+              reply: paramsObj.reply,
               metadata: params
             };
           }
@@ -354,9 +368,10 @@ namespace FunctionCalling {
         };
       }
       
+      const fcParams = functionCall.parameters as { reply?: string };
       return {
         success: true,
-        reply: functionCall.parameters.reply,
+        reply: fcParams?.reply || '',
         metadata: functionCall.parameters
       };
       
@@ -378,10 +393,10 @@ namespace FunctionCalling {
   ): Array<{
     id: string;
     success: boolean;
-    result?: any;
+    result?: unknown;
     error?: string;
   }> {
-    const results: Array<{id: string; success: boolean; result?: any; error?: string}> = [];
+    const results: Array<{id: string; success: boolean; result?: unknown; error?: string}> = [];
     
     // Process in smaller batches for function calling
     for (let i = 0; i < emails.length; i += maxBatchSize) {

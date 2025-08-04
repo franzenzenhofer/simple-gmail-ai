@@ -13,6 +13,21 @@ namespace UIImprovements {
     statistics: boolean;
   }
   
+  // Form input event type
+  interface UIFormEvent {
+    formInput: {
+      section?: string;
+      logLevel?: string;
+      searchTerm?: string;
+      refreshLog?: string;
+      [key: string]: string | undefined;
+    };
+    parameters?: {
+      section?: string;
+      [key: string]: string | undefined;
+    };
+  }
+  
   const SECTION_STATES_KEY = 'UI_SECTION_STATES';
   const LIVE_LOG_SETTINGS_KEY = 'LIVE_LOG_SETTINGS';
   
@@ -217,10 +232,10 @@ namespace UIImprovements {
     statsWidgets.push(CardService.newTextParagraph()
       .setText(
         '📊 Processing Statistics:\n\n' +
-        `Total Processed: ${stats.totalProcessed}\n` +
-        `Support Emails: ${stats.supportCount} (${stats.supportPercentage}%)\n` +
+        `Total Processed: ${stats.totalProcessed || stats.emailsScanned}\n` +
+        `Support Emails: ${stats.supportCount || stats.supportRequests} (${stats.supportPercentage || 0}%)\n` +
         `Drafts Created: ${stats.draftsCreated}\n` +
-        `Errors: ${stats.errorCount}\n` +
+        `Errors: ${stats.errorCount || 0}\n` +
         `Last Run: ${stats.lastRun || 'Never'}`
       ));
     
@@ -326,12 +341,13 @@ namespace UIImprovements {
     } else {
       // Show latest logs first
       filteredLogs.reverse().slice(0, 20).forEach(log => {
-        const icon = getLogIcon(log.level);
-        const time = new Date(log.timestamp).toLocaleTimeString();
+        const logEntry = log as { level?: string; message?: string; context?: string; timestamp?: string | number };
+        const icon = getLogIcon(logEntry.level || 'info');
+        const time = logEntry.timestamp ? new Date(logEntry.timestamp).toLocaleTimeString() : 'Unknown';
         
         logsSection.addWidget(CardService.newDecoratedText()
-          .setText(`${icon} ${log.message}`)
-          .setBottomLabel(`${time} | ${log.context || ''}`));
+          .setText(`${icon} ${logEntry.message || 'No message'}`)
+          .setBottomLabel(`${time} | ${logEntry.context || ''}`));
       });
     }
     
@@ -360,7 +376,7 @@ namespace UIImprovements {
   /**
    * Update log filter
    */
-  export function updateLogFilter(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function updateLogFilter(e: UIFormEvent): GoogleAppsScript.Card_Service.ActionResponse {
     const settings = getLiveLogSettings();
     settings.level = e.formInput.logLevel || 'all';
     settings.searchTerm = e.formInput.searchTerm || '';
@@ -379,18 +395,21 @@ namespace UIImprovements {
   /**
    * Filter logs based on settings
    */
-  function filterLogs(logs: any[], settings: {level: string; searchTerm?: string}): any[] {
+  function filterLogs(logs: unknown[], settings: {level: string; searchTerm?: string}): unknown[] {
     return logs.filter(log => {
+      const logEntry = log as { level?: string; message?: string; context?: string };
+      
       // Level filter
-      if (settings.level !== 'all' && log.level !== settings.level) {
+      if (settings.level !== 'all' && logEntry.level !== settings.level) {
         return false;
       }
       
       // Search filter
-      if (settings.searchTerm) {
+      if (settings.searchTerm && logEntry.message) {
         const searchLower = settings.searchTerm.toLowerCase();
-        return log.message.toLowerCase().includes(searchLower) ||
-               (log.context && log.context.toLowerCase().includes(searchLower));
+        const messageMatch = logEntry.message.toLowerCase().includes(searchLower);
+        const contextMatch = logEntry.context ? logEntry.context.toLowerCase().includes(searchLower) : false;
+        return messageMatch || contextMatch;
       }
       
       return true;
@@ -446,26 +465,40 @@ namespace UIImprovements {
   /**
    * Get processing statistics
    */
-  function getProcessingStatistics(): any {
-    const stats = {
+  function getProcessingStatistics(): {
+    emailsScanned: number;
+    supportRequests: number;
+    draftsCreated: number;
+    emailsSent: number;
+    totalProcessed?: number;
+    supportCount?: number;
+    supportPercentage?: number;
+    errorCount?: number;
+    lastRun?: string | null;
+  } {
+    const defaultStats = {
+      emailsScanned: 0,
+      supportRequests: 0,
+      draftsCreated: 0,
+      emailsSent: 0,
       totalProcessed: 0,
       supportCount: 0,
       supportPercentage: 0,
-      draftsCreated: 0,
       errorCount: 0,
-      lastRun: null
+      lastRun: null as string | null
     };
     
     try {
       const statsStr = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROCESSING_STATS);
       if (statsStr) {
-        Object.assign(stats, JSON.parse(statsStr));
+        const parsed = JSON.parse(statsStr);
+        return { ...defaultStats, ...parsed };
       }
     } catch (e) {
       // Ignore
     }
     
-    return stats;
+    return defaultStats;
   }
   
   /**
@@ -485,8 +518,8 @@ namespace UIImprovements {
   /**
    * Toggle section state action handler
    */
-  export function toggleSectionState(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-    const sectionKey = e.parameters.section as keyof SectionState;
+  export function toggleSectionState(e: UIFormEvent): GoogleAppsScript.Card_Service.ActionResponse {
+    const sectionKey = (e.parameters?.section || 'mainSettings') as keyof SectionState;
     toggleSection(sectionKey);
     
     return CardService.newActionResponseBuilder()

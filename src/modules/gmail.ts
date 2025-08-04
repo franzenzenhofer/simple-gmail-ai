@@ -482,7 +482,7 @@ namespace GmailService {
   ): {
     results: Map<string, ProcessingResult>;
     needsContinuation: boolean;
-    continuationState?: any;
+    continuationState?: ContinuationTriggers.ContinuationState;
   } {
     // Check if we need continuation support
     const continuationCheck = ContinuationTriggers.processThreadsWithContinuation(
@@ -788,18 +788,18 @@ namespace GmailService {
           
           if (replyResult.success && replyResult.data) {
             // T-14: Parse structured response
-            let replyData: any;
+            let replyData: { reply?: string } | string;
             try {
               replyData = typeof replyResult.data === 'string' 
                 ? JSON.parse(replyResult.data)
                 : replyResult.data;
             } catch (e) {
               // Fallback to direct string if JSON parse fails
-              replyData = { reply: replyResult.data };
+              replyData = { reply: String(replyResult.data) };
             }
             
             // T-12: Restore PII in the reply
-            const replyBody = Redaction.restorePII(replyData.reply || replyData, threadId);
+            const replyBody = Redaction.restorePII(typeof replyData === 'object' && replyData.reply ? replyData.reply : String(replyData), threadId);
             
             // T-16: Validate reply with guardrails before sending/drafting
             const validation = Guardrails.validateReply(replyBody);
@@ -892,12 +892,12 @@ namespace GmailService {
   ): { isSupport: boolean; error?: string } {
     // T-10: Check if test mode is active
     // Use dynamic check to avoid circular dependency
-    let testConfig: any = null;
+    let testConfig: { enabled?: boolean; skipLabeling?: boolean; skipDraftCreation?: boolean; skipAutoReply?: boolean } | null = null;
     try {
       const testModeConfigStr = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.TEST_MODE_CONFIG);
       if (testModeConfigStr) {
         testConfig = JSON.parse(testModeConfigStr);
-        if (testConfig.enabled) {
+        if (testConfig !== null && testConfig.enabled) {
           AppLogger.info('🧪 TEST MODE: Processing thread without mutations', {
             threadId: thread.getId(),
             skipLabeling: testConfig.skipLabeling,
@@ -979,7 +979,7 @@ namespace GmailService {
       }
       
       // T-14: Parse structured response
-      let classificationData: any;
+      let classificationData: unknown;
       try {
         classificationData = typeof classificationResult.data === 'string' 
           ? JSON.parse(classificationResult.data)
@@ -993,14 +993,15 @@ namespace GmailService {
         classificationData = { label: String(classificationResult.data).toLowerCase().includes('support') ? 'support' : 'not' };
       }
       
-      const isSupport = classificationData.label === 'support';
+      const classData = classificationData as { label?: string; confidence?: number; category?: string };
+      const isSupport = classData.label === 'support';
       
       AppLogger.info('🎯 EMAIL CLASSIFIED', {
-        shortMessage: 'Classified "' + subject + '" as ' + classificationData.label.toUpperCase(),
+        shortMessage: 'Classified "' + subject + '" as ' + (classData.label || 'unknown').toUpperCase(),
         subject: subject,
-        classification: classificationData.label,
-        confidence: classificationData.confidence,
-        category: classificationData.category,
+        classification: classData.label,
+        confidence: classData.confidence,
+        category: classData.category,
         isSupport: isSupport,
         threadId: thread.getId()
       });
@@ -1078,7 +1079,7 @@ namespace GmailService {
           
           if (replyResult.success && replyResult.data) {
             // T-14: Parse structured response
-            let replyData: any;
+            let replyData: { reply?: string } | string;
             try {
               replyData = typeof replyResult.data === 'string' 
                 ? JSON.parse(replyResult.data)
@@ -1089,11 +1090,11 @@ namespace GmailService {
                 response: replyResult.data,
                 error: String(e)
               });
-              replyData = { reply: replyResult.data };
+              replyData = { reply: String(replyResult.data) };
             }
             
             // T-12: Restore PII in the reply before sending/saving
-            const replyBody = Redaction.restorePII(replyData.reply || replyData, thread.getId());
+            const replyBody = Redaction.restorePII(typeof replyData === 'object' && replyData.reply ? replyData.reply : String(replyData), thread.getId());
             
             // T-16: Validate reply with guardrails before sending/drafting
             const validation = Guardrails.validateReply(replyBody);

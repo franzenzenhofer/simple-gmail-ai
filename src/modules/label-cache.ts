@@ -14,6 +14,11 @@ namespace LabelCache {
     [labelName: string]: CachedLabel;
   }
   
+  // Gmail label with runtime methods not in type definitions
+  interface GmailLabelWithId extends GoogleAppsScript.Gmail.GmailLabel {
+    getId(): string;
+  }
+  
   const CACHE_KEY = 'GMAIL_LABEL_CACHE';
   const CACHE_EXPIRY_HOURS = 24; // Cache labels for 24 hours
   
@@ -28,7 +33,7 @@ namespace LabelCache {
         // Verify the cached label still exists
         try {
           const labels = GmailApp.getUserLabels();
-          const existingLabel = labels.find(label => (label as any).getId() === cachedLabel.id);
+          const existingLabel = labels.find(label => (label as GmailLabelWithId).getId() === cachedLabel.id);
           if (existingLabel) {
             // Update cache if name changed
             if (existingLabel.getName() !== cachedLabel.name) {
@@ -37,7 +42,7 @@ namespace LabelCache {
                 oldName: cachedLabel.name,
                 newName: existingLabel.getName()
               });
-              updateCachedLabel(labelName, (existingLabel as any).getId(), existingLabel.getName());
+              updateCachedLabel(labelName, (existingLabel as GmailLabelWithId).getId(), existingLabel.getName());
             }
             return existingLabel;
           } else {
@@ -60,11 +65,11 @@ namespace LabelCache {
       const label = Utils.getOrCreateLabelDirect(labelName);
       AppLogger.info('📧 OBTAINED GMAIL LABEL', {
         labelName: labelName,
-        labelId: (label as any).getId()
+        labelId: (label as GmailLabelWithId).getId()
       });
       
       // Cache the label
-      updateCachedLabel(labelName, (label as any).getId(), label.getName());
+      updateCachedLabel(labelName, (label as GmailLabelWithId).getId(), label.getName());
       
       return label;
       
@@ -85,7 +90,7 @@ namespace LabelCache {
   export function getLabelById(labelId: string): GoogleAppsScript.Gmail.GmailLabel | null {
     try {
       const labels = GmailApp.getUserLabels();
-      return labels.find(label => (label as any).getId() === labelId) || null;
+      return labels.find(label => (label as GmailLabelWithId).getId() === labelId) || null;
     } catch (error) {
       AppLogger.error('Failed to get label by ID', {
         labelId: labelId,
@@ -264,7 +269,7 @@ namespace LabelCache {
         try {
           const existingLabel = GmailApp.getUserLabelByName(labelName);
           if (existingLabel) {
-            updateCachedLabel(labelName, (existingLabel as any).getId(), existingLabel.getName());
+            updateCachedLabel(labelName, (existingLabel as GmailLabelWithId).getId(), existingLabel.getName());
             migrated++;
           }
         } catch (error) {

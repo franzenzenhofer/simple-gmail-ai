@@ -190,12 +190,12 @@ namespace ContinuationTriggers {
     classificationPrompt: string,
     responsePrompt: string
   ): { 
-    results: Map<string, any>;
+    results: Map<string, unknown>;
     needsContinuation: boolean;
     continuationState?: ContinuationState;
   } {
     const startTime = Date.now();
-    const results = new Map<string, any>();
+    const results = new Map<string, unknown>();
     
     // Check for existing continuation state
     const existingState = loadContinuationState();

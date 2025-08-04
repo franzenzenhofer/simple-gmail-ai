@@ -15,6 +15,14 @@ namespace WelcomeFlow {
     COMPLETED = 'completed'
   }
   
+  // Type for form input events with formInput property
+  interface FormInputEvent {
+    formInput: {
+      apiKey?: string;
+      [key: string]: string | undefined;
+    };
+  }
+  
   // User onboarding progress
   export interface OnboardingProgress {
     state: WelcomeState;
@@ -398,7 +406,7 @@ namespace WelcomeFlow {
   /**
    * Save API key from welcome flow
    */
-  export function saveApiKeyFromWelcome(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function saveApiKeyFromWelcome(e: FormInputEvent): GoogleAppsScript.Card_Service.ActionResponse {
     const apiKey = e.formInput.apiKey;
     
     if (!apiKey) {
@@ -481,7 +489,7 @@ namespace WelcomeFlow {
   /**
    * Finish welcome flow
    */
-  export function finishWelcomeFlow(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function finishWelcomeFlow(e: FormInputEvent): GoogleAppsScript.Card_Service.ActionResponse {
     // Save customization preferences if provided
     if (e.formInput) {
       if (e.formInput.darkMode === 'true') {

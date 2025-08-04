@@ -22,23 +22,42 @@ namespace AI {
     | { success: true; data: T; requestId: string; schemaVersion?: string }
     | { success: false; error: string; statusCode?: number; requestId: string };
   
-  // Type for JSON schemas passed to callGemini
-  export interface JSONSchema {
-    '$schema'?: string;
-    type?: string;
-    required?: string[];
-    properties?: Record<string, unknown>;
-    additionalProperties?: boolean;
-    items?: unknown;
-    enum?: string[];
-    minimum?: number;
-    maximum?: number;
-    minLength?: number;
-    maxLength?: number;
-    retryAttempt?: boolean;
+  // Re-export JSONSchema from JsonValidator to avoid circular dependency
+  export type JSONSchema = JsonValidator.JSONSchema;
+  
+  
+  /**
+   * Clean schema for Gemini API by removing unsupported fields
+   */
+  function cleanSchemaForGemini(schema: JsonValidator.JSONSchema): unknown {
+    const cleaned: Record<string, unknown> = {};
+    
+    // Only copy fields that Gemini API supports
+    const supportedFields = ['type', 'properties', 'required', 'items', 'enum', 'minimum', 'maximum', 'minLength', 'maxLength', 'format'];
+    
+    for (const field of supportedFields) {
+      if (field in schema) {
+        if (field === 'properties' && typeof schema.properties === 'object' && schema.properties !== null) {
+          // Recursively clean nested properties
+          cleaned.properties = {};
+          for (const [key, value] of Object.entries(schema.properties)) {
+            if (typeof value === 'object' && value !== null) {
+              (cleaned.properties as Record<string, unknown>)[key] = cleanSchemaForGemini(value as JsonValidator.JSONSchema);
+            } else {
+              (cleaned.properties as Record<string, unknown>)[key] = value;
+            }
+          }
+        } else if (field === 'items' && typeof schema.items === 'object' && schema.items !== null) {
+          cleaned.items = cleanSchemaForGemini(schema.items as JsonValidator.JSONSchema);
+        } else {
+          cleaned[field] = (schema as Record<string, unknown>)[field];
+        }
+      }
+    }
+    
+    return cleaned;
   }
-  
-  
+
   // Enhanced callGemini with strict JSON mode support
   export function callGemini(apiKey: string, prompt: string): GeminiResult;
   export function callGemini<T>(apiKey: string, prompt: string, schema?: JSONSchema): GeminiResult<T>;
@@ -66,10 +85,6 @@ namespace AI {
     
     // Check if this is a retry attempt and use temperature 0
     const isRetry = schema && schema.retryAttempt;
-    const cleanSchema = schema ? { ...schema } : undefined;
-    if (cleanSchema) {
-      delete cleanSchema.retryAttempt;
-    }
     
     const generationConfig: {
       temperature: number;
@@ -80,9 +95,10 @@ namespace AI {
     };
     
     // T-14: Enable strict JSON mode if schema provided
-    if (useJsonMode) {
+    if (useJsonMode && schema) {
       generationConfig.response_mime_type = 'application/json';
-      generationConfig.response_schema = cleanSchema;
+      // Clean the schema to remove unsupported fields like $schema and additionalProperties
+      generationConfig.response_schema = cleanSchemaForGemini(schema);
     }
     
     const payload = {
@@ -181,7 +197,7 @@ namespace AI {
           if (!isRetry) {
             AppLogger.info('🔄 RETRYING WITH STRICT INSTRUCTIONS [' + requestId + ']', { requestId });
             const strictPrompt = prompt + '\n\nCRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, no extra text.';
-            return callGemini(apiKey, strictPrompt, { ...cleanSchema, retryAttempt: true });
+            return callGemini(apiKey, strictPrompt, { ...schema, retryAttempt: true });
           }
           
           return { success: false, error: 'Response is not valid JSON after retry', requestId };
@@ -191,7 +207,7 @@ namespace AI {
           const parsedResult = JSON.parse(sanitizedResult);
           
           // Validate against schema using the JsonValidator module
-          const validation = JsonValidator.validate(parsedResult, cleanSchema);
+          const validation = JsonValidator.validate(parsedResult, schema);
           if (!validation.valid) {
             AppLogger.warn('⚠️ SCHEMA VALIDATION FAILED [' + requestId + ']', {
               result: parsedResult,
@@ -202,7 +218,7 @@ namespace AI {
             // Retry with temperature 0 if this was the first attempt
             if (!isRetry) {
               AppLogger.info('🔄 RETRYING WITH TEMPERATURE 0 [' + requestId + ']', { requestId });
-              return callGemini(apiKey, prompt, { ...cleanSchema, retryAttempt: true });
+              return callGemini(apiKey, prompt, { ...schema, retryAttempt: true });
             }
             
             return { 
@@ -247,7 +263,7 @@ namespace AI {
       const enrichedError = ErrorTaxonomy.createError(
         appError.type,
         appError.message,
-        { ...appError.context, requestId }
+        Object.assign({}, appError.context || {}, { requestId })
       );
       
       // Log with appropriate severity

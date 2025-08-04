@@ -11,9 +11,16 @@ namespace AppLogger {
     ERROR = 3
   }
   
-  interface LogContext {
+  export interface LogContext {
     shortMessage?: string; // Optional short message for UI display
-    [key: string]: any;
+    [key: string]: unknown;
+  }
+  
+  interface LogEntry {
+    timestamp: string;
+    level: string;
+    message: string;
+    context?: unknown;
   }
   
   interface SpreadsheetConfig {
@@ -118,7 +125,7 @@ namespace AppLogger {
     return spreadsheetConfig;
   }
   
-  function maskSensitive(data: any): any {
+  function maskSensitive(data: unknown): unknown {
     if (typeof data === 'string') {
       // Inline API key masking to avoid circular dependency
       let text = data;
@@ -156,24 +163,29 @@ namespace AppLogger {
       return text;
     }
     if (typeof data === 'object' && data !== null) {
-      const masked: any = Array.isArray(data) ? [] : {};
-      for (const key in data) {
-        const lowerKey = key.toLowerCase();
-        // Expand sensitive field detection
-        if (lowerKey.includes('key') || 
-            lowerKey.includes('token') || 
-            lowerKey.includes('secret') || 
-            lowerKey.includes('password') || 
-            lowerKey.includes('auth') ||
-            lowerKey.includes('credential') ||
-            lowerKey.includes('api_key') ||
-            lowerKey.includes('apikey')) {
-          masked[key] = '***MASKED***';
-        } else {
-          masked[key] = maskSensitive(data[key]);
+      if (Array.isArray(data)) {
+        return data.map(item => maskSensitive(item));
+      } else {
+        const masked: Record<string, unknown> = {};
+        const dataObj = data as Record<string, unknown>;
+        for (const key in dataObj) {
+          const lowerKey = key.toLowerCase();
+          // Expand sensitive field detection
+          if (lowerKey.includes('key') || 
+              lowerKey.includes('token') || 
+              lowerKey.includes('secret') || 
+              lowerKey.includes('password') || 
+              lowerKey.includes('auth') ||
+              lowerKey.includes('credential') ||
+              lowerKey.includes('api_key') ||
+              lowerKey.includes('apikey')) {
+            masked[key] = '***MASKED***';
+          } else {
+            masked[key] = maskSensitive(dataObj[key]);
+          }
         }
+        return masked;
       }
-      return masked;
     }
     return data;
   }
@@ -313,7 +325,7 @@ namespace AppLogger {
       
       if (cachedLogs) {
         const logs = JSON.parse(cachedLogs);
-        return logs.slice(-limit).map((entry: any) => ({
+        return logs.slice(-limit).map((entry: LogEntry) => ({
           timestamp: new Date(entry.timestamp).getTime(),
           level: entry.level.toLowerCase(),
           message: entry.message,
@@ -331,7 +343,7 @@ namespace AppLogger {
       
       if (propLogs) {
         const logs = JSON.parse(propLogs);
-        return logs.slice(-limit).map((entry: any) => ({
+        return logs.slice(-limit).map((entry: LogEntry) => ({
           timestamp: new Date(entry.timestamp).getTime(),
           level: entry.level.toLowerCase(),
           message: entry.message,

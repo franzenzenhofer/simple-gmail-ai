@@ -426,9 +426,9 @@ namespace ContextualActions {
   /**
    * Create contextual actions card for a message
    */
-  export function createContextualActionsCard(e: any): GoogleAppsScript.Card_Service.Card {
-    const accessToken = e.messageMetadata.accessToken;
-    const messageId = e.messageMetadata.messageId;
+  export function createContextualActionsCard(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
+    const accessToken = e.gmail?.accessToken || '';
+    const messageId = e.gmail?.messageId || '';
     
     GmailApp.setCurrentMessageAccessToken(accessToken);
     
