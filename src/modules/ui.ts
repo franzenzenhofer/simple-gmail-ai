@@ -5,7 +5,7 @@
 
 namespace UI {
   export function buildHomepage(): GoogleAppsScript.Card_Service.Card {
-    const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
+    const savedKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY) || '';
     const hasApiKey = savedKey.trim() !== '';
     
     // Check if processing using robust lock manager
@@ -39,7 +39,7 @@ namespace UI {
     const mainSection = CardService.newCardSection();
     
     // Mode Selection - 3 clear radio buttons with persistence
-    const savedMode = PropertiesService.getUserProperties().getProperty('PROCESSING_MODE') || Config.ProcessingMode.LABEL_ONLY;
+    const savedMode = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROCESSING_MODE) || Config.ProcessingMode.LABEL_ONLY;
     
     mainSection.addWidget(
       CardService.newSelectionInput()
@@ -76,7 +76,7 @@ namespace UI {
         .setFieldName('prompt1')
         .setTitle('🎯 Classification Prompt (How to identify support emails)')
         .setHint('Tell the AI how to classify emails as "support" or "undefined"')
-        .setValue(PropertiesService.getUserProperties().getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION)
+        .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_1) || Config.PROMPTS.CLASSIFICATION)
         .setMultiline(true)
     );
     
@@ -86,7 +86,7 @@ namespace UI {
         .setFieldName('prompt2')
         .setTitle('✍️ Response Prompt (How to draft replies)')
         .setHint('Tell the AI how to write helpful customer support responses')
-        .setValue(PropertiesService.getUserProperties().getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE)
+        .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_2) || Config.PROMPTS.RESPONSE)
         .setMultiline(true)
     );
     
@@ -111,8 +111,8 @@ namespace UI {
     
     // Last Execution section
     const lastExecSection = CardService.newCardSection();
-    const lastExecTime = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_TIME');
-    const lastExecStats = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_STATS');
+    const lastExecTime = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LAST_EXECUTION_TIME);
+    const lastExecStats = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LAST_EXECUTION_STATS);
     
     if (lastExecTime && lastExecStats) {
       lastExecSection.addWidget(
@@ -155,7 +155,7 @@ namespace UI {
   }
   
   export function buildApiKeyTab(): GoogleAppsScript.Card_Service.Card {
-    const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
+    const savedKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY) || '';
     const hasApiKey = savedKey.trim() !== '';
     
     const card = CardService.newCardBuilder()
@@ -298,7 +298,7 @@ namespace UI {
     
     const mainSection = CardService.newCardSection();
     
-    const isDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
+    const isDebugMode = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DEBUG_MODE) === 'true';
     mainSection.addWidget(
       CardService.newDecoratedText()
         .setText(isDebugMode ? 'Debug Mode: ON' : 'Debug Mode: OFF')
@@ -313,7 +313,7 @@ namespace UI {
         )
     );
     
-    const spreadsheetDisabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
+    const spreadsheetDisabled = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.SPREADSHEET_LOGGING) === 'false';
     mainSection.addWidget(
       CardService.newDecoratedText()
         .setText(spreadsheetDisabled ? 'Spreadsheet Logs: OFF' : 'Spreadsheet Logs: ON')
@@ -336,7 +336,7 @@ namespace UI {
     );
     
     // T-05: Show last heartbeat for monitoring
-    const lastHeartbeat = PropertiesService.getUserProperties().getProperty('AI_HEARTBEAT');
+    const lastHeartbeat = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.AI_HEARTBEAT);
     if (lastHeartbeat) {
       const heartbeatDate = new Date(lastHeartbeat);
       const now = new Date();
@@ -443,7 +443,7 @@ namespace UI {
     AppLogger.info('🔄 BUILDING ACTIVITY FEED', {
       isRunning: isRunning,
       executionId: AppLogger.executionId,
-      lastExecutionId: PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_ID')
+      lastExecutionId: PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LAST_EXECUTION_ID)
     });
     
     // Get filtered, relevant log entries - current execution if running, otherwise last execution
@@ -578,11 +578,11 @@ namespace UI {
 
   function getCurrentProcessingStats(): {scanned: number, supports: number, drafted: number, sent: number, errors: number} {
     try {
-      const scanned = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SCANNED') || '0');
-      const supports = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SUPPORTS') || '0');
-      const drafted = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_DRAFTED') || '0');
-      const sent = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SENT') || '0');
-      const errors = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_ERRORS') || '0');
+      const scanned = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_SCANNED) || '0');
+      const supports = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_SUPPORTS) || '0');
+      const drafted = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_DRAFTED) || '0');
+      const sent = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_SENT) || '0');
+      const errors = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_ERRORS) || '0');
       
       return { scanned, supports, drafted, sent, errors };
     } catch (error) {
@@ -595,7 +595,7 @@ namespace UI {
       // Read from CacheService first - FAST and has more space!
       const cache = CacheService.getUserCache();
       const props = PropertiesService.getUserProperties();
-      const currentExecutionId = props.getProperty('CURRENT_EXECUTION_ID') || AppLogger.executionId;
+      const currentExecutionId = props.getProperty(Config.PROP_KEYS.CURRENT_EXECUTION_ID) || AppLogger.executionId;
       const logKey = 'LIVE_LOG_' + currentExecutionId;
       
       // Try cache first
@@ -633,7 +633,7 @@ namespace UI {
       // Find the last execution ID from properties
       const props = PropertiesService.getUserProperties();
       const cache = CacheService.getUserCache();
-      const lastExecutionId = props.getProperty('LAST_EXECUTION_ID');
+      const lastExecutionId = props.getProperty(Config.PROP_KEYS.LAST_EXECUTION_ID);
       
       if (!lastExecutionId) {
         return [];

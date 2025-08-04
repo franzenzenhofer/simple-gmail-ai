@@ -49,16 +49,61 @@ namespace Config {
   
   // Property keys - centralized to avoid inconsistency
   export const PROP_KEYS = {
+    // Authentication & API
     API_KEY: 'GEMINI_API_KEY', // Single source of truth for API key property
-    ONBOARDING_PROGRESS: 'ONBOARDING_PROGRESS',
+    
+    // Processing & Analysis
     ANALYSIS_RUNNING: 'ANALYSIS_RUNNING',
     ANALYSIS_START_TIME: 'ANALYSIS_START_TIME',
+    ANALYSIS_CANCELLED: 'ANALYSIS_CANCELLED',
+    PROCESSING_MODE: 'PROCESSING_MODE',
+    PROMPT_1: 'PROMPT_1',
+    PROMPT_2: 'PROMPT_2',
+    
+    // Current Execution Stats
+    CURRENT_SCANNED: 'CURRENT_SCANNED',
+    CURRENT_SUPPORTS: 'CURRENT_SUPPORTS',
+    CURRENT_DRAFTED: 'CURRENT_DRAFTED',
+    CURRENT_SENT: 'CURRENT_SENT',
+    CURRENT_ERRORS: 'CURRENT_ERRORS',
+    
+    // Last Execution Info
+    LAST_EXECUTION_TIME: 'LAST_EXECUTION_TIME',
     LAST_EXECUTION_STATS: 'LAST_EXECUTION_STATS',
+    LAST_EXECUTION_ID: 'LAST_EXECUTION_ID',
+    CURRENT_EXECUTION_ID: 'CURRENT_EXECUTION_ID',
+    
+    // System Flags & Migration
+    ONBOARDING_PROGRESS: 'ONBOARDING_PROGRESS',
+    AI_HEARTBEAT: 'AI_HEARTBEAT',
+    LABEL_CACHE_MIGRATED: 'LABEL_CACHE_MIGRATED',
+    DOCS_PROMPT_ERROR_COUNT: 'DOCS_PROMPT_ERROR_COUNT',
+    
+    // Logging & Debug
     DEBUG_MODE: 'DEBUG_MODE',
+    SPREADSHEET_LOGGING: 'SPREADSHEET_LOGGING',
     SPREADSHEET_LOGGING_ENABLED: 'SPREADSHEET_LOGGING_ENABLED',
     SPREADSHEET_LOG_ID: 'SPREADSHEET_LOG_ID',
+    LOG_FOLDER_ID: 'LOG_FOLDER_ID',
+    
+    // UI & Features
     DARK_MODE_ENABLED: 'DARK_MODE_ENABLED',
-    TEST_MODE_CONFIG: 'TEST_MODE_CONFIG'
+    DARK_MODE_INITIALIZED: 'DARK_MODE_INITIALIZED',
+    TEST_MODE_CONFIG: 'TEST_MODE_CONFIG',
+    
+    // Welcome Flow
+    autoCreateDrafts: 'autoCreateDrafts',
+    classificationSensitivity: 'classificationSensitivity',
+    
+    // UI Improvements (legacy)
+    classificationPrompt: 'classificationPrompt',
+    responsePrompt: 'responsePrompt',
+    EMAILS_PROCESSED: 'EMAILS_PROCESSED',
+    EMAILS_TOTAL: 'EMAILS_TOTAL',
+    PROCESSING_STATS: 'PROCESSING_STATS',
+    
+    // Continuation System
+    ACTIVE_CONTINUATION_KEY: 'ACTIVE_CONTINUATION_KEY'
   };
   
   // Theme colors - can be customized or made theme-aware

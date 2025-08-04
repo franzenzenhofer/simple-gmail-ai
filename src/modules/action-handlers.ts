@@ -47,7 +47,7 @@ namespace ActionHandlers {
         throw new Error('Failed to validate API key: ' + errorMessage);
       }
       
-      PropertiesService.getUserProperties().setProperty('GEMINI_API_KEY', trimmedKey);
+      PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.API_KEY, trimmedKey);
       AppLogger.info('API key saved and validated successfully');
       
       return CardService.newActionResponseBuilder()
@@ -93,7 +93,7 @@ namespace ActionHandlers {
       AppLogger.initSpreadsheet();
       AppLogger.info('🔥 RUNANALYSIS CALLED - Button click received!');
       
-      const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
+      const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
       if (!apiKey) {
         throw new Error('Please configure your API key first');
       }
@@ -104,9 +104,9 @@ namespace ActionHandlers {
       
       // Save ALL settings for persistence
       const userProps = PropertiesService.getUserProperties();
-      userProps.setProperty('PROCESSING_MODE', mode);
-      userProps.setProperty('PROMPT_1', prompt1);
-      userProps.setProperty('PROMPT_2', prompt2);
+      userProps.setProperty(Config.PROP_KEYS.PROCESSING_MODE, mode);
+      userProps.setProperty(Config.PROP_KEYS.PROMPT_1, prompt1);
+      userProps.setProperty(Config.PROP_KEYS.PROMPT_2, prompt2);
       
       // Determine processing flags based on mode
       const createDrafts = (mode === Config.ProcessingMode.CREATE_DRAFTS || mode === Config.ProcessingMode.AUTO_SEND);
@@ -121,14 +121,14 @@ namespace ActionHandlers {
       }
       
       // Clear any previous cancellation flag
-      userProps.deleteProperty('ANALYSIS_CANCELLED');
+      userProps.deleteProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED);
       
       // Initialize real-time stats tracking
-      userProps.setProperty('CURRENT_SCANNED', '0');
-      userProps.setProperty('CURRENT_SUPPORTS', '0');
-      userProps.setProperty('CURRENT_DRAFTED', '0');
-      userProps.setProperty('CURRENT_SENT', '0');
-      userProps.setProperty('CURRENT_ERRORS', '0');
+      userProps.setProperty(Config.PROP_KEYS.CURRENT_SCANNED, '0');
+      userProps.setProperty(Config.PROP_KEYS.CURRENT_SUPPORTS, '0');
+      userProps.setProperty(Config.PROP_KEYS.CURRENT_DRAFTED, '0');
+      userProps.setProperty(Config.PROP_KEYS.CURRENT_SENT, '0');
+      userProps.setProperty(Config.PROP_KEYS.CURRENT_ERRORS, '0');
       
       AppLogger.info('🚀 ANALYSIS STARTED', {
         mode: mode,
@@ -159,7 +159,7 @@ namespace ActionHandlers {
       // Force release lock and mark as cancelled
       LockManager.releaseLock();
       const props = PropertiesService.getUserProperties();
-      props.setProperty('ANALYSIS_CANCELLED', 'true');
+      props.setProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED, 'true');
       
       AppLogger.info('🛑 PROCESSING CANCELLED BY USER', {
         executionId: AppLogger.executionId,
@@ -167,11 +167,11 @@ namespace ActionHandlers {
       });
       
       // Clear real-time stats
-      props.deleteProperty('CURRENT_SCANNED');
-      props.deleteProperty('CURRENT_SUPPORTS');
-      props.deleteProperty('CURRENT_DRAFTED');
-      props.deleteProperty('CURRENT_SENT');
-      props.deleteProperty('CURRENT_ERRORS');
+      props.deleteProperty(Config.PROP_KEYS.CURRENT_SCANNED);
+      props.deleteProperty(Config.PROP_KEYS.CURRENT_SUPPORTS);
+      props.deleteProperty(Config.PROP_KEYS.CURRENT_DRAFTED);
+      props.deleteProperty(Config.PROP_KEYS.CURRENT_SENT);
+      props.deleteProperty(Config.PROP_KEYS.CURRENT_ERRORS);
       
       return CardService.newActionResponseBuilder()
         .setNotification(
@@ -189,10 +189,10 @@ namespace ActionHandlers {
   export function toggleDebugMode(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       const props = PropertiesService.getUserProperties();
-      const currentMode = props.getProperty('DEBUG_MODE') === 'true';
+      const currentMode = props.getProperty(Config.PROP_KEYS.DEBUG_MODE) === 'true';
       const newMode = !currentMode;
       
-      props.setProperty('DEBUG_MODE', newMode.toString());
+      props.setProperty(Config.PROP_KEYS.DEBUG_MODE, newMode.toString());
       AppLogger.info('Debug mode toggled', { enabled: newMode });
       
       return CardService.newActionResponseBuilder()
@@ -212,10 +212,10 @@ namespace ActionHandlers {
   export function toggleSpreadsheetLogging(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       const props = PropertiesService.getUserProperties();
-      const currentMode = props.getProperty('SPREADSHEET_LOGGING') !== 'false'; // Default to true
+      const currentMode = props.getProperty(Config.PROP_KEYS.SPREADSHEET_LOGGING) !== 'false'; // Default to true
       const newMode = !currentMode;
       
-      props.setProperty('SPREADSHEET_LOGGING', newMode.toString());
+      props.setProperty(Config.PROP_KEYS.SPREADSHEET_LOGGING, newMode.toString());
       AppLogger.info('Spreadsheet logging toggled', { enabled: newMode });
       
       return CardService.newActionResponseBuilder()

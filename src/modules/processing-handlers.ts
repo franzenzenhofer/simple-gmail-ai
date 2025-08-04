@@ -60,11 +60,11 @@ namespace ProcessingHandlers {
       
       // Update real-time stats after each thread is processed
       const properties = PropertiesService.getUserProperties();
-      properties.setProperty('CURRENT_SCANNED', stats.scanned.toString());
-      properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
-      properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
-      properties.setProperty('CURRENT_SENT', stats.sent.toString());
-      properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
+      properties.setProperty(Config.PROP_KEYS.CURRENT_SCANNED, stats.scanned.toString());
+      properties.setProperty(Config.PROP_KEYS.CURRENT_SUPPORTS, stats.supports.toString());
+      properties.setProperty(Config.PROP_KEYS.CURRENT_DRAFTED, stats.drafted.toString());
+      properties.setProperty(Config.PROP_KEYS.CURRENT_SENT, stats.sent.toString());
+      properties.setProperty(Config.PROP_KEYS.CURRENT_ERRORS, stats.errors.toString());
     });
     
     AppLogger.info('🎯 Analysis completed', { stats });
@@ -86,11 +86,11 @@ namespace ProcessingHandlers {
     });
     const statsString = `${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
     
-    props.setProperty('LAST_EXECUTION_TIME', executionTime);
-    props.setProperty('LAST_EXECUTION_STATS', statsString);
+    props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_TIME, executionTime);
+    props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_STATS, statsString);
     
     // CRITICAL: Save this execution ID as the last one for live log view
-    props.setProperty('LAST_EXECUTION_ID', AppLogger.executionId);
+    props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_ID, AppLogger.executionId);
     
     const message = `✅ COMPLETED: ${statsString}`;
     AppLogger.info(message);
@@ -127,10 +127,10 @@ namespace ProcessingHandlers {
     
     try {
       // Retrieve saved parameters
-      const mode = userProps.getProperty('PROCESSING_MODE') || Config.ProcessingMode.LABEL_ONLY;
-      const prompt1 = userProps.getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION;
-      const prompt2 = userProps.getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE;
-      const apiKey = userProps.getProperty('GEMINI_API_KEY');
+      const mode = userProps.getProperty(Config.PROP_KEYS.PROCESSING_MODE) || Config.ProcessingMode.LABEL_ONLY;
+      const prompt1 = userProps.getProperty(Config.PROP_KEYS.PROMPT_1) || Config.PROMPTS.CLASSIFICATION;
+      const prompt2 = userProps.getProperty(Config.PROP_KEYS.PROMPT_2) || Config.PROMPTS.RESPONSE;
+      const apiKey = userProps.getProperty(Config.PROP_KEYS.API_KEY);
       
       if (!apiKey) {
         throw new Error('API key not found');
