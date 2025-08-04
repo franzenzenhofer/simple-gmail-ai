@@ -54,8 +54,8 @@ namespace LockManager {
       props.setProperty(LOCK_INFO_KEY, JSON.stringify(lockInfo));
       
       // Keep legacy properties for backward compatibility during transition
-      props.setProperty('ANALYSIS_RUNNING', 'true');
-      props.setProperty('ANALYSIS_START_TIME', lockInfo.startTime.toString());
+      props.setProperty(Config.PROP_KEYS.ANALYSIS_RUNNING, 'true');
+      props.setProperty(Config.PROP_KEYS.ANALYSIS_START_TIME, lockInfo.startTime.toString());
       
       AppLogger.info('Analysis lock acquired (ATOMIC)', {
         executionId: lockInfo.executionId,
@@ -89,8 +89,8 @@ namespace LockManager {
       // Clear metadata and legacy properties
       const props = PropertiesService.getUserProperties();
       props.deleteProperty(LOCK_INFO_KEY);
-      props.setProperty('ANALYSIS_RUNNING', 'false');
-      props.deleteProperty('ANALYSIS_START_TIME');
+      props.setProperty(Config.PROP_KEYS.ANALYSIS_RUNNING, 'false');
+      props.deleteProperty(Config.PROP_KEYS.ANALYSIS_START_TIME);
       
     } catch (error) {
       AppLogger.error('Failed to release atomic lock', { error: Utils.handleError(error) });
@@ -99,8 +99,8 @@ namespace LockManager {
       currentScriptLock = null;
       const props = PropertiesService.getUserProperties();
       props.deleteProperty(LOCK_INFO_KEY);
-      props.setProperty('ANALYSIS_RUNNING', 'false');
-      props.deleteProperty('ANALYSIS_START_TIME');
+      props.setProperty(Config.PROP_KEYS.ANALYSIS_RUNNING, 'false');
+      props.deleteProperty(Config.PROP_KEYS.ANALYSIS_START_TIME);
     }
   }
   
@@ -131,7 +131,7 @@ namespace LockManager {
         });
         
         props.deleteProperty(LOCK_INFO_KEY);
-        props.setProperty('ANALYSIS_RUNNING', 'false');
+        props.setProperty(Config.PROP_KEYS.ANALYSIS_RUNNING, 'false');
         return false;
       }
       

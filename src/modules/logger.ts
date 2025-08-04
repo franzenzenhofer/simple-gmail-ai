@@ -28,7 +28,7 @@ namespace AppLogger {
   let spreadsheetConfig: SpreadsheetConfig | null = null;
   
   function getLogLevel(): LogLevel {
-    const debugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE');
+    const debugMode = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DEBUG_MODE);
     return debugMode === 'true' ? LogLevel.DEBUG : LogLevel.INFO;
   }
   
@@ -36,21 +36,21 @@ namespace AppLogger {
     try {
       Logger.log('🔧 INITIALIZING SPREADSHEET LOGGING...');
       
-      const disabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
+      const disabled = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.SPREADSHEET_LOGGING) === 'false';
       if (disabled) {
         Logger.log('⚠️ Spreadsheet logging is DISABLED');
         return;
       }
       
       Logger.log('📁 Setting up log folder...');
-      let folderId = PropertiesService.getUserProperties().getProperty('LOG_FOLDER_ID');
+      let folderId = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LOG_FOLDER_ID);
       let folder: GoogleAppsScript.Drive.Folder;
       
       if (!folderId) {
         Logger.log('📁 Creating new log folder...');
         folder = DriveApp.createFolder('Gmail AI Logs');
         folderId = folder.getId();
-        PropertiesService.getUserProperties().setProperty('LOG_FOLDER_ID', folderId);
+        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.LOG_FOLDER_ID, folderId);
         Logger.log('✅ Created log folder:', folderId);
       } else {
         try {
@@ -60,7 +60,7 @@ namespace AppLogger {
           Logger.log('❌ Existing folder not found, creating new one...');
           folder = DriveApp.createFolder('Gmail AI Logs');
           folderId = folder.getId();
-          PropertiesService.getUserProperties().setProperty('LOG_FOLDER_ID', folderId);
+          PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.LOG_FOLDER_ID, folderId);
           Logger.log('✅ Created replacement log folder:', folderId);
         }
       }
@@ -208,7 +208,7 @@ namespace AppLogger {
       const props = PropertiesService.getUserProperties();
       
       // Always set current execution ID for persistence
-      props.setProperty('CURRENT_EXECUTION_ID', executionId);
+      props.setProperty(Config.PROP_KEYS.CURRENT_EXECUTION_ID, executionId);
       
       // Write to CacheService (fast access for UI)
       try {
