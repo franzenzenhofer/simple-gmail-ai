@@ -49,20 +49,3 @@ namespace FactoryResetHandlers {
       .build();
   }
 }
-
-// Global function wrappers for Apps Script
-// These functions are called from UI actions and must be global
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function showFactoryResetConfirmation(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
-  return FactoryResetHandlers.showFactoryResetConfirmation(e);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function executeFactoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
-  return FactoryResetHandlers.executeFactoryReset(e);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function closeAddOn(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
-  return FactoryResetHandlers.closeAddOn(e);
-}

@@ -381,3 +381,20 @@ function createPromptDocument(): GoogleAppsScript.Card_Service.ActionResponse {
 function compilePrompts(): GoogleAppsScript.Card_Service.ActionResponse {
   return DocsPromptHandlers.compilePrompts();
 }
+
+// =============================================================================
+// 🏭 FACTORY RESET HANDLERS
+// Complete system reset functionality
+// =============================================================================
+
+function showFactoryResetConfirmation(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return FactoryResetHandlers.showFactoryResetConfirmation(e);
+}
+
+function executeFactoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return FactoryResetHandlers.executeFactoryReset(e);
+}
+
+function closeAddOn(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return FactoryResetHandlers.closeAddOn(e);
+}
