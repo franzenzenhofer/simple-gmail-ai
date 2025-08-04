@@ -22,7 +22,8 @@ namespace UI {
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
+          .setTitle('Home')
+          .setSubtitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
       );
     
     if (!hasApiKey) {
