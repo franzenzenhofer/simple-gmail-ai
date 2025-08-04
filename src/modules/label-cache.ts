@@ -255,14 +255,20 @@ namespace LabelCache {
     try {
       AppLogger.info('🔄 STARTING LABEL CACHE MIGRATION');
       
-      // Common labels that might already exist
+      // Only migrate system labels - all others come from docs
       const labelsToMigrate = [
-        Config.LABELS.SUPPORT,
-        Config.LABELS.NOT_SUPPORT,
         Config.LABELS.AI_PROCESSED,
-        Config.LABELS.AI_ERROR,
-        Config.LABELS.AI_GUARDRAILS_FAILED
+        Config.LABELS.AI_ERROR
       ];
+      
+      // Also cache any existing labels that might have been created from docs
+      const allLabels = GmailApp.getUserLabels();
+      allLabels.forEach(label => {
+        const labelName = label.getName();
+        if (!labelsToMigrate.includes(labelName)) {
+          labelsToMigrate.push(labelName);
+        }
+      });
       
       let migrated = 0;
       labelsToMigrate.forEach(labelName => {

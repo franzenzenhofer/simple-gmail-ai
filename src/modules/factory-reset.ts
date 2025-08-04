@@ -114,25 +114,18 @@ namespace FactoryReset {
       // Step 2: Remove Gmail labels
       AppLogger.info('🏷️ Removing Gmail labels...');
       try {
-        const labelsToRemove = [
-          Config.LABELS.SUPPORT,
-          Config.LABELS.NOT_SUPPORT,
-          Config.LABELS.AI_PROCESSED,
-          Config.LABELS.AI_ERROR
-        ];
+        // Get ALL labels - we need to remove everything including user-created from docs
+        const allLabels = GmailApp.getUserLabels();
         
-        const existingLabels = GmailApp.getUserLabels();
-        labelsToRemove.forEach(labelName => {
-          const label = existingLabels.find(l => l.getName() === labelName);
-          if (label) {
-            try {
-              label.deleteLabel();
-              labelsRemoved++;
-              AppLogger.info(`Removed label: ${labelName}`);
-            } catch (error) {
-              const errorMsg = Utils.logAndHandleError(error, `Remove label: ${labelName}`);
-              errors.push(`Failed to remove label ${labelName}: ${errorMsg}`);
-            }
+        allLabels.forEach(label => {
+          try {
+            const labelName = label.getName();
+            label.deleteLabel();
+            labelsRemoved++;
+            AppLogger.info(`Removed label: ${labelName}`);
+          } catch (error) {
+            const errorMsg = Utils.logAndHandleError(error, `Remove label: ${label.getName()}`);
+            errors.push(`Failed to remove label ${label.getName()}: ${errorMsg}`);
           }
         });
       } catch (error) {
@@ -140,32 +133,23 @@ namespace FactoryReset {
         errors.push(`Failed to remove Gmail labels: ${errorMsg}`);
       }
       
-      // Step 3: Delete log spreadsheets
-      AppLogger.info('📊 Deleting log spreadsheets...');
+      // Step 3: Decouple log spreadsheets and docs (do NOT delete them)
+      AppLogger.info('🔗 Decoupling logs and docs...');
       try {
-        const folders = DriveApp.getFoldersByName('Gmail AI Logs');
-        while (folders.hasNext()) {
-          const folder = folders.next();
-          const files = folder.getFiles();
-          while (files.hasNext()) {
-            try {
-              const file = files.next();
-              DriveApp.removeFile(file);
-              spreadsheetsDeleted++;
-            } catch (error) {
-              // Continue with other files
-            }
-          }
-          // Try to remove the folder itself
-          try {
-            DriveApp.removeFolder(folder);
-          } catch (error) {
-            // Folder might have other files
-          }
-        }
+        // Clear references to docs and spreadsheets without deleting them
+        userProps.deleteProperty('PROMPT_DOC_ID');
+        userProps.deleteProperty('PROMPT_DOC_REV');
+        userProps.deleteProperty('GOOGLE_DOCS_PROMPTS_RAW');
+        userProps.deleteProperty('PROMPTS_COMPILED_AT');
+        AppLogger.info('Decoupled Google Docs prompt document');
+        
+        // Clear spreadsheet references
+        userProps.deleteProperty(Config.PROP_KEYS.SPREADSHEET_LOG_ID);
+        userProps.deleteProperty(Config.PROP_KEYS.LOG_FOLDER_ID);
+        AppLogger.info('Decoupled log spreadsheets');
       } catch (error) {
-        const errorMsg = Utils.logAndHandleError(error, 'Delete log spreadsheets');
-        errors.push(`Failed to delete some log files: ${errorMsg}`);
+        const errorMsg = Utils.logAndHandleError(error, 'Decouple documents');
+        errors.push(`Failed to decouple documents: ${errorMsg}`);
       }
       
       // Step 4: Clear any caches
@@ -242,10 +226,10 @@ namespace FactoryReset {
           '<b>⚠️ WARNING: Factory Reset will permanently delete:</b><br><br>' +
           '• Your Gemini API key<br>' +
           '• All custom prompts and settings<br>' +
-          '• All Gmail labels created by this add-on<br>' +
+          '• ALL Gmail labels (system and user-created)<br>' +
           '• All execution history and statistics<br>' +
-          '• All log spreadsheets<br>' +
-          '• All saved preferences<br><br>' +
+          '• All saved preferences and settings<br>' +
+          '• Connection to docs and logs (files remain)<br><br>' +
           '<font color="#dc3545"><b>This action CANNOT be undone!</b></font>'
         )
     );
@@ -317,7 +301,7 @@ namespace FactoryReset {
           '<b>Reset Summary:</b><br>' +
           '• Properties cleared: ' + result.propertiesCleared + '<br>' +
           '• Labels removed: ' + result.labelsRemoved + '<br>' +
-          '• Spreadsheets deleted: ' + result.spreadsheetsDeleted + '<br>' +
+          '• Documents decoupled: Yes<br>' +
           '• Execution time: ' + result.executionTimeMs + 'ms'
         )
     );

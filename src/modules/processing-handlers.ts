@@ -128,9 +128,12 @@ namespace ProcessingHandlers {
     try {
       // Retrieve saved parameters
       const mode = userProps.getProperty(Config.PROP_KEYS.PROCESSING_MODE) || Config.ProcessingMode.LABEL_ONLY;
-      const prompt1 = userProps.getProperty(Config.PROP_KEYS.PROMPT_1) || Config.PROMPTS.CLASSIFICATION;
-      const prompt2 = userProps.getProperty(Config.PROP_KEYS.PROMPT_2) || Config.PROMPTS.RESPONSE;
       const apiKey = userProps.getProperty(Config.PROP_KEYS.API_KEY);
+      
+      // Prompts now come ONLY from the Google Docs editor
+      // Using empty strings as they will be replaced by docs prompts in gmail.ts
+      const prompt1 = '';
+      const prompt2 = '';
       
       if (!apiKey) {
         throw new Error('API key not found');

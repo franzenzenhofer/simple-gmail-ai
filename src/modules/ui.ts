@@ -80,45 +80,50 @@ namespace UI {
     
     card.addSection(mainSection);
     
-    // Classification Prompt - Large editor
-    const promptSection = CardService.newCardSection();
+    // Prompts Section - ONLY Docs Editor
+    const promptSection = CardService.newCardSection()
+      .setHeader('📝 Prompt Configuration');
+    
+    // Check if prompt document exists
+    const promptDocUrl = PropertiesService.getUserProperties().getProperty('PROMPT_DOC_URL');
+    
+    if (promptDocUrl) {
+      promptSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>✅ Prompt Document Active</b><br>All prompts are managed in your Google Docs document.')
+      );
+      
+      promptSection.addWidget(
+        CardService.newTextButton()
+          .setText('📝 Edit Prompts in Google Docs')
+          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+          .setOpenLink(CardService.newOpenLink()
+            .setUrl(promptDocUrl)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE))
+      );
+    } else {
+      promptSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>⚠️ No Prompt Document</b><br>Click below to create your prompt configuration document.')
+      );
+    }
+    
     promptSection.addWidget(
-      CardService.newTextInput()
-        .setFieldName('prompt1')
-        .setTitle('🎯 Classification Prompt (How to identify support emails)')
-        .setHint('Tell the AI how to classify emails as "support" or "undefined"')
-        .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_1) || Config.PROMPTS.CLASSIFICATION)
-        .setMultiline(true)
-    );
-    
-    // Response Prompt - Large editor  
-    promptSection.addWidget(
-      CardService.newTextInput()
-        .setFieldName('prompt2')
-        .setTitle('✍️ Response Prompt (How to draft replies)')
-        .setHint('Tell the AI how to write helpful customer support responses')
-        .setValue(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROMPT_2) || Config.PROMPTS.RESPONSE)
-        .setMultiline(true)
-    );
-    
-    card.addSection(promptSection);
-    
-    // Docs Prompt Editor Button
-    const docsEditorSection = CardService.newCardSection();
-    docsEditorSection.addWidget(
       CardService.newTextButton()
-        .setText('📝 Open Docs Prompt Editor')
+        .setText(promptDocUrl ? '🔄 Refresh from Docs' : '📝 Create Prompt Document')
         .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
         .setOnClickAction(
           CardService.newAction()
             .setFunctionName('showPromptEditor')
         )
     );
-    docsEditorSection.addWidget(
+    
+    promptSection.addWidget(
       CardService.newTextParagraph()
-        .setText('<i>Advanced: Manage prompts in Google Docs with per-label customization</i>')
+        .setText('<i>All prompts are managed exclusively in Google Docs for better organization and per-label customization.</i>')
     );
-    card.addSection(docsEditorSection);
+    
+    card.addSection(promptSection);
     
     // Last Execution section
     const lastExecSection = CardService.newCardSection();

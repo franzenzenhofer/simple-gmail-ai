@@ -133,26 +133,15 @@ namespace Guardrails {
   }
   
   /**
-   * Apply guardrails label to failed threads
+   * Log guardrails failure (labels no longer applied)
    */
   export function applyGuardrailsLabel(thread: GoogleAppsScript.Gmail.GmailThread, reason: string): void {
-    try {
-      // Create or get the guardrails label using centralized utility
-      const guardrailsLabel = Utils.getOrCreateLabelDirect(Config.LABELS.AI_GUARDRAILS_FAILED);
-      
-      thread.addLabel(guardrailsLabel);
-      
-      AppLogger.warn('🚫 GUARDRAILS FAILED', {
-        threadId: thread.getId(),
-        subject: thread.getFirstMessageSubject(),
-        reason: reason
-      });
-    } catch (error) {
-      AppLogger.error('Failed to apply guardrails label', {
-        error: String(error),
-        threadId: thread.getId()
-      });
-    }
+    // Only log the failure - no label application
+    AppLogger.warn('🚫 GUARDRAILS FAILED', {
+      threadId: thread.getId(),
+      subject: thread.getFirstMessageSubject(),
+      reason: reason
+    });
   }
   
   /**

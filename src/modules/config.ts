@@ -11,11 +11,9 @@ namespace Config {
   }
   
   export const LABELS = {
-    SUPPORT: 'Support',
-    NOT_SUPPORT: 'General', 
+    // ONLY system labels remain - ALL other labels come from docs
     AI_PROCESSED: 'ai✓',
-    AI_ERROR: 'aiX',
-    AI_GUARDRAILS_FAILED: 'ai✗'
+    AI_ERROR: 'aiX'
   };
   
   export const VERSION = '__VERSION__';

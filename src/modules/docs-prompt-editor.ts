@@ -123,35 +123,52 @@ This document contains all AI prompts and labeling rules for the Gmail AI Assist
 
 ## C.1 · Overall Prompt
 
-\`\`\`text
-You are an email classification assistant. Analyze the email content and classify it according to the provided labels. Choose the most specific label that matches the email content. If no specific label applies, use "not".
+You are an email classification assistant. Analyze the email content and classify it according to the labels defined above. Choose the most specific label that matches the email content.
 
-Return your response in JSON format with the label and a brief explanation.
-\`\`\`
+Important:
+- Review the Label Registry above for classification rules
+- Return only the label name, nothing else
+- If no specific label applies, return "General"
 
 ## C.2 · Prompt · Support
 
-\`\`\`text
-{"instructions": "Draft a helpful response acknowledging their support request and providing initial guidance", "tone": "helpful and professional"}
-\`\`\`
+Draft a helpful and professional response to this support request.
+
+Guidelines:
+- Acknowledge their issue
+- Provide clear next steps or initial guidance
+- Be empathetic and solution-focused
+- Keep it concise but thorough
 
 ## C.3 · Prompt · Refund
 
-\`\`\`text
-{"instructions": "Draft a response asking for order details and explaining the refund process", "tone": "understanding and solution-focused"}
-\`\`\`
+Draft a response about this refund request.
+
+Guidelines:
+- Show understanding of their situation
+- Ask for order/transaction details if not provided
+- Explain the refund process clearly
+- Provide expected timeline
+- Be solution-focused
 
 ## C.4 · Prompt · Bug
 
-\`\`\`text
-{"instructions": "Draft a response asking for reproduction steps and technical details", "tone": "technical but approachable"}
-\`\`\`
+Draft a response about this bug report.
+
+Guidelines:
+- Thank them for reporting the issue
+- Ask for specific reproduction steps
+- Request technical details (browser, OS, error messages)
+- Be technical but approachable
+- Assure them we take bugs seriously
 
 ## D · Prompt · General
 
-\`\`\`text
-{"instructions": "labelOnly", "note": "No specific action - just apply appropriate label"}
-\`\`\``;
+For general emails that don't match specific categories:
+
+Action: Label only - no draft response needed.
+
+This category catches all emails that don't require a specific support response.`;
   }
   
   /**
@@ -191,20 +208,20 @@ Return your response in JSON format with the label and a brief explanation.
     
     // Section C - Prompts
     body.appendParagraph('C.1 · Overall Prompt').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the provided labels. Choose the most specific label that matches the email content. If no specific label applies, use "not".\n\nReturn your response in JSON format with the label and a brief explanation.');
+    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the labels defined above. Choose the most specific label that matches the email content.\n\nImportant:\n- Review the Label Registry above for classification rules\n- Return only the label name, nothing else\n- If no specific label applies, return "General"');
     
     body.appendParagraph('C.2 · Prompt · Support').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('{"instructions": "Draft a helpful response acknowledging their support request and providing initial guidance", "tone": "helpful and professional"}');
+    body.appendParagraph('Draft a helpful and professional response to this support request.\n\nGuidelines:\n- Acknowledge their issue\n- Provide clear next steps or initial guidance\n- Be empathetic and solution-focused\n- Keep it concise but thorough');
     
     body.appendParagraph('C.3 · Prompt · Refund').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('{"instructions": "Draft a response asking for order details and explaining the refund process", "tone": "understanding and solution-focused"}');
+    body.appendParagraph('Draft a response about this refund request.\n\nGuidelines:\n- Show understanding of their situation\n- Ask for order/transaction details if not provided\n- Explain the refund process clearly\n- Provide expected timeline\n- Be solution-focused');
     
     body.appendParagraph('C.4 · Prompt · Bug').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('{"instructions": "Draft a response asking for reproduction steps and technical details", "tone": "technical but approachable"}');
+    body.appendParagraph('Draft a response about this bug report.\n\nGuidelines:\n- Thank them for reporting the issue\n- Ask for specific reproduction steps\n- Request technical details (browser, OS, error messages)\n- Be technical but approachable\n- Assure them we take bugs seriously');
     
     // Section D
     body.appendParagraph('D · Prompt · General').setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    body.appendParagraph('{"instructions": "labelOnly", "note": "No specific action - just apply appropriate label"}');
+    body.appendParagraph('For general emails that don\'t match specific categories:\n\nAction: Label only - no draft response needed.\n\nThis category catches all emails that don\'t require a specific support response.');
   }
   
   /**

@@ -49,7 +49,9 @@ namespace ContextualActions {
     actions.push(classifyAndLabelAction);
     
     // Conditional actions based on context
-    if (context.labels.includes(Config.LABELS.SUPPORT)) {
+    // Check if any label has actions configured in docs
+    const docsPrompts = DocsPromptEditor.getPromptForLabels(context.labels);
+    if (docsPrompts && docsPrompts.responsePrompt) {
       actions.push(generateReplyAction);
       actions.push(escalateAction);
     }
@@ -144,24 +146,17 @@ namespace ContextualActions {
         const thread = GmailApp.getThreadById(context.threadId);
         const analysis = analyzeMessage(apiKey, context);
         
-        // Apply labels based on classification
-        const supportLabel = GmailService.getOrCreateLabel(Config.LABELS.SUPPORT);
-        const notSupportLabel = GmailService.getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
+        // Apply dynamic label from AI
+        const labelToApply = analysis.classification === 'support' ? 'Support' : 'General';
+        const dynamicLabel = GmailService.getOrCreateLabel(labelToApply);
         const processedLabel = GmailService.getOrCreateLabel(Config.LABELS.AI_PROCESSED);
         
-        if (analysis.classification === 'support') {
-          thread.addLabel(supportLabel);
-          thread.removeLabel(notSupportLabel);
-        } else {
-          thread.addLabel(notSupportLabel);
-          thread.removeLabel(supportLabel);
-        }
-        
+        thread.addLabel(dynamicLabel);
         thread.addLabel(processedLabel);
         
         return CardService.newActionResponseBuilder()
           .setNotification(CardService.newNotification()
-            .setText(`✅ Classified as ${analysis.classification.toUpperCase()} and labeled`))
+            .setText(`✅ Classified as ${labelToApply.toUpperCase()} and labeled`))
           .build();
           
       } catch (error) {

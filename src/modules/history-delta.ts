@@ -142,10 +142,10 @@ namespace HistoryDelta {
     const labels = thread.getLabels();
     const labelNames = labels.map(label => label.getName());
     
+    // Only check for system labels
     return labelNames.some(name => 
       name === Config.LABELS.AI_PROCESSED ||
-      name === Config.LABELS.AI_ERROR ||
-      name === Config.LABELS.AI_GUARDRAILS_FAILED
+      name === Config.LABELS.AI_ERROR
     );
   }
   

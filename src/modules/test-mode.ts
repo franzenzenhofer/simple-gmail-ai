@@ -28,6 +28,7 @@ namespace TestMode {
       wouldApplyLabels: string[];
       wouldCreateDraft: boolean;
       draftPreview?: string;
+      labelToApply?: string;
     }>;
     errors: string[];
     executionTime: number;
@@ -230,15 +231,19 @@ namespace TestMode {
       throw new Error('Classification failed: ' + classificationResult.error);
     }
     
-    const classification = classificationResult.data.toLowerCase();
-    const isSupport = classification.indexOf('support') === 0;
+    // Dynamic label from AI response
+    const labelToApply = classificationResult.data || 'General';
     
     // Determine what labels would be applied
     const wouldApplyLabels: string[] = [];
     if (!config.skipLabeling) {
       wouldApplyLabels.push(Config.LABELS.AI_PROCESSED);
-      wouldApplyLabels.push(isSupport ? Config.LABELS.SUPPORT : Config.LABELS.NOT_SUPPORT);
+      wouldApplyLabels.push(labelToApply);
     }
+    
+    // Check if this label should create drafts
+    const docsPrompts = DocsPromptEditor.getPromptForLabels([labelToApply]);
+    const isSupport = docsPrompts && docsPrompts.responsePrompt;
     
     // Generate draft preview if applicable
     let draftPreview: string | undefined;
@@ -265,7 +270,8 @@ namespace TestMode {
       confidence: 0.85, // Mock confidence for now
       wouldApplyLabels,
       wouldCreateDraft,
-      draftPreview
+      draftPreview,
+      labelToApply // Add this for the UI display
     };
     
     if (config.verbose) {
@@ -462,7 +468,7 @@ namespace TestMode {
       // Classification result
       resultSection.addWidget(CardService.newKeyValue()
         .setTopLabel('Classification')
-        .setContent(classification.classification === 'support' ? '🎯 Support Request' : '📧 Not Support')
+        .setContent('🎯 ' + classification.labelToApply)
       );
       
       // What would happen (no actual mutations)

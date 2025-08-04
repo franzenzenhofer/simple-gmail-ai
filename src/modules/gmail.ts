@@ -42,86 +42,68 @@ namespace GmailService {
   }
   
   /**
-   * Get the appropriate prompt for classification - either from Docs or default
+   * Get the appropriate prompt for classification - ONLY from Docs
    */
-  function getClassificationPrompt(basePrompt: string, threadLabels: string[]): string {
+  export function getClassificationPrompt(_basePrompt: string, threadLabels: string[]): string {
     try {
       // Check if Docs prompt editor is configured
       const hasDocsPrompts = DocsPromptEditor.hasCompiledPrompts();
       if (!hasDocsPrompts) {
-        return basePrompt;
+        throw new Error('No prompt document configured. Please create a prompt document first.');
       }
       
-      // Get prompt for the thread's labels
+      // Get prompt for the thread's labels - NO FALLBACKS!
       const promptConfig = DocsPromptEditor.getPromptForLabels(threadLabels);
-      if (promptConfig && promptConfig.classificationPrompt) {
-        AppLogger.info('📝 Using Docs prompt for labels', { 
-          labels: threadLabels,
-          promptLabel: promptConfig.label 
-        });
-        return promptConfig.classificationPrompt;
+      if (!promptConfig || !promptConfig.classificationPrompt) {
+        throw new Error('No prompt document configured. Please create a prompt document first.');
       }
       
-      // Fall back to base prompt
-      return basePrompt;
+      AppLogger.info('📝 Using Docs prompt for labels', { 
+        labels: threadLabels,
+        promptLabel: promptConfig.label 
+      });
+      
+      return promptConfig.classificationPrompt;
     } catch (error) {
-      // Error recovery: log the issue but continue with default prompt
-      AppLogger.warn('Docs prompt error - falling back to default', { 
+      // NO FALLBACKS - prompts must come from docs
+      AppLogger.error('Docs prompt error - cannot continue', { 
         error: String(error),
         labels: threadLabels 
       });
-      
-      // Optional: Store error for user notification
-      try {
-        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT) || '0');
-        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT, String(errorCount + 1));
-      } catch (e) {
-        // Ignore property storage errors
-      }
-      
-      return basePrompt;
+      throw new Error('Prompt configuration error: ' + error);
     }
   }
   
   /**
-   * Get the appropriate response prompt - either from Docs or default
+   * Get the appropriate response prompt - ONLY from Docs
    */
-  function getResponsePrompt(basePrompt: string, threadLabels: string[]): string {
+  function getResponsePrompt(_basePrompt: string, threadLabels: string[]): string {
     try {
       // Check if Docs prompt editor is configured
       const hasDocsPrompts = DocsPromptEditor.hasCompiledPrompts();
       if (!hasDocsPrompts) {
-        return basePrompt;
+        throw new Error('No prompt document configured. Please create a prompt document first.');
       }
       
-      // Get prompt for the thread's labels
+      // Get prompt for the thread's labels - NO FALLBACKS!
       const promptConfig = DocsPromptEditor.getPromptForLabels(threadLabels);
-      if (promptConfig && promptConfig.responsePrompt) {
-        AppLogger.info('📝 Using Docs response prompt for labels', { 
-          labels: threadLabels,
-          promptLabel: promptConfig.label 
-        });
-        return promptConfig.responsePrompt;
+      if (!promptConfig || !promptConfig.responsePrompt) {
+        throw new Error('No response prompt configured. Please create a prompt document first.');
       }
       
-      // Fall back to base prompt
-      return basePrompt;
+      AppLogger.info('📝 Using Docs response prompt for labels', { 
+        labels: threadLabels,
+        promptLabel: promptConfig.label 
+      });
+      
+      return promptConfig.responsePrompt;
     } catch (error) {
-      // Error recovery: log the issue but continue with default prompt
-      AppLogger.warn('Docs response prompt error - falling back to default', { 
+      // NO FALLBACKS - prompts must come from docs
+      AppLogger.error('Docs response prompt error - cannot continue', { 
         error: String(error),
         labels: threadLabels 
       });
-      
-      // Optional: Store error for user notification
-      try {
-        const errorCount = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT) || '0');
-        PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.DOCS_PROMPT_ERROR_COUNT, String(errorCount + 1));
-      } catch (e) {
-        // Ignore property storage errors
-      }
-      
-      return basePrompt;
+      throw new Error('Response prompt configuration error: ' + error);
     }
   }
   
@@ -674,8 +656,6 @@ namespace GmailService {
     const classifications = allClassifications;
     
     // Step 3: Process classification results and apply labels
-    const supportLabel = getOrCreateLabel(Config.LABELS.SUPPORT);
-    const notSupportLabel = getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
     const processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
     
     const supportThreads: Array<{threadId: string, thread: GoogleAppsScript.Gmail.GmailThread, body: string, redactedBody: string, subject: string, sender: string}> = [];
@@ -690,33 +670,34 @@ namespace GmailService {
       const threadData = threadMap.get(result.id);
       if (!threadData) return;
       
-      const isSupport = result.label === 'support';
+      // Dynamic label handling - label comes from AI/docs
+      const labelToApply = result.label || 'General';
+      const dynamicLabel = getOrCreateLabel(labelToApply);
       
       try {
-        if (isSupport) {
-          threadData.thread.addLabel(supportLabel);
-          threadData.thread.removeLabel(notSupportLabel);
-          
-          if (createDrafts || autoReply) {
-            supportThreads.push({
-              threadId: result.id,
-              thread: threadData.thread,
-              body: threadData.body,
-              redactedBody: threadData.redactedBody, // T-12: Include redacted body
-              subject: threadData.subject,
-              sender: threadData.sender
-            });
-          }
-        } else {
-          threadData.thread.addLabel(notSupportLabel);
-          threadData.thread.removeLabel(supportLabel);
+        // Apply the dynamic label from AI
+        threadData.thread.addLabel(dynamicLabel);
+        
+        // Check if this label should create drafts (from docs config)
+        const docsPrompts = DocsPromptEditor.getPromptForLabels([labelToApply]);
+        const shouldCreateDraft = docsPrompts && docsPrompts.responsePrompt && (createDrafts || autoReply);
+        
+        if (shouldCreateDraft) {
+          supportThreads.push({
+            threadId: result.id,
+            thread: threadData.thread,
+            body: threadData.body,
+            redactedBody: threadData.redactedBody, // T-12: Include redacted body
+            subject: threadData.subject,
+            sender: threadData.sender
+          });
         }
         
         threadData.thread.addLabel(processedLabel);
         
         results.set(result.id, {
           threadId: result.id,
-          isSupport: isSupport,
+          isSupport: shouldCreateDraft || false,
           error: result.error
         });
         
@@ -724,7 +705,7 @@ namespace GmailService {
         const errorMessage = Utils.logAndHandleError(error, `Label application for thread ${result.id}`);
         results.set(result.id, {
           threadId: result.id,
-          isSupport: isSupport,
+          isSupport: false,
           error: errorMessage
         });
       }
@@ -994,32 +975,37 @@ namespace GmailService {
       }
       
       const classData = classificationData as { label?: string; confidence?: number; category?: string };
-      const isSupport = classData.label === 'support';
+      // Dynamic label handling
+      const labelToApply = classData.label || 'General';
       
       AppLogger.info('🎯 EMAIL CLASSIFIED', {
-        shortMessage: 'Classified "' + subject + '" as ' + (classData.label || 'unknown').toUpperCase(),
+        shortMessage: 'Classified "' + subject + '" as ' + labelToApply.toUpperCase(),
         subject: subject,
-        classification: classData.label,
+        classification: labelToApply,
         confidence: classData.confidence,
         category: classData.category,
-        isSupport: isSupport,
+        labelToApply: labelToApply,
         threadId: thread.getId()
       });
       
-      const supportLabel = getOrCreateLabel(Config.LABELS.SUPPORT);
-      const notSupportLabel = getOrCreateLabel(Config.LABELS.NOT_SUPPORT);
+      const dynamicLabel = getOrCreateLabel(labelToApply);
       const processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
+      
+      // Check if this label should create drafts (from docs config)
+      const docsPrompts = DocsPromptEditor.getPromptForLabels([labelToApply]);
+      const shouldCreateDraft = docsPrompts && docsPrompts.responsePrompt && (createDrafts || autoReply);
+      const isSupport = shouldCreateDraft || false; // For backward compatibility
       
       // T-10: Skip labeling in test mode if configured
       const shouldApplyLabels = !(testConfig && testConfig.enabled && testConfig.skipLabeling);
       
-      if (isSupport) {
-        if (shouldApplyLabels) {
-          thread.addLabel(supportLabel);
-          thread.removeLabel(notSupportLabel);
-        }
-        
-        if (createDrafts || autoReply) {
+      // Apply dynamic label
+      if (shouldApplyLabels) {
+        thread.addLabel(dynamicLabel);
+        thread.addLabel(processedLabel);
+      }
+      
+      if (shouldCreateDraft) {
           // Extract thread context for recipient determination
           const emailContext = extractThreadContext(thread);
           const recipientDecision = determineRecipients(emailContext, body);
@@ -1036,7 +1022,7 @@ namespace GmailService {
             // Apply error label and return
             const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
             thread.addLabel(errorLabel);
-            return { isSupport, error: 'No valid recipients: ' + recipientDecision.reason };
+            return { isSupport: isSupport || false, error: 'No valid recipients: ' + recipientDecision.reason };
           }
           
           AppLogger.info('✍️ GENERATING REPLY', {
@@ -1108,7 +1094,7 @@ namespace GmailService {
                 replyLength: replyBody.length
               });
               // Return error to indicate guardrails failure
-              return { isSupport, error: 'Guardrails failed: ' + validation.failureReasons.join('; ') };
+              return { isSupport: isSupport || false, error: 'Guardrails failed: ' + validation.failureReasons.join('; ') };
             } else {
               // Guardrails passed - proceed with reply/draft
               if (autoReply) {
@@ -1131,21 +1117,20 @@ namespace GmailService {
             
             // T-12: Clear redaction cache after successful processing
             Redaction.clearRedactionCache(thread.getId());
+          } else {
+            // AI reply generation failed
+            const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+            thread.addLabel(errorLabel);
+            AppLogger.error('❌ FAILED TO GENERATE REPLY', {
+              subject: subject,
+              threadId: thread.getId(),
+              error: 'No reply data returned'
+            });
+            return { isSupport: isSupport || false, error: 'No reply data returned' };
           }
-        }
-      } else {
-        if (shouldApplyLabels) {
-          thread.addLabel(notSupportLabel);
-          thread.removeLabel(supportLabel);
-        }
       }
       
-      if (shouldApplyLabels) {
-        thread.addLabel(processedLabel);
-      }
-      
-      return { isSupport };
-      
+      return { isSupport: isSupport || false };
     } catch (error) {
       const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
       thread.addLabel(errorLabel);
@@ -1154,3 +1139,5 @@ namespace GmailService {
     }
   }
 }
+
+

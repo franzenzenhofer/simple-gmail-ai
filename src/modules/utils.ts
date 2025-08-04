@@ -137,33 +137,8 @@ namespace Utils {
     });
   }
 
-  /**
-   * DRY-04: Centralized configuration access utilities
-   * Eliminates duplicate label retrieval patterns
-   */
-  export interface StandardLabels {
-    support: GoogleAppsScript.Gmail.GmailLabel;
-    notSupport: GoogleAppsScript.Gmail.GmailLabel;
-    processed: GoogleAppsScript.Gmail.GmailLabel;
-    error?: GoogleAppsScript.Gmail.GmailLabel;
-    guardrailsFailed?: GoogleAppsScript.Gmail.GmailLabel;
-  }
-
-  export function getStandardLabels(includeOptional: boolean = false): StandardLabels {
-    // Use the existing getOrCreateLabelDirect to avoid module dependencies
-    const result: StandardLabels = {
-      support: getOrCreateLabelDirect(Config.LABELS.SUPPORT),
-      notSupport: getOrCreateLabelDirect(Config.LABELS.NOT_SUPPORT),
-      processed: getOrCreateLabelDirect(Config.LABELS.AI_PROCESSED)
-    };
-
-    if (includeOptional) {
-      result.error = getOrCreateLabelDirect(Config.LABELS.AI_ERROR);
-      result.guardrailsFailed = getOrCreateLabelDirect(Config.LABELS.AI_GUARDRAILS_FAILED);
-    }
-
-    return result;
-  }
+  // REMOVED: StandardLabels interface and getStandardLabels function
+  // Labels are now dynamic from docs, not hardcoded
 
   export function validateApiKeyFormat(apiKey: string): { isValid: boolean; message: string } {
     if (!apiKey || apiKey.trim() === '') {

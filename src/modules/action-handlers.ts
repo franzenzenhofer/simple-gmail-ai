@@ -99,20 +99,19 @@ namespace ActionHandlers {
       }
       
       const mode = Utils.getFormValue(e, 'mode', Config.ProcessingMode.LABEL_ONLY);
-      const prompt1 = Utils.getFormValue(e, 'prompt1', Config.PROMPTS.CLASSIFICATION);
-      const prompt2 = Utils.getFormValue(e, 'prompt2', Config.PROMPTS.RESPONSE);
       
-      // Save ALL settings for persistence
+      // Save mode setting for persistence
       const userProps = PropertiesService.getUserProperties();
       userProps.setProperty(Config.PROP_KEYS.PROCESSING_MODE, mode);
-      userProps.setProperty(Config.PROP_KEYS.PROMPT_1, prompt1);
-      userProps.setProperty(Config.PROP_KEYS.PROMPT_2, prompt2);
+      
+      // Prompts now come ONLY from the Google Docs editor
+      // No more on-page prompt editing
       
       // Determine processing flags based on mode
       const createDrafts = (mode === Config.ProcessingMode.CREATE_DRAFTS || mode === Config.ProcessingMode.AUTO_SEND);
       const autoReply = (mode === Config.ProcessingMode.AUTO_SEND);
       
-      AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
+      AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply });
       
       // Acquire analysis lock with timeout protection
       if (!LockManager.acquireLock(mode)) {
@@ -138,7 +137,8 @@ namespace ActionHandlers {
       });
       
       // START PROCESSING IMMEDIATELY AND GO TO LIVE LOG VIEW
-      return ProcessingHandlers.continueProcessingAndNavigate(apiKey, mode, prompt1, prompt2, createDrafts, autoReply);
+      // Prompts now come from docs only
+      return ProcessingHandlers.continueProcessingAndNavigate(apiKey, mode, '', '', createDrafts, autoReply);
       
     } catch (err) {
       LockManager.releaseLock();
