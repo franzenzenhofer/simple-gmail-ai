@@ -15,8 +15,13 @@ namespace FactoryResetHandlers {
    * Executes the factory reset after confirmation
    */
   export function executeFactoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
-    const formInputs = (e as any).formInputs;
-    const confirmationText = formInputs?.confirmationText?.[0];
+    // Form inputs are not typed in Google Apps Script types
+    const eventWithForm = e as GoogleAppsScript.Addons.EventObject & {
+      formInputs?: {
+        confirmationText?: string[];
+      };
+    };
+    const confirmationText = eventWithForm.formInputs?.confirmationText?.[0];
     
     // Check confirmation
     if (confirmationText !== 'DELETE') {
@@ -46,14 +51,18 @@ namespace FactoryResetHandlers {
 }
 
 // Global function wrappers for Apps Script
+// These functions are called from UI actions and must be global
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function showFactoryResetConfirmation(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
   return FactoryResetHandlers.showFactoryResetConfirmation(e);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function executeFactoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
   return FactoryResetHandlers.executeFactoryReset(e);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function closeAddOn(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
   return FactoryResetHandlers.closeAddOn(e);
 }

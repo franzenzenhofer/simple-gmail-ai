@@ -128,11 +128,24 @@ npm run open
 ### Other Tabs
 - **🔑 API Key**: Configure your Gemini API key
 - **📊 Logs**: View execution logs and spreadsheets with direct links
-- **⚙️ Settings**: Toggle debug mode and spreadsheet logging
+- **⚙️ Settings**: Toggle debug mode, spreadsheet logging, and Factory Reset
 
 ### Three-Dot Menu
-- **View Logs**: Quick access to logs from anywhere
-- **Toggle Debug Mode**: Enable/disable verbose logging
+Quick navigation to all cards:
+- **Home**: Return to main interface
+- **API Key**: Configure Gemini API key
+- **Prompt Editor**: Advanced prompt management
+- **Test Mode**: Test with limited emails
+- **Live Log**: Real-time processing view
+- **Logs**: View execution logs
+- **Settings**: Access all settings including Factory Reset
+
+### Factory Reset
+From Settings tab, you can completely reset the add-on:
+- Deletes all saved data (API key, prompts, settings)
+- Removes all Gmail labels created by the add-on
+- Clears all logs and spreadsheets
+- Requires typing "DELETE" to confirm
 
 ### Google Docs Prompt Editor (Advanced)
 For more sophisticated prompt management:
