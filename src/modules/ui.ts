@@ -4,6 +4,14 @@
  */
 
 namespace UI {
+  // Type for log entries used in UI
+  interface UILogEntry {
+    timestamp: string;
+    level: string;
+    message: string;
+    executionId: string;
+    shortMessage?: string;
+  }
   export function buildHomepage(): GoogleAppsScript.Card_Service.Card {
     const savedKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY) || '';
     const hasApiKey = savedKey.trim() !== '';
@@ -462,7 +470,7 @@ namespace UI {
           .setText('<b>📋 ACTIVITY FEED:</b>')
       );
       
-      relevantLogs.forEach((logEntry: any) => {
+      relevantLogs.forEach((logEntry: UILogEntry) => {
         const timeOnly = logEntry.timestamp.substring(11, 19);
         
         // Use shortMessage if available, otherwise fall back to full message
@@ -613,7 +621,7 @@ namespace UI {
       const logs = JSON.parse(logsJson);
       
       // Map to expected format and reverse (newest first)
-      const entries = logs.map((log: any) => ({
+      const entries = logs.map((log: UILogEntry) => ({
         timestamp: log.timestamp || '',
         executionId: currentExecutionId,
         level: log.level || 'INFO',
@@ -656,7 +664,7 @@ namespace UI {
       const logs = JSON.parse(logsJson);
       
       // Map to expected format and reverse (newest first)
-      const entries = logs.map((log: any) => ({
+      const entries = logs.map((log: UILogEntry) => ({
         timestamp: log.timestamp || '',
         executionId: lastExecutionId,
         level: log.level || 'INFO',
