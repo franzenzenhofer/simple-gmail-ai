@@ -141,6 +141,18 @@ function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActio
   return UniversalActions.showLiveLogTabUniversal();
 }
 
+function showHomepageUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showHomepageUniversal();
+}
+
+function showPromptEditorUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showPromptEditorUniversal();
+}
+
+function showTestModeUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showTestModeUniversal();
+}
+
 // =============================================================================
 // ⏳ CONTINUATION HANDLERS
 // Background processing for large inbox operations

@@ -33,4 +33,22 @@ namespace UniversalActions {
       .displayAddOnCards([UI.buildLiveLogView()])
       .build();
   }
+
+  export function showHomepageUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+    return CardService.newUniversalActionResponseBuilder()
+      .displayAddOnCards([UI.buildHomepage()])
+      .build();
+  }
+
+  export function showPromptEditorUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+    return CardService.newUniversalActionResponseBuilder()
+      .displayAddOnCards([DocsPromptHandlers.createPromptEditorCard()])
+      .build();
+  }
+
+  export function showTestModeUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+    return CardService.newUniversalActionResponseBuilder()
+      .displayAddOnCards([TestMode.createTestModeCard()])
+      .build();
+  }
 }

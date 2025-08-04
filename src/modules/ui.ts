@@ -360,6 +360,27 @@ namespace UI {
     
     card.addSection(mainSection);
     
+    // Factory Reset section
+    const resetSection = CardService.newCardSection()
+      .setHeader('🏭 Factory Reset');
+    
+    resetSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('Reset the application to initial state. This will delete ALL data including your API key, settings, labels, and logs.')
+    );
+    
+    resetSection.addWidget(
+      CardService.newTextButton()
+        .setText('Factory Reset...')
+        .setBackgroundColor('#dc3545')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('showFactoryResetConfirmation')
+        )
+    );
+    
+    card.addSection(resetSection);
+    
     // Back button
     const footerSection = CardService.newCardSection();
     footerSection.addWidget(

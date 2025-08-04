@@ -32,8 +32,17 @@
         "runFunction": "onHomepage"
       },
       "universalActions": [{
+        "label": "Home",
+        "runFunction": "showHomepageUniversal"
+      }, {
         "label": "API Key",
         "runFunction": "showApiKeyTabUniversal"
+      }, {
+        "label": "Prompt Editor",
+        "runFunction": "showPromptEditorUniversal"
+      }, {
+        "label": "Test Mode",
+        "runFunction": "showTestModeUniversal"
       }, {
         "label": "Live Log",
         "runFunction": "showLiveLogTabUniversal"

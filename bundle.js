@@ -37,6 +37,7 @@ function analyzeDependencies(modulesDir) {
     'label-cache',
     'history-delta',
     'lock-manager',
+    'factory-reset',
     'ai',
     'draft-tracker',
     'redaction',
@@ -48,6 +49,7 @@ function analyzeDependencies(modulesDir) {
     'action-handlers',
     'processing-handlers',
     'universal-actions',
+    'factory-reset-handlers',
     'docs-prompt-editor',
     'docs-prompt-handlers'
   ];
@@ -74,6 +76,7 @@ function analyzeDependencies(modulesDir) {
     'LabelCache': 'label-cache',
     'HistoryDelta': 'history-delta',
     'LockManager': 'lock-manager',
+    'FactoryReset': 'factory-reset',
     'AI': 'ai',
     'DraftTracker': 'draft-tracker',
     'Redaction': 'redaction',
