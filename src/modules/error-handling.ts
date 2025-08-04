@@ -7,7 +7,7 @@ namespace ErrorHandling {
   /**
    * Initialize global error handler with enhanced error preservation
    */
-  export function handleGlobalError(error: any): GoogleAppsScript.Card_Service.Card {
+  export function handleGlobalError(error: unknown): GoogleAppsScript.Card_Service.Card {
     // Parse error into structured format
     const appError = ErrorTaxonomy.parseError(error);
     

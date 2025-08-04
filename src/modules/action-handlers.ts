@@ -4,7 +4,7 @@
  */
 
 namespace ActionHandlers {
-  export function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function saveApiKey(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       const apiKey = Utils.getFormValue(e, 'apiKey');
       
@@ -63,7 +63,7 @@ namespace ActionHandlers {
     }
   }
 
-  export function validateApiKeyFormat(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function validateApiKeyFormat(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       const apiKey = Utils.getFormValue(e, 'apiKey');
       const validation = Utils.validateApiKeyFormat(apiKey);
@@ -87,7 +87,7 @@ namespace ActionHandlers {
     }
   }
 
-  export function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function runAnalysis(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       // CRITICAL: Initialize spreadsheet logging for this execution
       AppLogger.initSpreadsheet();
@@ -147,7 +147,7 @@ namespace ActionHandlers {
     }
   }
 
-  export function cancelProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function cancelProcessing(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       // Use LockManager as single source of truth for lock state
       const isProcessing = LockManager.isLocked();
@@ -186,7 +186,7 @@ namespace ActionHandlers {
     }
   }
 
-  export function toggleDebugMode(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function toggleDebugMode(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       const props = PropertiesService.getUserProperties();
       const currentMode = props.getProperty(Config.PROP_KEYS.DEBUG_MODE) === 'true';
@@ -209,7 +209,7 @@ namespace ActionHandlers {
     }
   }
 
-  export function toggleSpreadsheetLogging(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  export function toggleSpreadsheetLogging(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       const props = PropertiesService.getUserProperties();
       const currentMode = props.getProperty(Config.PROP_KEYS.SPREADSHEET_LOGGING) !== 'false'; // Default to true

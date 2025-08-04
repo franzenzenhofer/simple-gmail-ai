@@ -129,7 +129,7 @@ namespace DarkMode {
   export function isDarkModeEnabled(): boolean {
     try {
       // First try to detect Gmail's actual theme
-      const cardService = CardService as any;
+      const cardService = CardService as typeof CardService & { Theme?: string };
       if (cardService.Theme && typeof cardService.Theme !== 'undefined') {
         // Gmail provides theme information
         const currentTheme = cardService.Theme;

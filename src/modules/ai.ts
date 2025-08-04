@@ -22,11 +22,27 @@ namespace AI {
     | { success: true; data: T; requestId: string; schemaVersion?: string }
     | { success: false; error: string; statusCode?: number; requestId: string };
   
+  // Type for JSON schemas passed to callGemini
+  export interface JSONSchema {
+    '$schema'?: string;
+    type?: string;
+    required?: string[];
+    properties?: Record<string, unknown>;
+    additionalProperties?: boolean;
+    items?: unknown;
+    enum?: string[];
+    minimum?: number;
+    maximum?: number;
+    minLength?: number;
+    maxLength?: number;
+    retryAttempt?: boolean;
+  }
+  
   
   // Enhanced callGemini with strict JSON mode support
   export function callGemini(apiKey: string, prompt: string): GeminiResult;
-  export function callGemini<T>(apiKey: string, prompt: string, schema?: any): GeminiResult<T>;
-  export function callGemini<T = string>(apiKey: string, prompt: string, schema?: any): GeminiResult<T> {
+  export function callGemini<T>(apiKey: string, prompt: string, schema?: JSONSchema): GeminiResult<T>;
+  export function callGemini<T = string>(apiKey: string, prompt: string, schema?: JSONSchema): GeminiResult<T> {
     const requestId = 'ai_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     
     const useJsonMode = !!schema;
@@ -55,7 +71,11 @@ namespace AI {
       delete cleanSchema.retryAttempt;
     }
     
-    const generationConfig: any = {
+    const generationConfig: {
+      temperature: number;
+      response_mime_type?: string;
+      response_schema?: unknown;
+    } = {
       temperature: isRetry ? 0 : Config.GEMINI.TEMPERATURE
     };
     

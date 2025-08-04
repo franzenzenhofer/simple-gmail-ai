@@ -8,7 +8,7 @@ namespace EntryPoints {
    * T-05: Simple trigger when add-on is opened
    * Writes heartbeat timestamp for monitoring
    */
-  export function onAddOnOpen(_e: any): void {
+  export function onAddOnOpen(_e: GoogleAppsScript.Addons.EventObject): void {
     try {
       const timestamp = new Date().toISOString();
       PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.AI_HEARTBEAT, timestamp);
@@ -84,12 +84,12 @@ namespace EntryPoints {
   /**
    * Entry point for Gmail message context
    */
-  export function onGmailMessage(e: any): GoogleAppsScript.Card_Service.Card {
+  export function onGmailMessage(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
     try {
       AppLogger.initSpreadsheet();
       AppLogger.info('Gmail message context opened', {
-        messageId: e.messageMetadata?.messageId,
-        accessToken: e.messageMetadata?.accessToken ? 'present' : 'missing'
+        messageId: e.gmail?.messageId,
+        accessToken: e.gmail?.accessToken ? 'present' : 'missing'
       });
       
       // T-05: Write heartbeat timestamp to UserProperties
