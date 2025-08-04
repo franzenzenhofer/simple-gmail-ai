@@ -10,6 +10,37 @@ namespace GmailService {
     error?: string;
   }
   
+  // Email routing context interfaces
+  export interface EmailContext {
+    originalSender: string;
+    replyTo?: string;
+    allRecipients: {
+      to: string[];
+      cc: string[];
+      bcc: string[];
+    };
+    threadId: string;
+    isMailingList: boolean;
+    hasNoReply: boolean;
+    listHeaders?: {
+      listId?: string;
+      listUnsubscribe?: string;
+      listPost?: string;
+    };
+    messageId: string;
+    subject: string;
+    suggestedMode?: 'reply' | 'reply-all' | 'forward';
+  }
+  
+  export interface RecipientDecision {
+    to: string[];
+    cc?: string[];
+    bcc?: string[];
+    reason: string;
+    mode: 'reply' | 'reply-all' | 'forward';
+    warnings?: string[];
+  }
+  
   /**
    * Get the appropriate prompt for classification - either from Docs or default
    */
@@ -92,6 +123,133 @@ namespace GmailService {
       
       return basePrompt;
     }
+  }
+  
+  /**
+   * Extract comprehensive thread context for email routing
+   * CRITICAL: This determines who receives the response
+   */
+  export function extractThreadContext(thread: GoogleAppsScript.Gmail.GmailThread): EmailContext {
+    const messages = thread.getMessages();
+    if (messages.length === 0) {
+      throw new Error('Thread has no messages');
+    }
+    
+    // Get the latest message for context
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage) {
+      throw new Error('Unable to get latest message from thread');
+    }
+    
+    // Extract sender and check for no-reply patterns
+    const originalSender = latestMessage.getFrom();
+    const hasNoReply = isNoReplyAddress(originalSender);
+    
+    // Get reply-to header if present
+    let replyTo: string | undefined;
+    try {
+      // Note: getRawContent() contains headers but is expensive
+      // For now, use getReplyTo() if available in future API versions
+      // TODO: Parse raw content for Reply-To header if needed
+      replyTo = undefined; // Placeholder for future implementation
+    } catch (e) {
+      // Ignore header parsing errors
+    }
+    
+    // Extract all recipients
+    const allRecipients = {
+      to: parseEmailAddresses(latestMessage.getTo() || ''),
+      cc: parseEmailAddresses(latestMessage.getCc() || ''),
+      bcc: parseEmailAddresses(latestMessage.getBcc() || '')
+    };
+    
+    // Check for mailing list headers
+    const listHeaders = extractListHeaders(latestMessage);
+    const isMailingList = !!(listHeaders.listId || listHeaders.listUnsubscribe);
+    
+    // Build context object
+    const context: EmailContext = {
+      originalSender,
+      replyTo,
+      allRecipients,
+      threadId: thread.getId(),
+      isMailingList,
+      hasNoReply,
+      listHeaders: isMailingList ? listHeaders : undefined,
+      messageId: latestMessage.getId(),
+      subject: thread.getFirstMessageSubject()
+    };
+    
+    // Log context extraction
+    AppLogger.info('📋 THREAD CONTEXT EXTRACTED', {
+      threadId: thread.getId(),
+      sender: originalSender,
+      recipientCount: allRecipients.to.length + allRecipients.cc.length,
+      hasNoReply,
+      isMailingList,
+      subject: context.subject
+    });
+    
+    return context;
+  }
+  
+  /**
+   * Check if email address is a no-reply address
+   */
+  function isNoReplyAddress(email: string): boolean {
+    const lowerEmail = email.toLowerCase();
+    const noReplyPatterns = [
+      'noreply@',
+      'no-reply@',
+      'donotreply@',
+      'do-not-reply@',
+      'notification@',
+      'notifications@',
+      'mailer-daemon@',
+      'postmaster@'
+    ];
+    
+    return noReplyPatterns.some(pattern => lowerEmail.includes(pattern));
+  }
+  
+  /**
+   * Parse email addresses from a string (handles "Name <email>" format)
+   */
+  function parseEmailAddresses(emailString: string): string[] {
+    if (!emailString) return [];
+    
+    // Split by comma and extract email addresses
+    const addresses: string[] = [];
+    const parts = emailString.split(',');
+    
+    parts.forEach(part => {
+      const trimmed = part.trim();
+      if (!trimmed) return;
+      
+      // Extract email from "Name <email>" format
+      const emailMatch = trimmed.match(/<([^>]+)>/);
+      if (emailMatch && emailMatch[1]) {
+        addresses.push(emailMatch[1]);
+      } else if (trimmed.includes('@')) {
+        addresses.push(trimmed);
+      }
+    });
+    
+    return addresses;
+  }
+  
+  /**
+   * Extract mailing list headers from message
+   */
+  function extractListHeaders(_message: GoogleAppsScript.Gmail.GmailMessage): NonNullable<EmailContext['listHeaders']> {
+    // TODO: Implement raw header parsing
+    // For now, return empty object
+    // Future: Parse _message.getRawContent() for List-* headers
+    return {
+      listId: undefined,
+      listUnsubscribe: undefined,
+      listPost: undefined
+    };
   }
   
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
