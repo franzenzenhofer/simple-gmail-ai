@@ -252,6 +252,129 @@ namespace GmailService {
     };
   }
   
+  /**
+   * Determine recipient strategy based on email context
+   * CRITICAL: This decides who receives the response
+   */
+  export function determineRecipients(
+    context: EmailContext,
+    emailContent?: string
+  ): RecipientDecision {
+    const warnings: string[] = [];
+    
+    // Check for no-reply addresses
+    if (context.hasNoReply) {
+      warnings.push('WARNING: Sender is a no-reply address');
+      return {
+        to: [],
+        cc: [],
+        reason: 'Blocked: sender is a no-reply address',
+        mode: 'reply',
+        warnings
+      };
+    }
+    
+    // Check for mailing list
+    if (context.isMailingList) {
+      warnings.push('Email is from a mailing list');
+      // TODO: Check list preferences for reply behavior
+      return {
+        to: [context.originalSender],
+        reason: 'Mailing list: replying to sender only',
+        mode: 'reply',
+        warnings
+      };
+    }
+    
+    // Check for reply-to header
+    if (context.replyTo && context.replyTo !== context.originalSender) {
+      return {
+        to: [context.replyTo],
+        reason: 'Using Reply-To header',
+        mode: 'reply',
+        warnings
+      };
+    }
+    
+    // Analyze email content for forward indicators
+    if (emailContent) {
+      const lowerContent = emailContent.toLowerCase();
+      const forwardPatterns = [
+        'please forward to',
+        'can you forward this to',
+        'forward this to',
+        'send this to',
+        'pass this along to'
+      ];
+      
+      const hasForwardRequest = forwardPatterns.some(pattern => 
+        lowerContent.includes(pattern)
+      );
+      
+      if (hasForwardRequest) {
+        // TODO: Extract forward recipients from content
+        warnings.push('Email contains forward request - manual review needed');
+        return {
+          to: [context.originalSender],
+          reason: 'Forward request detected - needs manual review',
+          mode: 'forward',
+          warnings
+        };
+      }
+    }
+    
+    // Check if email was sent to multiple people
+    const totalRecipients = 
+      context.allRecipients.to.length + 
+      context.allRecipients.cc.length;
+    
+    if (totalRecipients > 2) {
+      // Multiple recipients - analyze for reply-all indicators
+      const replyAllIndicators = [
+        'hi all',
+        'hello all',
+        'hi team',
+        'hello team',
+        'everyone',
+        'hey guys',
+        'dear all'
+      ];
+      
+      const shouldReplyAll = emailContent ? 
+        replyAllIndicators.some(indicator => 
+          emailContent.toLowerCase().includes(indicator)
+        ) : false;
+      
+      if (shouldReplyAll) {
+        // Reply-all: include original recipients
+        const allRecipients = new Set<string>();
+        
+        // Add original sender
+        allRecipients.add(context.originalSender);
+        
+        // Add all TO recipients except ourselves
+        // TODO: Get current user email to filter out
+        context.allRecipients.to.forEach(email => allRecipients.add(email));
+        
+        return {
+          to: Array.from(allRecipients),
+          cc: context.allRecipients.cc,
+          reason: 'Reply-all: email sent to group with group indicators',
+          mode: 'reply-all',
+          warnings
+        };
+      }
+    }
+    
+    // Default: simple reply to sender
+    return {
+      to: [context.originalSender],
+      reason: 'Standard reply to sender',
+      mode: 'reply',
+      warnings
+    };
+  }
+  
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
     try {
       // T-19: Use label cache for resilient label operations
