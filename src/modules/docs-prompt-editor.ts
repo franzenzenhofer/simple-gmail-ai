@@ -94,161 +94,168 @@ namespace DocsPromptEditor {
   
   /**
    * Generate document template content (exported for testing)
+   * Creates pure markdown content that will be visible as markdown in Google Docs
    */
   export function generateDocumentTemplate(): string {
     return `# Gmail AI Prompts Configuration
 
-## A · How to use this document
+## 📋 How to Use This Document
 
-This document contains all AI prompts and labeling rules for the Gmail AI Assistant.
+This document controls how your Gmail AI Assistant works. It's written in **simple markdown format** that you can edit directly.
 
-**Who should edit**: Operations lead, Customer Experience manager - never frontline agents.
+### 👥 Who Should Edit This
+- **✅ Recommended**: Operations lead, Customer Experience manager
+- **❌ Not recommended**: Frontline agents (risk of breaking the system)
 
-**Versioning tips**: Use File ▸ Version history ▸ Name current version after each change.
+### 🔄 Making Changes Safely
+1. **Before editing**: Use File ▸ Version history ▸ Name current version 
+2. **Make your changes** using the format below
+3. **Test**: Use Test Mode in the app before going live
+4. **Deploy**: Click "Save & Go Live" in the Docs Prompt Editor
 
-**Golden rules**: 
-- Use simple markdown format below
-- Never rename section headings  
-- Test changes before going live
-- Add new labels by copying the format
+### 📝 Editing Rules
+- **Keep section headings exactly as they are** (never change # headings)
+- **Use the exact format** shown in examples below
+- **Copy and modify** existing labels to add new ones
+- **Be specific** - the AI follows your instructions literally
 
-## B · Label Registry
+---
+
+## 🏷️ Label Registry
+
+This section defines all the labels the AI can assign to emails. Labels are checked in Priority order (lowest number first).
 
 ### Label: Support
-**Priority:** 10
-**Criteria:** mentions "help", "support", or "issue"
-**Actions:** YES
+**Priority:** 10  
+**Criteria:** mentions "help", "support", "assistance", "trouble", or "issue"  
+**Actions:** YES *(create draft reply)*
 
-### Label: Refund  
-**Priority:** 20
-**Criteria:** mentions "refund", "money back", or "chargeback"
-**Actions:** YES
+### Label: Refund
+**Priority:** 20  
+**Criteria:** mentions "refund", "money back", "return", or "chargeback"  
+**Actions:** YES *(create draft reply)*
 
 ### Label: Bug
-**Priority:** 30
-**Criteria:** mentions "bug", "error", or "broken"  
-**Actions:** YES
+**Priority:** 30  
+**Criteria:** mentions "bug", "error", "broken", "not working", or "crash"  
+**Actions:** YES *(create draft reply)*
 
 ### Label: General
-**Priority:** 9999
-**Criteria:** (catch-all for everything else)
-**Actions:** YES
+**Priority:** 9999 *(catch-all - always last)*  
+**Criteria:** (matches everything else that doesn't fit above labels)  
+**Actions:** YES *(label only, no draft)*
 
-## C.1 · Overall Prompt
+**📋 Field Explanations:**
+- **Label:** The exact Gmail label name (will be created if doesn't exist)
+- **Priority:** Lower numbers checked first (10 before 20 before 30)
+- **Criteria:** What the AI looks for in the email content
+- **Actions:** YES = create draft reply, NO = label only
+
+---
+
+## 🤖 Overall Classification Prompt
+
+*This tells the AI how to classify emails into the labels above.*
 
 You are an email classification assistant. Analyze the email content and classify it according to the labels defined in the Label Registry above.
 
-Important:
-- Review the Label Registry (Section B) for available labels and their criteria
+**Instructions:**
+- Review each label's criteria in priority order (lowest number first)
 - Return ONLY the exact label name from the registry
-- Choose the most specific label that matches the email content
+- Choose the most specific label that matches the email content  
+- If multiple labels could apply, use the one with the lowest priority number
 - If no specific label applies, return "General"
 - The label you return will be created in Gmail if it doesn't exist
 
-## C.2 · Prompt · Support
+**Response format:** Return only the label name, nothing else.
+
+---
+
+## ✍️ Response Prompts
+
+*These tell the AI how to write draft replies for each label that has Actions: YES*
+
+### Prompt · Support
 
 Draft a helpful and professional response to this support request.
 
-Guidelines:
-- Acknowledge their issue
-- Provide clear next steps or initial guidance
+**Guidelines:**
+- Acknowledge their specific issue or concern
+- Provide clear next steps or initial guidance  
 - Be empathetic and solution-focused
-- Keep it concise but thorough
+- Keep it concise but thorough (2-3 paragraphs max)
+- End with an invitation for follow-up questions
 
-## C.3 · Prompt · Refund
+### Prompt · Refund
 
 Draft a response about this refund request.
 
-Guidelines:
+**Guidelines:**
 - Show understanding of their situation
-- Ask for order/transaction details if not provided
-- Explain the refund process clearly
-- Provide expected timeline
-- Be solution-focused
+- Ask for order/transaction details if not provided in the original email
+- Explain our refund process clearly and simply
+- Provide expected timeline (be realistic)
+- Be solution-focused and helpful
 
-## C.4 · Prompt · Bug
+### Prompt · Bug
 
 Draft a response about this bug report.
 
-Guidelines:
+**Guidelines:**
 - Thank them for reporting the issue
-- Ask for specific reproduction steps
-- Request technical details (browser, OS, error messages)
+- Ask for specific reproduction steps if not provided
+- Request technical details: browser, OS, error messages, screenshots
 - Be technical but approachable
-- Assure them we take bugs seriously
+- Assure them we take bugs seriously and are investigating
 
-## D · Prompt · General
+### Prompt · General
 
-For general emails that don't match specific categories:
+*This label has Actions: NO, so no response prompt is needed.*
 
-Action: Label only - no draft response needed.
+For general emails that don't match specific categories, we just apply the "General" label without creating a draft response.
 
-This category catches all emails that don't require a specific support response.`;
+---
+
+## 🎯 Tips for Success
+
+### Adding New Labels
+1. Copy an existing label section
+2. Change the label name and criteria
+3. Set priority (lower = higher priority)
+4. Choose Actions: YES (with draft) or NO (label only)
+5. Add a response prompt if Actions: YES
+
+### Testing Changes
+1. Save this document
+2. Go to Docs Prompt Editor ▸ Save & Go Live
+3. Use Test Mode to verify it works as expected
+4. Only then use on your real inbox
+
+### Common Mistakes
+- ❌ Changing section headings (breaks the parser)
+- ❌ Forgetting to update priority numbers
+- ❌ Making criteria too broad or too narrow
+- ❌ Not testing changes before going live
+
+**Remember**: The AI follows your instructions exactly. Be clear and specific!`;
   }
   
   /**
-   * Add template content to document body
+   * Add template content to document body as pure markdown
+   * This creates visible markdown text instead of formatted content
    */
   function addTemplateContent(body: GoogleAppsScript.Document.Body): void {
-    // Section A
-    body.appendParagraph('A · How to use this document').setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    body.appendParagraph('This document contains all AI prompts and labeling rules for the Gmail AI Assistant.');
-    body.appendParagraph('Who should edit: Operations lead, Customer Experience manager - never frontline agents.');
-    body.appendParagraph('Versioning tips: Use File ▸ Version history ▸ Name current version after each change.');
+    // Get the template markdown and add it as plain text
+    const markdownTemplate = generateDocumentTemplate();
     
-    const rulesText = body.appendParagraph('Golden rules:');
-    rulesText.appendText('\n• Use simple markdown format below');
-    rulesText.appendText('\n• Never rename section headings');
-    rulesText.appendText('\n• Test changes before going live');
-    rulesText.appendText('\n• Add new labels by copying the format');
+    // Split into lines and add each as a paragraph to preserve structure
+    const lines = markdownTemplate.split('\n');
     
-    // Section B - Label Registry (Markdown format)
-    body.appendParagraph('B · Label Registry').setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    
-    // Support label
-    body.appendParagraph('Label: Support').setHeading(DocumentApp.ParagraphHeading.HEADING3);
-    body.appendParagraph('Priority: 10').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Criteria: mentions "help", "support", or "issue"').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph(''); // spacing
-    
-    // Refund label
-    body.appendParagraph('Label: Refund').setHeading(DocumentApp.ParagraphHeading.HEADING3);
-    body.appendParagraph('Priority: 20').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Criteria: mentions "refund", "money back", or "chargeback"').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph(''); // spacing
-    
-    // Bug label
-    body.appendParagraph('Label: Bug').setHeading(DocumentApp.ParagraphHeading.HEADING3);
-    body.appendParagraph('Priority: 30').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Criteria: mentions "bug", "error", or "broken"').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph(''); // spacing
-    
-    // General label
-    body.appendParagraph('Label: General').setHeading(DocumentApp.ParagraphHeading.HEADING3);
-    body.appendParagraph('Priority: 9999').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Criteria: (catch-all for everything else)').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph('Actions: YES').setAttributes({[DocumentApp.Attribute.BOLD]: true});
-    body.appendParagraph(''); // spacing
-    
-    // Section C - Prompts
-    body.appendParagraph('C.1 · Overall Prompt').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('You are an email classification assistant. Analyze the email content and classify it according to the labels defined in the Label Registry above.\n\nImportant:\n- Review the Label Registry (Section B) for available labels and their criteria\n- Return ONLY the exact label name from the registry\n- Choose the most specific label that matches the email content\n- If no specific label applies, return "General"\n- The label you return will be created in Gmail if it doesn\'t exist');
-    
-    body.appendParagraph('C.2 · Prompt · Support').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('Draft a helpful and professional response to this support request.\n\nGuidelines:\n- Acknowledge their issue\n- Provide clear next steps or initial guidance\n- Be empathetic and solution-focused\n- Keep it concise but thorough');
-    
-    body.appendParagraph('C.3 · Prompt · Refund').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('Draft a response about this refund request.\n\nGuidelines:\n- Show understanding of their situation\n- Ask for order/transaction details if not provided\n- Explain the refund process clearly\n- Provide expected timeline\n- Be solution-focused');
-    
-    body.appendParagraph('C.4 · Prompt · Bug').setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph('Draft a response about this bug report.\n\nGuidelines:\n- Thank them for reporting the issue\n- Ask for specific reproduction steps\n- Request technical details (browser, OS, error messages)\n- Be technical but approachable\n- Assure them we take bugs seriously');
-    
-    // Section D
-    body.appendParagraph('D · Prompt · General').setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    body.appendParagraph('For general emails that don\'t match specific categories:\n\nAction: Label only - no draft response needed.\n\nThis category catches all emails that don\'t require a specific support response.');
+    for (const line of lines) {
+      // Add each line as a plain paragraph without any formatting
+      // This ensures the markdown syntax remains visible
+      body.appendParagraph(line);
+    }
   }
   
   /**
@@ -327,6 +334,7 @@ This category catches all emails that don't require a specific support response.
   
   /**
    * Parse document content into structured data
+   * Now parses pure markdown text instead of formatted headings
    */
   function parseDocument(doc: GoogleAppsScript.Document.Document): ParsedDocument {
     const body = doc.getBody();
@@ -351,33 +359,27 @@ This category catches all emails that don't require a specific support response.
       label: ''
     };
     
-    // Parse markdown-style labels from Section B
-    // No longer using tables - parse markdown format instead
-    
-    // Parse headings and content
+    // Parse raw text looking for markdown patterns
     for (const paragraph of paragraphs) {
-      const heading = paragraph.getHeading();
       const text = paragraph.getText().trim();
       
-      if (heading === DocumentApp.ParagraphHeading.HEADING1) {
-        if (text.includes('D · Prompt · General')) {
-          currentSection = 'general';
-        } else if (text.includes('B · Label Registry')) {
+      if (!text) continue; // Skip empty lines
+      
+      // Parse markdown headings (##, ###)
+      if (text.startsWith('## ')) {
+        const heading = text.replace('## ', '').trim();
+        
+        if (heading.includes('🏷️ Label Registry')) {
           currentSection = 'labels';
-        }
-      } else if (heading === DocumentApp.ParagraphHeading.HEADING2) {
-        if (text.includes('C.1 · Overall Prompt')) {
+        } else if (heading.includes('🤖 Overall Classification Prompt')) {
           currentSection = 'overall';
-        } else if (text.includes('C.') && text.includes('· Prompt ·')) {
-          const match = text.match(/C\.\d+ · Prompt · (.+)/);
-          if (match && match[1]) {
-            currentPromptLabel = match[1].trim();
-            currentSection = 'action';
-          }
+        } else if (heading.includes('✍️ Response Prompts')) {
+          currentSection = 'response_section';
         }
-      } else if (heading === DocumentApp.ParagraphHeading.HEADING3) {
-        // Handle markdown-style label definitions: "Label: Support"
-        if (text.startsWith('Label: ')) {
+      } else if (text.startsWith('### ')) {
+        const heading = text.replace('### ', '').trim();
+        
+        if (heading.startsWith('Label: ')) {
           // Save previous label if it exists
           if (currentLabelData.label) {
             result.labels.push({
@@ -389,30 +391,53 @@ This category catches all emails that don't require a specific support response.
           }
           
           // Start new label
-          currentLabel = text.replace('Label: ', '').trim();
+          currentLabel = heading.replace('Label: ', '').trim();
           currentLabelData = {
             label: currentLabel
           };
           currentSection = 'label_data';
+        } else if (heading.startsWith('Prompt · ')) {
+          currentPromptLabel = heading.replace('Prompt · ', '').trim();
+          currentSection = 'action';
+        }
+      } else if (text.startsWith('**') && text.includes(':**')) {
+        // Parse markdown bold fields like **Priority:** 10
+        if (currentSection === 'label_data') {
+          if (text.startsWith('**Priority:**')) {
+            const priorityText = text.replace('**Priority:**', '').trim();
+            // Remove any markdown formatting from the value
+            const cleanPriority = priorityText.replace(/\*|\(.*?\)/g, '').trim();
+            currentLabelData.priority = parseInt(cleanPriority) || 9999;
+          } else if (text.startsWith('**Criteria:**')) {
+            currentLabelData.criteria = text.replace('**Criteria:**', '').trim();
+          } else if (text.startsWith('**Actions:**')) {
+            const actionsText = text.replace('**Actions:**', '').trim();
+            // Remove any markdown formatting like *(create draft reply)*
+            const cleanActions = actionsText.replace(/\*|\(.*?\)/g, '').trim();
+            currentLabelData.actions = cleanActions.toUpperCase() === 'YES';
+          }
         }
       } else if (text && currentSection) {
         // Capture content based on current section
-        if (currentSection === 'overall' && text.length > 10) {
-          result.overallPrompt = text;
-        } else if (currentSection === 'general' && text.length > 10) {
-          result.generalPrompt = text;
+        if (currentSection === 'overall' && text.length > 10 && !text.startsWith('*') && !text.startsWith('**')) {
+          // Skip instruction text and capture the actual prompt
+          if (!text.includes('tells the AI') && !text.toLowerCase().includes('instructions:') && !text.toLowerCase().includes('response format:')) {
+            if (result.overallPrompt) {
+              result.overallPrompt += '\n' + text;
+            } else if (text.includes('email classification') || text.includes('Analyze the email')) {
+              result.overallPrompt = text;
+            }
+          }
         } else if (currentSection === 'action' && currentPromptLabel && text.length > 10) {
-          result.actionPrompts[currentPromptLabel] = text;
-        } else if (currentSection === 'label_data') {
-          // Parse label properties in markdown format
-          if (text.startsWith('Priority: ')) {
-            const priorityText = text.replace('Priority: ', '').trim();
-            currentLabelData.priority = parseInt(priorityText) || 9999;
-          } else if (text.startsWith('Criteria: ')) {
-            currentLabelData.criteria = text.replace('Criteria: ', '').trim();
-          } else if (text.startsWith('Actions: ')) {
-            const actionsText = text.replace('Actions: ', '').trim();
-            currentLabelData.actions = actionsText.toUpperCase() === 'YES';
+          // Skip guideline headers and capture the actual prompt
+          if (!text.startsWith('**Guidelines:**') && !text.startsWith('*This label') && !text.startsWith('For general emails')) {
+            if (text.includes('Draft') || text.includes('response') || result.actionPrompts[currentPromptLabel]) {
+              if (result.actionPrompts[currentPromptLabel]) {
+                result.actionPrompts[currentPromptLabel] += '\n' + text;
+              } else {
+                result.actionPrompts[currentPromptLabel] = text;
+              }
+            }
           }
         }
       }

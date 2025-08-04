@@ -275,6 +275,10 @@ function saveApiKeyFromWelcome(e: any): GoogleAppsScript.Card_Service.ActionResp
   return WelcomeFlow.saveApiKeyFromWelcome(e);
 }
 
+function createPromptDocumentFromWelcome(): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.createPromptDocumentFromWelcome();
+}
+
 function runWelcomeTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
   return WelcomeFlow.runWelcomeTestAnalysis();
 }

@@ -10,6 +10,7 @@ namespace WelcomeFlow {
     NOT_STARTED = 'not_started',
     API_KEY_SETUP = 'api_key_setup',
     PERMISSIONS_GRANT = 'permissions_grant',
+    DOCS_SETUP = 'docs_setup',
     TEST_RUN = 'test_run',
     CUSTOMIZATION = 'customization',
     COMPLETED = 'completed'
@@ -28,6 +29,7 @@ namespace WelcomeFlow {
     state: WelcomeState;
     apiKeyConfigured: boolean;
     permissionsGranted: boolean;
+    docsSetupCompleted: boolean;
     testRunCompleted: boolean;
     customizationDone: boolean;
     completedAt?: string;
@@ -97,6 +99,7 @@ namespace WelcomeFlow {
       state: WelcomeState.NOT_STARTED,
       apiKeyConfigured: false,
       permissionsGranted: false,
+      docsSetupCompleted: false,
       testRunCompleted: false,
       customizationDone: false
     };
@@ -130,6 +133,8 @@ namespace WelcomeFlow {
         return createApiKeySetupCard();
       case WelcomeState.PERMISSIONS_GRANT:
         return createPermissionsCard();
+      case WelcomeState.DOCS_SETUP:
+        return createDocsSetupCard();
       case WelcomeState.TEST_RUN:
         return createTestRunCard();
       case WelcomeState.CUSTOMIZATION:
@@ -278,12 +283,63 @@ namespace WelcomeFlow {
   }
   
   /**
+   * Create docs setup card
+   */
+  function createDocsSetupCard(): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder()
+      .setHeader(CardService.newCardHeader()
+        .setTitle('Step 3: Create Prompt Document 📝')
+        .setSubtitle('Set up your AI instruction manual'));
+    
+    const section = CardService.newCardSection();
+    
+    section.addWidget(CardService.newTextParagraph()
+      .setText(
+        'The AI needs instructions on how to classify your emails and what responses to write.\n\n' +
+        'We\'ll create a Google Docs document where you can:\n' +
+        '✏️ Define custom email labels\n' +
+        '🎯 Set classification criteria\n' +
+        '💬 Write response templates\n' +
+        '⚙️ Configure everything in plain English\n\n' +
+        'This document will be created in your Google Drive and you can edit it anytime.'
+      ));
+    
+    // Create docs button
+    const createDocsAction = CardService.newAction()
+      .setFunctionName('createPromptDocumentFromWelcome')
+      .setLoadIndicator(CardService.LoadIndicator.SPINNER);
+    
+    section.addWidget(CardService.newTextButton()
+      .setText('📝 Create Prompt Document')
+      .setOnClickAction(createDocsAction)
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED));
+    
+    card.addSection(section);
+    
+    // Info section
+    const infoSection = CardService.newCardSection()
+      .setHeader('What gets created?');
+    
+    infoSection.addWidget(CardService.newTextParagraph()
+      .setText(
+        '• A Google Docs document with starter templates\n' +
+        '• Clear instructions on how to customize it\n' +
+        '• Examples for common email types (support, refunds, bugs)\n' +
+        '• 100% editable - you have full control'
+      ));
+    
+    card.addSection(infoSection);
+    
+    return card.build();
+  }
+  
+  /**
    * Create test run card
    */
   function createTestRunCard(): GoogleAppsScript.Card_Service.Card {
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
-        .setTitle('Step 3: Test Run 🧪')
+        .setTitle('Step 4: Test Run 🧪')
         .setSubtitle('Try it on one email first'));
     
     const section = CardService.newCardSection();
@@ -318,7 +374,7 @@ namespace WelcomeFlow {
   function createCustomizationCard(): GoogleAppsScript.Card_Service.Card {
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
-        .setTitle('Step 4: Customize (Optional) ⚙️')
+        .setTitle('Step 5: Customize (Optional) ⚙️')
         .setSubtitle('Tailor the AI to your needs'));
     
     const section = CardService.newCardSection();
@@ -449,13 +505,13 @@ namespace WelcomeFlow {
     PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.API_KEY, apiKey);
     
     updateOnboardingProgress({
-      state: WelcomeState.TEST_RUN,
+      state: WelcomeState.DOCS_SETUP,
       apiKeyConfigured: true
     });
     
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation()
-        .updateCard(createTestRunCard()))
+        .updateCard(createDocsSetupCard()))
       .setNotification(CardService.newNotification()
         .setText('✅ API key saved successfully'))
       .build();
@@ -537,5 +593,34 @@ namespace WelcomeFlow {
       .setNavigation(CardService.newNavigation()
         .updateCard(createCompletionCard()))
       .build();
+  }
+  
+  /**
+   * Create prompt document from welcome flow
+   */
+  export function createPromptDocumentFromWelcome(): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      DocsPromptEditor.createPromptDocument();
+      const docUrl = DocsPromptEditor.getDocumentUrl();
+      
+      updateOnboardingProgress({
+        state: WelcomeState.TEST_RUN,
+        docsSetupCompleted: true
+      });
+      
+      return CardService.newActionResponseBuilder()
+        .setNavigation(CardService.newNavigation()
+          .updateCard(createTestRunCard()))
+        .setNotification(CardService.newNotification()
+          .setText('✅ Prompt document created successfully'))
+        .setOpenLink(CardService.newOpenLink()
+          .setUrl(docUrl || ''))
+        .build();
+    } catch (err) {
+      return CardService.newActionResponseBuilder()
+        .setNotification(CardService.newNotification()
+          .setText('❌ Failed to create document: ' + err))
+        .build();
+    }
   }
 }
