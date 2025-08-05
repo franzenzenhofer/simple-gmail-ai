@@ -98,6 +98,12 @@ namespace ActionHandlers {
         throw new Error('Please configure your API key first');
       }
       
+      // Check if compiled prompts exist before starting processing
+      if (!DocsPromptEditor.hasCompiledPrompts()) {
+        AppLogger.warn('⚠️ No compiled prompts found - processing blocked');
+        return UI.showNotification('⚠️ Create Prompt Document first. Go to Prompt Editor tab to set up your prompts.');
+      }
+      
       const mode = Utils.getFormValue(e, 'mode', Config.ProcessingMode.LABEL_ONLY);
       
       // Save mode setting for persistence
