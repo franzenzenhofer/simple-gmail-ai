@@ -211,7 +211,7 @@ namespace AppLogger {
       const logEntry = {
         timestamp: entry.timestamp,
         level: entry.level,
-        message: message,
+        message: entry.message, // Use masked message
         shortMessage: context?.shortMessage || '',
         context: context ? JSON.stringify(entry.context) : ''
       };
@@ -265,7 +265,7 @@ namespace AppLogger {
             entry.timestamp,
             entry.executionId,
             entry.level,
-            message,
+            entry.message, // Use masked message instead of raw message
             context ? JSON.stringify(entry.context) : ''
           ]);
         } catch (spreadsheetError) {
@@ -285,7 +285,7 @@ namespace AppLogger {
               entry.timestamp,
               entry.executionId,
               entry.level,
-              message,
+              entry.message, // Use masked message instead of raw message
               context ? JSON.stringify(entry.context) : ''
             ]);
           } catch (spreadsheetError) {
