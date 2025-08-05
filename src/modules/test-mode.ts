@@ -223,8 +223,27 @@ namespace TestMode {
       bodyLength: body.length
     });
     
-    // Classify email
-    const fullPrompt = classificationPrompt + '\n' + body + '\n---------- EMAIL END ----------';
+    // Classify email with injection protection
+    let labelOptions: string[] = ['support', 'not'];
+    try {
+      const compiledStr = PropertiesService.getUserProperties().getProperty('DOCS_PROMPT_COMPILED_CONFIG');
+      if (compiledStr) {
+        const parsed = JSON.parse(compiledStr);
+        if (parsed.labels && Array.isArray(parsed.labels)) {
+          const labels = parsed.labels.map((rule: any) => rule.label).filter((l: any) => l);
+          if (labels.length > 0) {
+            labelOptions = labels;
+          }
+        }
+      }
+    } catch (error) {
+      // Fall back to default labels
+    }
+    const fullPrompt = PromptSanitizer.createClassificationPrompt(
+      classificationPrompt,
+      body,
+      labelOptions
+    );
     const classificationResult = AI.callGemini(apiKey, fullPrompt);
     
     if (!classificationResult.success) {
@@ -253,8 +272,11 @@ namespace TestMode {
       wouldCreateDraft = true;
       
       if (config.verbose) {
-        // Actually generate draft for preview
-        const replyPrompt = responsePrompt + '\n' + body + '\n---------- END ----------';
+        // Actually generate draft for preview with injection protection
+        const replyPrompt = PromptSanitizer.createReplyPrompt(
+          responsePrompt,
+          body
+        );
         const replyResult = AI.callGemini(apiKey, replyPrompt);
         
         if (replyResult.success) {

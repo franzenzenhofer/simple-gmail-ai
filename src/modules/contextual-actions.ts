@@ -187,7 +187,12 @@ namespace ContextualActions {
       
       try {
         const responsePrompt = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || 'Generate a helpful response to this email.';
-        const fullPrompt = responsePrompt + '\n' + context.body + '\n---------- END ----------';
+        
+        // Create secure prompt with injection protection
+        const fullPrompt = PromptSanitizer.createReplyPrompt(
+          responsePrompt,
+          context.body
+        );
         
         const result = AI.callGemini(apiKey, fullPrompt);
         

@@ -763,8 +763,12 @@ namespace GmailService {
           // Build recipient context for AI
           const recipientContext = buildRecipientContext(emailContext, recipientDecision);
           
-          // Include recipient context in the prompt
-          const replyPrompt = activeResponsePrompt + '\n' + recipientContext + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response. Consider the recipient context when crafting your response.';
+          // Create secure prompt with injection protection
+          const replyPrompt = PromptSanitizer.createReplyPrompt(
+            activeResponsePrompt,
+            redactedBody,
+            recipientContext
+          );
           const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
@@ -953,7 +957,29 @@ namespace GmailService {
       const threadLabels = thread.getLabels().map(label => label.getName());
       const activeClassificationPrompt = getClassificationPrompt(classificationPrompt, threadLabels);
       
-      const fullPrompt = activeClassificationPrompt + '\n' + redactedBody + '\n---------- EMAIL END ----------\n\nRespond with JSON containing a "label" field with the appropriate label name.';
+      // Get label options from docs configuration
+      let labelOptions: string[] = ['support', 'not'];
+      try {
+        const compiledStr = PropertiesService.getUserProperties().getProperty('DOCS_PROMPT_COMPILED_CONFIG');
+        if (compiledStr) {
+          const parsed = JSON.parse(compiledStr);
+          if (parsed.labels && Array.isArray(parsed.labels)) {
+            const labels = parsed.labels.map((rule: any) => rule.label).filter((l: any) => l);
+            if (labels.length > 0) {
+              labelOptions = labels;
+            }
+          }
+        }
+      } catch (error) {
+        // Fall back to default labels
+      }
+      
+      // Create secure prompt with injection protection
+      const fullPrompt = PromptSanitizer.createClassificationPrompt(
+        activeClassificationPrompt,
+        redactedBody,
+        labelOptions
+      );
       const classificationResult = AI.callGemini(apiKey, fullPrompt, classificationSchema);
       
       if (!classificationResult.success) {
@@ -1062,8 +1088,12 @@ namespace GmailService {
           // Build recipient context for AI
           const recipientContext = buildRecipientContext(emailContext, recipientDecision);
           
-          // Include recipient context in the prompt
-          const replyPrompt = activeResponsePrompt + '\n' + recipientContext + '\n' + redactedBody + '\n---------- END ----------\n\nRespond with JSON containing a "reply" field with the email response. Consider the recipient context when crafting your response.';
+          // Create secure prompt with injection protection
+          const replyPrompt = PromptSanitizer.createReplyPrompt(
+            activeResponsePrompt,
+            redactedBody,
+            recipientContext
+          );
           const replyResult = AI.callGemini(apiKey, replyPrompt, replySchema);
           
           if (replyResult.success && replyResult.data) {
