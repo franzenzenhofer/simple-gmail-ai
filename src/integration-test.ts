@@ -22,6 +22,39 @@ interface BatchEmail {
   body: string;
 }
 
+// JSON sanitization logic matching JsonValidator.sanitizeJsonResponse
+function sanitizeJsonResponse(response: string): string {
+  // Remove markdown code blocks if present
+  let cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  
+  // Remove any text before the first { or [
+  const startBrace = cleaned.indexOf('{');
+  const startBracket = cleaned.indexOf('[');
+  
+  if (startBrace === -1 && startBracket === -1) {
+    return cleaned;
+  }
+  
+  const start = startBrace === -1 ? startBracket :
+                startBracket === -1 ? startBrace :
+                Math.min(startBrace, startBracket);
+  
+  if (start > 0) {
+    cleaned = cleaned.substring(start);
+  }
+  
+  // Remove any text after the last } or ]
+  const endBrace = cleaned.lastIndexOf('}');
+  const endBracket = cleaned.lastIndexOf(']');
+  
+  const end = Math.max(endBrace, endBracket);
+  if (end !== -1 && end < cleaned.length - 1) {
+    cleaned = cleaned.substring(0, end + 1);
+  }
+  
+  return cleaned;
+}
+
 async function testBatchProcessing() {
   // Test state for cleanup
   let testStartTime: number | undefined;
@@ -147,7 +180,7 @@ async function testBatchProcessing() {
     // Test JSON parsing - this is the critical part that was failing
     console.log('\n🧪 TESTING JSON PARSING:');
     try {
-      const cleanResponse = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const cleanResponse = sanitizeJsonResponse(result);
       console.log('Cleaned response:', JSON.stringify(cleanResponse));
       
       const batchResults = JSON.parse(cleanResponse);
