@@ -195,6 +195,22 @@ namespace GmailService {
   }
   
   /**
+   * Extract single email address from a sender string (handles "Name <email>" format)
+   */
+  function extractEmailAddress(senderString: string): string {
+    if (!senderString) return '';
+    
+    // Extract email from "Name <email>" format
+    const emailMatch = senderString.match(/<([^>]+)>/);
+    if (emailMatch && emailMatch[1]) {
+      return emailMatch[1];
+    }
+    
+    // If no angle brackets, assume it's already just an email
+    return senderString.trim();
+  }
+  
+  /**
    * Parse email addresses from a string (handles "Name <email>" format)
    */
   function parseEmailAddresses(emailString: string): string[] {
@@ -261,7 +277,7 @@ namespace GmailService {
       warnings.push('Email is from a mailing list');
       // TODO: Check list preferences for reply behavior
       return {
-        to: [context.originalSender],
+        to: [extractEmailAddress(context.originalSender)],
         reason: 'Mailing list: replying to sender only',
         mode: 'reply',
         warnings
@@ -271,7 +287,7 @@ namespace GmailService {
     // Check for reply-to header
     if (context.replyTo && context.replyTo !== context.originalSender) {
       return {
-        to: [context.replyTo],
+        to: [extractEmailAddress(context.replyTo)],
         reason: 'Using Reply-To header',
         mode: 'reply',
         warnings
@@ -297,7 +313,7 @@ namespace GmailService {
         // TODO: Extract forward recipients from content
         warnings.push('Email contains forward request - manual review needed');
         return {
-          to: [context.originalSender],
+          to: [extractEmailAddress(context.originalSender)],
           reason: 'Forward request detected - needs manual review',
           mode: 'forward',
           warnings
@@ -350,7 +366,7 @@ namespace GmailService {
     
     // Default: simple reply to sender
     return {
-      to: [context.originalSender],
+      to: [extractEmailAddress(context.originalSender)],
       reason: 'Standard reply to sender',
       mode: 'reply',
       warnings
