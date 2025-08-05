@@ -75,13 +75,13 @@ var Utils;
             return { isValid: false, message: 'API key is required' };
         }
         const trimmedKey = apiKey.trim();
-        if (trimmedKey.length !== 39) {
-            return { isValid: false, message: 'API key must be exactly 39 characters long' };
+        if (trimmedKey.length < 30 || trimmedKey.length > 60) {
+            return { isValid: false, message: 'API key must be between 30 and 60 characters long' };
         }
-        if (!trimmedKey.match(/^AIza[0-9A-Za-z\\-_]{35}$/)) {
+        if (!trimmedKey.match(/^AIza[0-9A-Za-z\\-_]{26,56}$/)) {
             return { 
                 isValid: false, 
-                message: 'Invalid format. Gemini API keys start with "AIza" followed by 35 alphanumeric characters, hyphens, or underscores.' 
+                message: 'Invalid format. Gemini API keys start with "AIza" followed by alphanumeric characters, hyphens, or underscores.' 
             };
         }
         return { isValid: true, message: 'API key format is valid' };
@@ -342,11 +342,12 @@ describe('Utils Module', () => {
     it('should reject API key with wrong length', () => {
       const shortKey = Utils.validateApiKeyFormat('AIzaTooShort');
       expect(shortKey.isValid).toBe(false);
-      expect(shortKey.message).toBe('API key must be exactly 39 characters long');
+      expect(shortKey.message).toBe('API key must be between 30 and 60 characters long');
 
-      const longKey = Utils.validateApiKeyFormat('AIzaSyBuTkN626dnV-ymciVPd5rYeKGbrcBpdcoExtra');
+      // 65 character key - too long
+      const longKey = Utils.validateApiKeyFormat('AIzaSyBuTkN626dnV-ymciVPd5rYeKGbrcBpdcoExtraCharactersToMakeItLong');
       expect(longKey.isValid).toBe(false);
-      expect(longKey.message).toBe('API key must be exactly 39 characters long');
+      expect(longKey.message).toBe('API key must be between 30 and 60 characters long');
     });
 
     it('should reject API key with wrong format', () => {
@@ -371,6 +372,24 @@ describe('Utils Module', () => {
 
       const withUnderscore = Utils.validateApiKeyFormat('AIzaSyBuTkN626dnV_ymciVPd5rYeKGbrc_pdco');
       expect(withUnderscore.isValid).toBe(true);
+    });
+
+    it('should accept API keys of various valid lengths', () => {
+      // 30 character key (minimum)
+      const key30 = Utils.validateApiKeyFormat('AIza' + 'a'.repeat(26));
+      expect(key30.isValid).toBe(true);
+
+      // 39 character key (traditional)
+      const key39 = Utils.validateApiKeyFormat('AIzaSyBuTkN626dnV-ymciVPd5rYeKGbrcBpdco');
+      expect(key39.isValid).toBe(true);
+
+      // 50 character key
+      const key50 = Utils.validateApiKeyFormat('AIza' + 'a'.repeat(46));
+      expect(key50.isValid).toBe(true);
+
+      // 60 character key (maximum)
+      const key60 = Utils.validateApiKeyFormat('AIza' + 'a'.repeat(56));
+      expect(key60.isValid).toBe(true);
     });
   });
 

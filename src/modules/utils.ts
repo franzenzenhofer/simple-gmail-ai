@@ -147,16 +147,16 @@ namespace Utils {
 
     const trimmedKey = apiKey.trim();
     
-    // Basic length check first
-    if (trimmedKey.length !== 39) {
-      return { isValid: false, message: 'API key must be exactly 39 characters long' };
+    // Basic length check - allow range of 30-60 characters
+    if (trimmedKey.length < 30 || trimmedKey.length > 60) {
+      return { isValid: false, message: 'API key must be between 30 and 60 characters long' };
     }
 
-    // Gemini API key format validation
-    if (!trimmedKey.match(/^AIza[0-9A-Za-z\-_]{35}$/)) {
+    // Gemini API key format validation - allow variable length after AIza prefix
+    if (!trimmedKey.match(/^AIza[0-9A-Za-z\-_]{26,56}$/)) {
       return { 
         isValid: false, 
-        message: 'Invalid format. Gemini API keys start with "AIza" followed by 35 alphanumeric characters, hyphens, or underscores.' 
+        message: 'Invalid format. Gemini API keys start with "AIza" followed by alphanumeric characters, hyphens, or underscores.' 
       };
     }
 

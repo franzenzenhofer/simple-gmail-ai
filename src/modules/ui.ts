@@ -197,7 +197,7 @@ namespace UI {
         CardService.newTextParagraph()
           .setText('<b>📋 API Key Format:</b><br/>' +
                    '• Must start with "AIza"<br/>' +
-                   '• Exactly 39 characters total<br/>' +
+                   '• Between 30-60 characters total<br/>' +
                    '• Contains letters, numbers, hyphens, or underscores<br/>' +
                    '• Example: AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q')
       );
@@ -207,7 +207,7 @@ namespace UI {
       CardService.newTextInput()
         .setFieldName('apiKey')
         .setTitle('Gemini API Key')
-        .setHint(hasApiKey ? 'Current key: ...' + savedKey.slice(-8) : 'Format: AIzaSy... (39 chars total)')
+        .setHint(hasApiKey ? 'Current key: ...' + savedKey.slice(-8) : 'Format: AIzaSy... (30-60 chars)')
         .setValue(savedKey)
     );
     
