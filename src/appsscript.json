@@ -17,6 +17,7 @@
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/documents"
   ],
+  "urlFetchWhitelist": [],
   "addOns": {
     "common": {
       "name": "Gmail Support Triage AI",

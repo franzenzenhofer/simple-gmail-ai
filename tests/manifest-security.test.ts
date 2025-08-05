@@ -14,12 +14,13 @@ describe('Apps Script Manifest Security', () => {
     expect(() => JSON.parse(manifestContent)).not.toThrow();
   });
 
-  it('should not contain deprecated urlFetchWhitelist', () => {
+  it('should contain urlFetchWhitelist as empty array (required by Google)', () => {
     const manifestContent = fs.readFileSync(manifestPath, 'utf8');
     const manifest = JSON.parse(manifestContent);
     
-    expect(manifest).not.toHaveProperty('urlFetchWhitelist');
-    expect(manifestContent).not.toContain('urlFetchWhitelist');
+    // While deprecated in docs, Google's deployment still requires this field
+    expect(manifest).toHaveProperty('urlFetchWhitelist');
+    expect(manifest.urlFetchWhitelist).toEqual([]);
   });
 
   it('should not contain executionApi with ANYONE access', () => {
