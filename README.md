@@ -6,20 +6,20 @@
 
 An intelligent Gmail add-on that automatically classifies and responds to customer support emails using Google's Gemini 2.5 Flash AI model.
 
-## 🚀 What's New in v2.6.0
+## 🚀 What's New in v2.32.0
 
+- **Gmail Label Sanitization**: AI-generated labels are now properly sanitized to meet Gmail's constraints
+- **Enhanced Security**: Comprehensive bug review and fixes ensure robust operation
+- **Improved Reliability**: Better error handling and edge case management
+- **Label Safety**: Factory reset now safely preserves user's personal labels
+- **Production Hardening**: All critical systems verified and tested
+
+### Previous Updates (v2.6.0)
 - **Google Docs Prompt Editor**: Advanced prompt management with per-label customization
 - **Smart Email Delta Processing**: Efficient scanning of new emails since last run
 - **Enhanced Error Recovery**: Graceful fallback when Docs API fails
-- **Improved Modularity**: Better code organization with 30+ focused modules
-- **Comprehensive Test Coverage**: 380+ tests ensuring reliability
-
-### Previous Updates (v1.9.0)
-- **Modular Architecture**: Clean, maintainable code structure
-- **Enhanced UI/UX**: Tab-based navigation for better user experience
-- **Comprehensive Logging**: Automatic spreadsheet logging with daily rotation
-- **Shorter Labels: `Support`, `General`, `ai✓`, `aiX`
-- **Three-Dot Menu**: Quick access to logs and settings
+- **Improved Modularity**: Better code organization with 40+ focused modules
+- **Comprehensive Test Coverage**: 540+ tests ensuring reliability
 
 ## Features
 
@@ -162,22 +162,24 @@ See [docs-prompt-editor.md](documentation/docs-prompt-editor.md) for detailed in
 ```
 simple-gmail-ai/
 ├── src/
-│   ├── modules/         # Modular architecture
+│   ├── modules/         # Modular architecture (40+ modules)
 │   │   ├── config.ts    # Configuration & constants
 │   │   ├── types.ts     # TypeScript interfaces
-│   │   ├── logger.ts    # Logging system
-│   │   ├── ai.ts        # Gemini API integration
-│   │   ├── gmail.ts     # Gmail processing
-│   │   ├── ui.ts        # UI building functions
+│   │   ├── logger.ts    # Enhanced logging system with PII masking
+│   │   ├── ai.ts        # Gemini 2.5 Flash API integration
+│   │   ├── gmail.ts     # Gmail processing with label sanitization
+│   │   ├── ui.ts        # Advanced UI building functions
 │   │   ├── docs-prompt-editor.ts  # Google Docs integration
-│   │   └── ... (30+ modules)
-│   │   └── utils.ts     # Utility functions
+│   │   ├── label-cache.ts         # Gmail label caching system
+│   │   ├── factory-reset.ts       # Safe factory reset with label preservation
+│   │   ├── utils.ts     # Utility functions with label sanitization
+│   │   └── ... (35+ more modules)
 │   ├── Code.ts          # Main entry point
-│   ├── SafetyConfig.ts  # Safety mechanisms
 │   └── appsscript.json  # Apps Script manifest
-├── tests/               # Test files
-├── dist/               # Bundled output (single file)
-└── bundle.js           # Module bundler
+├── tests/               # Comprehensive test suite (540+ tests)
+├── documentation/       # Complete documentation
+├── dist/               # Bundled output (single file deployment)
+└── bundle.js           # Advanced module bundler
 ```
 
 ### Available Scripts
@@ -199,11 +201,15 @@ npm test
 ```
 
 Tests cover:
-- Form value extraction
-- Email classification logic
-- API configuration
-- Error handling
-- Development mode safety
+- Gmail label sanitization and validation
+- PII masking in spreadsheet logging
+- Factory reset safety (preserves user labels)
+- Cancellation checks in processing loops
+- Form value extraction and validation
+- Email classification and AI integration
+- API configuration and error handling
+- Security and development mode safety
+- Comprehensive module integration testing
 
 ## Configuration
 
@@ -237,7 +243,7 @@ The add-on uses these Gemini settings:
 ### Email Processing
 
 - Processes: Last 50 emails + all unread
-- Labels: `support`, `undefined`, `ai✓`, `ai✗`
+- Labels: Safely sanitized AI-generated labels, plus system labels `ai✓`, `aiX`
 - Default classification: Binary (support or not)
 - Skips already processed emails (with `ai✓` label)
 

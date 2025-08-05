@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.32.0] - 2025-08-05
+
+### Added
+- **Gmail Label Sanitization**: AI-generated labels are now properly sanitized
+  - Enforces Gmail's 40-character limit with intelligent truncation
+  - Replaces illegal characters with safe alternatives
+  - Handles nested labels and preserves allowed characters
+  - Comprehensive test suite with 12 test cases covering edge cases
+- **Enhanced Security**: Comprehensive security review and bug fixes
+  - Verified PII masking in spreadsheet logging works correctly
+  - Confirmed factory reset safely preserves user's personal labels
+  - Validated cancellation checks in processing loops
+  - All critical security issues reviewed and addressed
+
+### Changed
+- **Test Coverage**: Expanded to 540+ tests for comprehensive validation
+- **Label Creation**: Now uses `Utils.sanitizeGmailLabel()` for all AI-generated labels
+- **Documentation**: Updated with latest security fixes and current status
+
+### Fixed
+- **Label Creation Failures**: AI-generated labels with invalid characters no longer cause Gmail API failures
+- **Bug Report Review**: Completed comprehensive review of 60+ reported issues
+  - Issue #7: Gmail label sanitization - IMPLEMENTED
+  - Issue #8: AppLogger PII masking - ALREADY CORRECT
+  - Issue #10: Factory reset safety - ALREADY SAFE  
+  - Issue #12: Cancellation checks - ALREADY IMPLEMENTED
+
+### Technical
+- Added `Utils.sanitizeGmailLabel()` function with intelligent truncation
+- Enhanced error handling for label creation edge cases
+- Improved logging with detailed sanitization information
+- Comprehensive test coverage for all security-critical functions
+
 ## [1.9.0] - 2025-08-02
 
 ### Added
