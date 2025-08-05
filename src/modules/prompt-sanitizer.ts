@@ -22,7 +22,7 @@ namespace PromptSanitizer {
     /you\s+are\s+now\s+/i,
     /from\s+now\s+on/i,
     /<!DOCTYPE|<script|<iframe|javascript:/i, // HTML/JS injection
-    /\{\{|\}\}|\$\{|\}/, // Template injection markers
+    /\{\{|\}\}|\$\{|\}/ // Template injection markers
   ];
   
   // Delimiter tokens to separate instructions from content
@@ -201,7 +201,7 @@ REPLY GENERATION RULES:
   export function logInjectionAttempt(
     content: string,
     source: string,
-    metadata?: any
+    metadata?: Record<string, unknown>
   ): void {
     AppLogger.error('🚨 PROMPT INJECTION ATTEMPT DETECTED', {
       source,

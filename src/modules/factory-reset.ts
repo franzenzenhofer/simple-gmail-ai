@@ -136,7 +136,7 @@ namespace FactoryReset {
           if (compiledStr) {
             const parsed = JSON.parse(compiledStr);
             if (parsed.labels && Array.isArray(parsed.labels)) {
-              parsed.labels.forEach((rule: any) => {
+              parsed.labels.forEach((rule: { label?: string }) => {
                 if (rule.label) {
                   labelsToRemove.add(rule.label);
                 }

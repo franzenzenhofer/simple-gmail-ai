@@ -230,7 +230,7 @@ namespace TestMode {
       if (compiledStr) {
         const parsed = JSON.parse(compiledStr);
         if (parsed.labels && Array.isArray(parsed.labels)) {
-          const labels = parsed.labels.map((rule: any) => rule.label).filter((l: any) => l);
+          const labels = parsed.labels.map((rule: { label?: string }) => rule.label).filter((l: string | undefined) => l);
           if (labels.length > 0) {
             labelOptions = labels;
           }

@@ -31,6 +31,7 @@
 /// <reference path="modules/universal-actions.ts" />
 /// <reference path="modules/docs-prompt-editor.ts" />
 /// <reference path="modules/docs-prompt-handlers.ts" />
+/// <reference path="modules/prompt-sanitizer.ts" />
 
 // ===== GLOBAL FUNCTION EXPORTS =====
 // These functions must be globally accessible for Google Apps Script
