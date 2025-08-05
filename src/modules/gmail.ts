@@ -806,7 +806,9 @@ namespace GmailService {
             }
             
             // T-12: Restore PII in the reply
-            const replyBody = Redaction.restorePII(typeof replyData === 'object' && replyData.reply ? replyData.reply : String(replyData), threadId);
+            let replyBody = Redaction.restorePII(typeof replyData === 'object' && replyData.reply ? replyData.reply : String(replyData), threadId);
+            // Format the reply text for proper display
+            replyBody = Utils.formatEmailText(replyBody);
             
             // T-16: Validate reply with guardrails before sending/drafting
             const validation = Guardrails.validateReply(replyBody);
@@ -829,7 +831,7 @@ namespace GmailService {
             } else {
               // Guardrails passed - proceed with reply/draft
               if (autoReply) {
-                thread.reply(replyBody, { htmlBody: replyBody });
+                thread.reply(replyBody);
                 AppLogger.info('📤 EMAIL SENT', {
                   shortMessage: 'Sent reply to "' + subject + '" → ' + sender,
                   subject: subject,
@@ -848,7 +850,7 @@ namespace GmailService {
                     threadId: threadId
                   });
                 } else {
-                  thread.createDraftReply(replyBody, { htmlBody: replyBody });
+                  thread.createDraftReply(replyBody);
                   // Record the draft creation
                   DraftTracker.recordDraftCreation(threadId, replyBody);
                   AppLogger.info('✍️ DRAFT CREATED', {
@@ -1135,7 +1137,9 @@ namespace GmailService {
             }
             
             // T-12: Restore PII in the reply before sending/saving
-            const replyBody = Redaction.restorePII(typeof replyData === 'object' && replyData.reply ? replyData.reply : String(replyData), thread.getId());
+            let replyBody = Redaction.restorePII(typeof replyData === 'object' && replyData.reply ? replyData.reply : String(replyData), thread.getId());
+            // Format the reply text for proper display
+            replyBody = Utils.formatEmailText(replyBody);
             
             // T-16: Validate reply with guardrails before sending/drafting
             const validation = Guardrails.validateReply(replyBody);
@@ -1153,7 +1157,7 @@ namespace GmailService {
             } else {
               // Guardrails passed - proceed with reply/draft
               if (autoReply) {
-                thread.reply(replyBody, { htmlBody: replyBody });
+                thread.reply(replyBody);
                 AppLogger.info('📤 EMAIL SENT', {
                   subject: subject,
                   to: sender,
@@ -1161,7 +1165,7 @@ namespace GmailService {
                   threadId: thread.getId()
                 });
               } else {
-                thread.createDraftReply(replyBody, { htmlBody: replyBody });
+                thread.createDraftReply(replyBody);
                 AppLogger.info('📝 DRAFT CREATED', {
                   subject: subject,
                   replyLength: replyBody.length,

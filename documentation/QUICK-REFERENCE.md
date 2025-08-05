@@ -1,4 +1,4 @@
-# Gmail AI Support Triage - Quick Reference
+# Gmail AI Support Triage - Quick Reference v2.33.0
 
 ## 🚀 Quick Start
 
@@ -86,3 +86,11 @@ Currently, all actions require clicking. Future versions may add keyboard shortc
 - [Get Gemini API Key](https://aistudio.google.com/apikey)
 - [Apps Script Console](https://script.google.com)
 - [Gmail Add-ons Documentation](https://developers.google.com/gmail/add-ons)
+
+## 📈 Project Stats
+
+- **Version**: 2.33.0
+- **Modules**: 38 TypeScript modules
+- **Tests**: 540+ test cases in 47 test files
+- **Security**: Gmail label sanitization, PII masking, safe factory reset
+- **Architecture**: Production-ready with comprehensive error handling

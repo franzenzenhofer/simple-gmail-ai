@@ -53,8 +53,12 @@ namespace UniversalActions {
   }
 
   export function showWelcomeFlowUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+    // Reset welcome flow state to force it to show on homepage
+    PropertiesService.getUserProperties().deleteProperty('welcomeFlow_progress');
+    
+    // Show notification and reload the add-on
     return CardService.newUniversalActionResponseBuilder()
-      .displayAddOnCards([WelcomeFlow.createWelcomeCard()])
+      .displayAddOnCards([EntryPoints.onHomepage()])
       .build();
   }
 }

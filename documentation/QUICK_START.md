@@ -1,4 +1,4 @@
-# Quick Start Guide
+# Quick Start Guide - Gmail AI Support Triage v2.33.0
 
 ## 5-Minute Setup
 
@@ -36,3 +36,10 @@ npm run login
 Your emails are now being classified. Check the labels in Gmail.
 
 ⚠️ **Remember**: The add-on is in DEVELOPMENT MODE by default (no emails sent).
+
+## Features
+- **AI-powered classification**: Gemini 2.5 Flash classifies emails as support/not support
+- **Smart labeling**: Automatically applies Gmail labels with sanitization
+- **Draft generation**: AI creates reply drafts for support emails
+- **Comprehensive logging**: Spreadsheet logs with PII protection
+- **38 modules**: Production-ready architecture with 540+ tests

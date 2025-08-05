@@ -169,10 +169,6 @@ namespace WelcomeFlow {
         'This quick setup will take less than 2 minutes.'
       ));
     
-    section.addWidget(CardService.newImage()
-      .setImageUrl('https://www.gstatic.com/images/icons/material/system/2x/auto_awesome_black_48dp.png')
-      .setAltText('AI Assistant'));
-    
     const startAction = CardService.newAction()
       .setFunctionName('startWelcomeFlow');
     

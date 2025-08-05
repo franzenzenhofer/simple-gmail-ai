@@ -200,9 +200,10 @@ namespace ContextualActions {
           throw new Error(result.error);
         }
         
-        // Create draft
+        // Create draft with formatted text
         const thread = GmailApp.getThreadById(context.threadId);
-        thread.createDraftReply(result.data, { htmlBody: result.data });
+        const formattedReply = Utils.formatEmailText(result.data);
+        thread.createDraftReply(formattedReply);
         
         return CardService.newActionResponseBuilder()
           .setNotification(CardService.newNotification()

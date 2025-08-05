@@ -342,4 +342,20 @@ namespace Utils {
   export function getApiKey(): string | null {
     return PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
   }
+  
+  /**
+   * Format text for email with preserved whitespace and proper line breaks
+   * Ensures plain text emails display correctly in Gmail
+   */
+  export function formatEmailText(text: string): string {
+    if (!text) return '';
+    
+    // Ensure proper line breaks are preserved
+    // Gmail sometimes needs double line breaks for proper paragraph separation
+    return text
+      .replace(/\r\n/g, '\n')  // Normalize line endings
+      .replace(/\r/g, '\n')     // Handle Mac line endings
+      .replace(/\n{3,}/g, '\n\n') // Limit multiple line breaks to double
+      .trim();                   // Remove leading/trailing whitespace
+  }
 }

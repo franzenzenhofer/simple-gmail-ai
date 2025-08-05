@@ -1,4 +1,4 @@
-# GitHub Actions Workflows
+# GitHub Actions Workflows - v2.33.0
 
 This directory contains the CI/CD pipelines for the Gmail Support Triage AI project.
 
@@ -31,3 +31,9 @@ The README displays real-time status badges:
 - CI: Shows test status for main branch
 - Deploy: Shows latest deployment status
 - License: MIT license badge
+
+## Project Stats
+- **Test Suite**: 540+ tests across 47 test files
+- **Modules**: 38 TypeScript modules
+- **Build Output**: Single 400KB bundle
+- **Deployment**: Automated via GitHub Actions

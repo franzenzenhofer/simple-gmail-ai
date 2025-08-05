@@ -1,11 +1,11 @@
-# Gmail AI Support Triage - Architecture Overview v2.32.0
+# Gmail AI Support Triage - Architecture Overview v2.33.0
 
 ## Project Structure
 
 ```
 simple-gmail-ai/
 ├── src/                      # Source code
-│   ├── modules/             # Modular TypeScript namespaces (40+ modules)
+│   ├── modules/             # Modular TypeScript namespaces (38 modules)
 │   │   ├── config.ts        # Configuration & constants
 │   │   ├── types.ts         # TypeScript interfaces
 │   │   ├── logger.ts        # Enhanced logging system with PII masking
@@ -18,13 +18,13 @@ simple-gmail-ai/
 │   │   ├── docs-prompt-editor.ts # Google Docs integration
 │   │   ├── welcome-flow.ts  # User onboarding system
 │   │   ├── test-mode.ts     # Development testing features
-│   │   └── ... (30+ more modules)
+│   │   └── ... (28 more modules)
 │   ├── Code.ts              # Main entry point
 │   └── appsscript.json      # Apps Script manifest
 ├── dist/                    # Build output
 │   ├── Code.gs              # Bundled single file (400KB)
 │   └── appsscript.json      # Copied manifest
-├── tests/                   # Comprehensive test suite (540+ tests)
+├── tests/                   # Comprehensive test suite (47 test files, 540+ test cases)
 ├── documentation/           # Complete documentation
 └── package.json             # npm scripts with CI/CD
 ```
@@ -91,7 +91,7 @@ Contains only:
 
 ## Key Features
 
-- **Advanced Modular Design**: 40+ focused modules for maintainability
+- **Advanced Modular Design**: 38 focused modules for maintainability
 - **Single File Deployment**: All modules bundled into 400KB Apps Script file
 - **Type Safety**: Full TypeScript support with strict typing
 - **Enhanced Security**: Gmail label sanitization, PII masking, safe factory reset
@@ -111,7 +111,7 @@ npm run push     # Push to Apps Script
 npm run deploy   # Full deployment with version bump
 ```
 
-## Security Architecture (v2.32.0)
+## Security Architecture (v2.33.0)
 
 ### Gmail Label Sanitization
 - **Module**: `utils.ts` - `sanitizeGmailLabel()` function

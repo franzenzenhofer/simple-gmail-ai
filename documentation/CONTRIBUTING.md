@@ -1,4 +1,4 @@
-# Contributing to Gmail Support Triage AI
+# Contributing to Gmail Support Triage AI v2.33.0
 
 Thank you for considering contributing to this project! This document provides guidelines and standards for contributions.
 
@@ -67,6 +67,10 @@ The scope should be the module or area of the codebase:
 - **config**: Configuration management
 - **utils**: Utility functions
 - **draft-tracker**: Draft tracking functionality
+- **factory-reset**: Factory reset functionality
+- **docs-prompt-editor**: Google Docs integration
+- **test-mode**: Development testing features
+- **welcome-flow**: User onboarding
 
 ## Git Hooks
 
@@ -90,9 +94,11 @@ If your commit is rejected, ensure it follows the conventional commit format.
 ## Testing
 
 - Write tests for new features
-- Ensure all tests pass before submitting PR
-- Aim for high test coverage
+- Ensure all tests pass before submitting PR (540+ existing tests)
+- Aim for high test coverage (currently covers all 38 modules)
 - Use meaningful test descriptions
+- Run `npm test` to execute full test suite
+- Run `npm run test:watch` for development
 
 ## Code Style
 
@@ -101,6 +107,8 @@ If your commit is rejected, ensure it follows the conventional commit format.
 - Keep functions small and focused
 - Add JSDoc comments for public APIs
 - No console.log statements (use Logger module)
+- Ensure Gmail label sanitization for any AI-generated labels
+- Follow security best practices (PII masking, safe operations)
 
 ## Pull Request Guidelines
 
