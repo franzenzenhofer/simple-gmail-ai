@@ -1,6 +1,6 @@
 {
   "name": "simple-gmail-ai",
-  "version": "2.24.0",
+  "version": "2.25.0",
   "description": "Gmail AI Support Triage & Auto-Reply Add-on using Gemini 2.5 Flash",
   "main": "dist/Code.gs",
   "scripts": {
