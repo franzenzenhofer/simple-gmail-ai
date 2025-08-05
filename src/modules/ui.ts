@@ -252,8 +252,12 @@ namespace UI {
   }
   
   export function buildLogsTab(): GoogleAppsScript.Card_Service.Card {
-    AppLogger.initSpreadsheet();
-    const config = AppLogger.getSpreadsheetConfig();
+    // Only initialize if not already configured
+    let config = AppLogger.getSpreadsheetConfig();
+    if (!config) {
+      AppLogger.initSpreadsheet();
+      config = AppLogger.getSpreadsheetConfig();
+    }
     
     const card = CardService.newCardBuilder()
       .setHeader(
