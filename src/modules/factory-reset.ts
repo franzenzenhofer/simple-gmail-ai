@@ -119,23 +119,61 @@ namespace FactoryReset {
         }
       });
       
-      // Step 2: Remove Gmail labels
-      AppLogger.info('🏷️ Removing Gmail labels...');
+      // Step 2: Remove ONLY add-on managed Gmail labels
+      AppLogger.info('🏷️ Removing add-on managed Gmail labels...');
       try {
-        // Get ALL labels - we need to remove everything including user-created from docs
+        // Create set of labels to remove
+        const labelsToRemove = new Set<string>();
+        
+        // Add system labels
+        Object.values(Config.LABELS).forEach(label => {
+          labelsToRemove.add(label);
+        });
+        
+        // Add labels from compiled docs if they exist
+        try {
+          const compiledStr = userProps.getProperty('DOCS_PROMPT_COMPILED_CONFIG');
+          if (compiledStr) {
+            const parsed = JSON.parse(compiledStr);
+            if (parsed.labels && Array.isArray(parsed.labels)) {
+              parsed.labels.forEach((rule: any) => {
+                if (rule.label) {
+                  labelsToRemove.add(rule.label);
+                }
+              });
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse compiled prompts, just continue with system labels
+          AppLogger.warn('Could not parse compiled prompts for label cleanup', {
+            error: String(parseError)
+          });
+        }
+        
+        AppLogger.info(`Identified ${labelsToRemove.size} add-on labels to remove`, {
+          labels: Array.from(labelsToRemove)
+        });
+        
+        // Only delete add-on managed labels
         const allLabels = GmailApp.getUserLabels();
         
         allLabels.forEach(label => {
           try {
             const labelName = label.getName();
-            label.deleteLabel();
-            labelsRemoved++;
-            AppLogger.info(`Removed label: ${labelName}`);
+            
+            // ONLY remove if it's in our managed set
+            if (labelsToRemove.has(labelName)) {
+              label.deleteLabel();
+              labelsRemoved++;
+              AppLogger.info(`Removed add-on label: ${labelName}`);
+            }
           } catch (error) {
             const errorMsg = Utils.logAndHandleError(error, `Remove label: ${label.getName()}`);
             errors.push(`Failed to remove label ${label.getName()}: ${errorMsg}`);
           }
         });
+        
+        AppLogger.info(`Removed ${labelsRemoved} add-on labels, preserved user labels`);
       } catch (error) {
         const errorMsg = Utils.logAndHandleError(error, 'Remove Gmail labels');
         errors.push(`Failed to remove Gmail labels: ${errorMsg}`);
@@ -234,7 +272,7 @@ namespace FactoryReset {
           '<b>⚠️ WARNING: Factory Reset will permanently delete:</b><br><br>' +
           '• Your Gemini API key<br>' +
           '• All custom prompts and settings<br>' +
-          '• ALL Gmail labels (system and user-created)<br>' +
+          '• Add-on managed Gmail labels only (preserves your personal labels)<br>' +
           '• All execution history and statistics<br>' +
           '• All saved preferences and settings<br>' +
           '• Connection to docs and logs (files remain)<br><br>' +
