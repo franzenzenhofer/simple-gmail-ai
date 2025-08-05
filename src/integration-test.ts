@@ -97,8 +97,11 @@ async function testBatchProcessing() {
       }
     };
 
-    // Use node-fetch or similar for Node.js compatibility
-    const response = await (globalThis as any).fetch(url, {
+    // Dynamic import of node-fetch for Node.js compatibility with ESM module
+    const { default: fetch } = await import('node-fetch');
+    
+    // Use node-fetch for Node.js compatibility
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
