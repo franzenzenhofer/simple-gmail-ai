@@ -4,9 +4,6 @@
     "enabledAdvancedServices": []
   },
   "exceptionLogging": "STACKDRIVER",
-  "executionApi": {
-    "access": "ANYONE"
-  },
   "runtimeVersion": "V8",
   "oauthScopes": [
     "https://www.googleapis.com/auth/gmail.addons.execute",
@@ -19,9 +16,6 @@
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/documents"
-  ],
-  "urlFetchWhitelist": [
-    "https://generativelanguage.googleapis.com/"
   ],
   "addOns": {
     "common": {
