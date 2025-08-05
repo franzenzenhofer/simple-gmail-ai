@@ -10,6 +10,12 @@ dotenv.config();
 // Get API key from environment variable for security
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
+// Configuration constants matching Config namespace
+// Note: We duplicate these from Config.ts since this is a standalone Node.js script
+// and importing the Google Apps Script namespace would be complex
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+
 interface BatchEmail {
   id: string;
   subject: string;
@@ -84,7 +90,7 @@ async function testBatchProcessing() {
     // API call section with nested try/catch for proper error handling
     try {
       apiCallMade = true;
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(API_KEY);
+      const url = GEMINI_API_URL + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(API_KEY);
     
     const payload = {
       contents: [{
