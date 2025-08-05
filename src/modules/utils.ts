@@ -98,14 +98,71 @@ namespace Utils {
   }
 
   /**
+   * Sanitize Gmail label name to meet Gmail's constraints
+   * - Max 40 characters (Gmail's limit)
+   * - No leading/trailing spaces
+   * - Replace illegal characters with safe alternatives
+   * - Handle nested labels (slashes) properly
+   */
+  export function sanitizeGmailLabel(labelName: string): string {
+    if (!labelName) return 'Untitled';
+    
+    // Trim whitespace
+    let sanitized = labelName.trim();
+    
+    // Handle empty after trim
+    if (!sanitized) return 'Untitled';
+    
+    // Replace illegal characters with safe alternatives
+    // Gmail allows: letters, numbers, spaces, dashes, underscores, periods, slashes (for nesting)
+    sanitized = sanitized.replace(/[^\w\s\-._/]/g, '-');
+    
+    // Clean up multiple consecutive spaces/dashes
+    sanitized = sanitized.replace(/\s+/g, ' ').replace(/-+/g, '-');
+    
+    // Ensure no leading or trailing slashes (causes Gmail issues)
+    sanitized = sanitized.replace(/^\/+|\/+$/g, '');
+    
+    // Clean up slash sequences (no empty nested levels)
+    sanitized = sanitized.replace(/\/+/g, '/');
+    
+    // Truncate to Gmail's 40 character limit
+    if (sanitized.length > 40) {
+      // Try to truncate at word boundary or slash
+      const truncated = sanitized.substring(0, 37);
+      const lastSpace = truncated.lastIndexOf(' ');
+      const lastSlash = truncated.lastIndexOf('/');
+      const breakPoint = Math.max(lastSpace, lastSlash);
+      
+      if (breakPoint > 20) {
+        sanitized = truncated.substring(0, breakPoint) + '...';
+      } else {
+        sanitized = truncated + '...';
+      }
+    }
+    
+    return sanitized;
+  }
+
+  /**
    * DRY-02: Centralized label creation utility
    * Eliminates duplicate label creation patterns
    */
   export function getOrCreateLabelDirect(labelName: string): GoogleAppsScript.Gmail.GmailLabel {
-    let label = GmailApp.getUserLabelByName(labelName);
+    const sanitizedName = sanitizeGmailLabel(labelName);
+    
+    // Log sanitization if name changed
+    if (sanitizedName !== labelName) {
+      AppLogger.info('Label name sanitized', { 
+        original: labelName, 
+        sanitized: sanitizedName 
+      });
+    }
+    
+    let label = GmailApp.getUserLabelByName(sanitizedName);
     if (!label) {
-      label = GmailApp.createLabel(labelName);
-      AppLogger.info('Created new Gmail label', { labelName: labelName });
+      label = GmailApp.createLabel(sanitizedName);
+      AppLogger.info('Created new Gmail label', { labelName: sanitizedName });
     }
     return label;
   }
