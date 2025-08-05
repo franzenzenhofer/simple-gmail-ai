@@ -719,6 +719,12 @@ namespace GmailService {
       });
       
       supportThreads.forEach(({threadId, thread, redactedBody, subject, sender, body}) => {
+        // Check for cancellation at the start of each reply generation
+        if (PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED) === 'true') {
+          AppLogger.info('🛑 Processing cancelled during reply generation');
+          return; // Skip remaining threads
+        }
+        
         try {
           // Extract thread context for recipient determination
           const emailContext = extractThreadContext(thread);
