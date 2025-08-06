@@ -392,7 +392,22 @@ namespace UI {
     
     mainSection.addWidget(
       CardService.newTextParagraph()
-        .setText(`📊 Flash-Lite: 252 tokens/sec, lowest cost\n⚖️ Flash: Balanced speed & quality\n🎯 Pro: Highest quality, slower\n\n⏱️ Script timeout: ${ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS)}\n🔌 API timeout: ${ExecutionTime.formatDuration(ExecutionTime.LIMITS.API_TIMEOUT_MS)}\n\n🚨 SINGLE SOURCE OF TRUTH: ALL TIMEOUTS ARE ${ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS)}!`)
+        .setText('📊 Flash-Lite: 252 tokens/sec, lowest cost\n⚖️ Flash: Balanced speed & quality\n🎯 Pro: Highest quality, slower')
+    );
+    
+    // System Performance Settings
+    mainSection.addWidget(
+      CardService.newKeyValue()
+        .setTopLabel('Script Timeout')
+        .setContent(ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS))
+        .setBottomLabel('Maximum execution time per run')
+    );
+    
+    mainSection.addWidget(
+      CardService.newKeyValue()
+        .setTopLabel('API Timeout')
+        .setContent(ExecutionTime.formatDuration(ExecutionTime.LIMITS.API_TIMEOUT_MS))
+        .setBottomLabel('Maximum time per API request')
     );
     
     mainSection.addWidget(
