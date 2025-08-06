@@ -576,7 +576,17 @@ namespace GmailService {
           timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
           atThread: index + 1
         });
-        throw new Error(`Execution timeout after ${elapsedSeconds} seconds while preparing thread ${index + 1} of ${totalThreads}. Prepared ${preparedCount} threads before timeout.`);
+        throw ErrorTaxonomy.createError(
+          ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT,
+          `Execution timeout after ${elapsedSeconds} seconds while preparing thread ${index + 1} of ${totalThreads}. Prepared ${preparedCount} threads before timeout.`,
+          {
+            phase: 'preparation',
+            elapsedSeconds,
+            threadIndex: index + 1,
+            totalThreads,
+            preparedCount
+          }
+        );
       }
       try {
         const messages = thread.getMessages();
@@ -688,7 +698,16 @@ namespace GmailService {
           elapsedMs,
           timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS
         });
-        throw new Error(`Execution timeout after ${elapsedSeconds} seconds during classification. Classified ${classifiedCount} of ${emailsToClassify.length} emails before timeout.`);
+        throw ErrorTaxonomy.createError(
+          ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT,
+          `Execution timeout after ${elapsedSeconds} seconds during classification. Classified ${classifiedCount} of ${emailsToClassify.length} emails before timeout.`,
+          {
+            phase: 'classification',
+            elapsedSeconds,
+            classifiedCount,
+            totalToClassify: emailsToClassify.length
+          }
+        );
       }
       
       const savings = BatchProcessor.calculateBatchSavings(emails.length);
@@ -808,7 +827,17 @@ namespace GmailService {
             timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
             atReply: index + 1
           });
-          throw new Error(`Execution timeout after ${elapsedSeconds} seconds while generating reply ${index + 1} of ${totalReplies}. Generated ${repliesGenerated} replies before timeout.`);
+          throw ErrorTaxonomy.createError(
+            ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT,
+            `Execution timeout after ${elapsedSeconds} seconds while generating reply ${index + 1} of ${totalReplies}. Generated ${repliesGenerated} replies before timeout.`,
+            {
+              phase: 'reply_generation',
+              elapsedSeconds,
+              replyIndex: index + 1,
+              totalReplies,
+              repliesGenerated
+            }
+          );
         }
         
         // Check for cancellation at the start of each reply generation

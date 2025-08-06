@@ -6,7 +6,7 @@
 // Mock ContinuationTriggers for testing
 const ContinuationTriggers = {
   CONFIG: {
-    MAX_EXECUTION_TIME_MS: 5 * 60 * 1000,
+    MAX_EXECUTION_TIME_MS: 330 * 1000, // 5 minutes 30 seconds
     CONTINUATION_DELAY_MS: 2000,
     CHECKPOINT_FREQUENCY: 50,
     MAX_CONTINUATIONS: 20,
@@ -134,7 +134,7 @@ describe('ContinuationTriggers Module', () => {
 
   describe('Configuration', () => {
     it('should have correct continuation configuration', () => {
-      expect(ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS).toBe(5 * 60 * 1000);
+      expect(ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS).toBe(330 * 1000); // 5 minutes 30 seconds
       expect(ContinuationTriggers.CONFIG.CONTINUATION_DELAY_MS).toBe(2000);
       expect(ContinuationTriggers.CONFIG.CHECKPOINT_FREQUENCY).toBe(50);
       expect(ContinuationTriggers.CONFIG.MAX_CONTINUATIONS).toBe(20);

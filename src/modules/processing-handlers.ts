@@ -114,6 +114,15 @@ namespace ProcessingHandlers {
       return UI.navigateTo(UI.buildLiveLogView());
       
     } catch (err) {
+      // Special handling for timeout errors to preserve detailed message
+      if (err instanceof ErrorTaxonomy.AppError && err.type === ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT) {
+        AppLogger.error('Processing timeout', {
+          error: err.message,
+          type: err.type,
+          context: err.context
+        });
+        return UI.showNotification(err.message); // Use the detailed message directly
+      }
       AppLogger.error('Error in processing', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
     } finally {
@@ -156,6 +165,15 @@ namespace ProcessingHandlers {
         .build();
         
     } catch (err) {
+      // Special handling for timeout errors to preserve detailed message
+      if (err instanceof ErrorTaxonomy.AppError && err.type === ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT) {
+        AppLogger.error('Processing timeout', {
+          error: err.message,
+          type: err.type,
+          context: err.context
+        });
+        return UI.showNotification(err.message); // Use the detailed message directly
+      }
       AppLogger.error('Error in processing', { error: Utils.handleError(err) });
       return UI.showNotification('Error: ' + Utils.handleError(err));
     } finally {

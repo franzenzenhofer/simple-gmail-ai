@@ -39,7 +39,7 @@ namespace ContinuationTriggers {
   
   // Configuration
   export const CONFIG = {
-    MAX_EXECUTION_TIME_MS: 350 * 1000,         // 5 minutes 50 seconds (350s) - leaves 10s buffer for cleanup
+    MAX_EXECUTION_TIME_MS: 330 * 1000,         // 5 minutes 30 seconds (330s) - leaves 30s buffer for cleanup and error handling
     CONTINUATION_DELAY_MS: 2000,               // 2 second delay between continuations
     CHECKPOINT_FREQUENCY: 50,                  // Save checkpoint every 50 processed emails
     MAX_CONTINUATIONS: 20,                     // Prevent infinite loops
