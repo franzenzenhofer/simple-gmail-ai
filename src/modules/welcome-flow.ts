@@ -39,6 +39,42 @@ namespace WelcomeFlow {
   const WELCOME_SHOWN_KEY = 'WELCOME_FLOW_SHOWN';
   
   /**
+   * Get version footer text
+   */
+  function getVersionFooter(): string {
+    // Version will be replaced during build
+    const version = Config.VERSION || 'Unknown';
+    
+    // Get stored deployment timestamp or use current time
+    const props = PropertiesService.getScriptProperties();
+    let deployTimestamp = props.getProperty('DEPLOY_TIMESTAMP');
+    
+    if (!deployTimestamp || deployTimestamp === 'null') {
+      // Store deployment timestamp on first run
+      deployTimestamp = new Date().toISOString();
+      try {
+        props.setProperty('DEPLOY_TIMESTAMP', deployTimestamp);
+      } catch (e) {
+        // If we can't write to script properties, just use current time
+        AppLogger.warn('Could not store deployment timestamp', { error: String(e) });
+      }
+    }
+    
+    const deployDate = new Date(deployTimestamp);
+    const dateStr = deployDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+    const timeStr = deployDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    return `<font color="#999999"><i>v${version} • Deployed ${dateStr} at ${timeStr}</i></font>`;
+  }
+  
+  /**
    * Check if user needs welcome flow
    * Returns true if:
    * 1. No API key is configured, OR
@@ -177,6 +213,10 @@ namespace WelcomeFlow {
       .setOnClickAction(startAction)
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED));
     
+    // Add version footer
+    section.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    
     card.addSection(section);
     
     // Mark welcome as shown
@@ -242,6 +282,12 @@ namespace WelcomeFlow {
     
     card.addSection(helpSection);
     
+    // Add version footer
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    card.addSection(footerSection);
+    
     return card.build();
   }
   
@@ -274,6 +320,12 @@ namespace WelcomeFlow {
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED));
     
     card.addSection(section);
+    
+    // Add version footer
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    card.addSection(footerSection);
     
     return card.build();
   }
@@ -326,6 +378,12 @@ namespace WelcomeFlow {
     
     card.addSection(infoSection);
     
+    // Add version footer
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    card.addSection(footerSection);
+    
     return card.build();
   }
   
@@ -360,6 +418,12 @@ namespace WelcomeFlow {
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED));
     
     card.addSection(section);
+    
+    // Add version footer
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    card.addSection(footerSection);
     
     return card.build();
   }
@@ -420,6 +484,12 @@ namespace WelcomeFlow {
     
     card.addSection(section);
     
+    // Add version footer
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    card.addSection(footerSection);
+    
     return card.build();
   }
   
@@ -453,6 +523,12 @@ namespace WelcomeFlow {
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED));
     
     card.addSection(section);
+    
+    // Add version footer
+    const footerSection = CardService.newCardSection();
+    footerSection.addWidget(CardService.newTextParagraph()
+      .setText(getVersionFooter()));
+    card.addSection(footerSection);
     
     // Mark onboarding as complete
     updateOnboardingProgress({
