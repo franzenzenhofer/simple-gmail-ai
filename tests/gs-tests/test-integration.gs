@@ -63,11 +63,10 @@ function testGeminiAPIConfig() {
   console.log('\n=== Test 4: Gemini API Configuration ===');
   
   const testKey = 'test-api-key-123';
-  const expectedUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(testKey);
+  const expectedUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   
   const actualUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-                    'gemini-2.5-flash:generateContent?key=' +
-                    encodeURIComponent(testKey);
+                    'gemini-2.5-flash:generateContent';
   
   console.log('Expected URL:', expectedUrl);
   console.log('Actual URL:', actualUrl);

@@ -11,7 +11,7 @@ const LABEL_NOT_SUPPORT = 'Not Support Request';
 
 /* ---------- SAFETY CONFIG ---------- */
 const SafetyConfig = {
-  isDevelopmentMode: true,
+  isDevelopmentMode: PropertiesService.getUserProperties().getProperty('DEV_MODE') !== 'false',
   
   enableProductionMode: function(confirmation) {
     if (confirmation === 'I UNDERSTAND THIS WILL SEND REAL EMAILS') {
@@ -67,8 +67,17 @@ function runAnalysis(e) {
     // Get other form values using the same approach
     const mode      = formInput.mode || getFormValue(formInputs, 'mode', 'label');
     const autoReply = formInput.autoReply === 'send' || !!formInputs.autoReply;
-    const prompt1   = formInput.prompt1 || getFormValue(formInputs, 'prompt1', DEFAULT_PROMPT_1);
-    const prompt2   = formInput.prompt2 || getFormValue(formInputs, 'prompt2', DEFAULT_PROMPT_2);
+    
+    // Sanitize prompts to prevent injection attacks
+    function sanitizePrompt(prompt) {
+      return (prompt || '')
+        .substring(0, 5000)  // Limit length
+        .replace(/\{\{.*?\}\}/g, '') // Remove template patterns
+        .replace(/<%.*?%>/g, '');    // Remove server-side patterns
+    }
+    
+    const prompt1   = sanitizePrompt(formInput.prompt1 || getFormValue(formInputs, 'prompt1', DEFAULT_PROMPT_1));
+    const prompt2   = sanitizePrompt(formInput.prompt2 || getFormValue(formInputs, 'prompt2', DEFAULT_PROMPT_2));
 
     if (!apiKey || apiKey.trim() === '') {
       console.error('API Key validation failed. formInput:', JSON.stringify(formInput), 'formInputs:', JSON.stringify(formInputs));
@@ -83,23 +92,52 @@ function runAnalysis(e) {
     /* Fetch inbox threads: last 50 + all unread */
     const recent  = GmailApp.search('in:inbox', 0, 50);
     const unread  = GmailApp.search('in:inbox is:unread');
-    const threads = Array.from(new Set(recent.concat(unread)));
+    
+    // Fix thread deduplication - dedupe by thread ID
+    const threadMap = new Map();
+    recent.forEach(thread => threadMap.set(thread.getId(), thread));
+    unread.forEach(thread => threadMap.set(thread.getId(), thread));
+    const threads = Array.from(threadMap.values());
 
     let scanned = 0; supports = 0; drafted = 0; sent = 0;
+    
+    // Rate limiting configuration
+    const BATCH_SIZE = 10;
+    const DELAY_MS = 1000;
 
-    threads.forEach(function (thread) {
-      const msg = thread.getMessages().pop(); // newest
-      if (!msg) return;
-      scanned++;
+    for (let i = 0; i < threads.length; i++) {
+      const thread = threads[i];
+      try {
+        const messages = thread.getMessages();
+        if (!messages || messages.length === 0) {
+          console.warn('Thread has no messages:', thread.getId());
+          return;
+        }
+        const msg = messages[messages.length - 1]; // newest
+        scanned++;
 
-      const body   = msg.getPlainBody().trim();
+        let body = msg.getPlainBody().trim();
+        if (!body) {
+          // Fallback to HTML body with tags stripped
+          const htmlBody = msg.getBody();
+          body = htmlBody.replace(/<[^>]*>/g, ' ').trim();
+        }
+        if (!body) {
+          console.warn('Email has no content:', msg.getId());
+          return;
+        }
       const clsRaw = callGemini(apiKey,
         prompt1 + '\n' + body + '\n---------- EMAIL END ----------');
       const cls    = (clsRaw || '').toLowerCase();
 
-      if (cls.indexOf('support') === 0) {
+      if (cls === 'support' || cls.startsWith('support')) {
         supports++;
-        thread.addLabel(supportLabel).removeLabel(notLabel);
+        try {
+          thread.addLabel(supportLabel).removeLabel(notLabel);
+        } catch (labelError) {
+          console.error('Failed to apply labels to thread:', thread.getId(), labelError);
+          // Continue processing
+        }
 
         if (mode === 'draft' || autoReply) {
           const replyBody = callGemini(apiKey,
@@ -111,7 +149,8 @@ function runAnalysis(e) {
               console.log('Reply body:', replyBody);
               drafted++; // Count as draft in dev mode
             } else {
-              thread.reply(replyBody, { htmlBody: replyBody });
+              const htmlBody = replyBody.replace(/\n/g, '<br>');
+            thread.reply(replyBody, { htmlBody: htmlBody });
               sent++;
             }
           } else {
@@ -119,14 +158,29 @@ function runAnalysis(e) {
               console.log('DEV MODE: Would create draft for thread:', thread.getFirstMessageSubject());
               console.log('Draft body:', replyBody);
             }
-            thread.createDraftReply(replyBody, { htmlBody: replyBody });
+            const htmlBody = replyBody.replace(/\n/g, '<br>');
+            thread.createDraftReply(replyBody, { htmlBody: htmlBody });
             drafted++;
           }
         }
       } else {
-        thread.addLabel(notLabel).removeLabel(supportLabel);
+        try {
+          thread.addLabel(notLabel).removeLabel(supportLabel);
+        } catch (labelError) {
+          console.error('Failed to apply labels to thread:', thread.getId(), labelError);
+        }
       }
-    });
+      } catch (threadError) {
+        console.error('Error processing thread:', thread.getId(), threadError);
+        // Continue with next thread
+      }
+      
+      // Add delay between batches to avoid rate limits
+      if ((i + 1) % BATCH_SIZE === 0 && i + 1 < threads.length) {
+        console.log('Rate limiting: processed', i + 1, 'threads, pausing...');
+        Utilities.sleep(DELAY_MS);
+      }
+    }
 
     const toast = 'Scanned ' + scanned +
                   ' | Support ' + supports +
@@ -189,7 +243,8 @@ function buildHomepageCard() {
   const runBtn = CardService.newTextButton()
       .setText('Analyse & Go')
       .setOnClickAction(CardService.newAction()
-        .setFunctionName('runAnalysis'));
+        .setFunctionName('runAnalysis')
+        .setLoadIndicator(CardService.LoadIndicator.SPINNER));
 
   const cardBuilder = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
@@ -216,7 +271,20 @@ function buildActionResponse(text) {
 
 /* ---------- HELPERS ---------- */
 function getOrCreateLabel(name) {
-  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
+  try {
+    const existing = GmailApp.getUserLabelByName(name);
+    if (existing) return existing;
+    
+    // Validate label name (Gmail constraints)
+    if (!name || name.length > 225 || name.includes('/')) {
+      throw new Error('Invalid label name: ' + name);
+    }
+    
+    return GmailApp.createLabel(name);
+  } catch (e) {
+    console.error('Failed to create label:', name, e);
+    throw new Error('Cannot create label "' + name + '": ' + e.message);
+  }
 }
 
 function getFormValue(formInputs, field, fallback) {
@@ -239,9 +307,13 @@ function getFormValue(formInputs, field, fallback) {
 }
 
 function callGemini(apiKey, prompt) {
+  // Validate API key format
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.length < 30) {
+    throw new Error('Invalid API key format');
+  }
+  
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-              'gemini-2.5-flash:generateContent?key=' +
-              encodeURIComponent(apiKey);
+              'gemini-2.5-flash:generateContent';
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
@@ -251,14 +323,20 @@ function callGemini(apiKey, prompt) {
   const res  = UrlFetchApp.fetch(url, {
     method: 'post',
     contentType: 'application/json',
+    headers: {
+      'x-goog-api-key': apiKey
+    },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
 
   const data = JSON.parse(res.getContentText());
-  if (!data.candidates) {
-    throw new Error((data.error && data.error.message) ||
-                     'Gemini API returned no candidates');
+  if (!data.candidates || data.candidates.length === 0) {
+    const errorMessage = data.error?.message || 
+                        data.error?.details?.[0]?.reason || 
+                        'Gemini API returned no candidates';
+    console.error('Gemini API Error:', JSON.stringify(data));
+    throw new Error(errorMessage);
   }
   return (data.candidates[0].content.parts[0].text || '').trim();
 }
