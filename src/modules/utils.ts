@@ -115,7 +115,8 @@ namespace Utils {
     
     // Replace illegal characters with safe alternatives
     // Gmail allows: letters, numbers, spaces, dashes, underscores, periods, slashes (for nesting)
-    sanitized = sanitized.replace(/[^\w\s\-._/]/g, '-');
+    // SPECIAL: Allow checkmark ✓ and X ✗ for system labels ai✓ and aiX
+    sanitized = sanitized.replace(/[^\w\s\-._/✓✗]/g, '-');
     
     // Clean up multiple consecutive spaces/dashes
     sanitized = sanitized.replace(/\s+/g, ' ').replace(/-+/g, '-');
