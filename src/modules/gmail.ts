@@ -4,6 +4,76 @@
  */
 
 namespace GmailService {
+  // Thread label cache to eliminate redundant getLabels() calls
+  const threadLabelCache = new Map<string, string[]>();
+  
+  /**
+   * Get thread labels with caching
+   */
+  function getThreadLabelsOptimized(thread: GoogleAppsScript.Gmail.GmailThread): string[] {
+    const threadId = thread.getId();
+    
+    // Check cache first
+    if (threadLabelCache.has(threadId)) {
+      return threadLabelCache.get(threadId)!;
+    }
+    
+    // Fetch labels and cache them
+    const labels = thread.getLabels().map(label => label.getName());
+    threadLabelCache.set(threadId, labels);
+    
+    return labels;
+  }
+  
+  /**
+   * Clear thread label cache entry
+   */
+  function invalidateThreadLabelCache(threadId: string): void {
+    threadLabelCache.delete(threadId);
+  }
+  
+  /**
+   * Clear entire thread label cache
+   */
+  function clearThreadLabelCache(): void {
+    threadLabelCache.clear();
+  }
+  
+  // Gmail label cache to avoid lookup delays
+  const gmailLabelCache = new Map<string, GoogleAppsScript.Gmail.GmailLabel>();
+  
+  /**
+   * Pre-load all Gmail labels to avoid lookup delays during processing
+   */
+  function preloadGmailLabels(): void {
+    try {
+      const startTime = Date.now();
+      gmailLabelCache.clear();
+      
+      const allLabels = GmailApp.getUserLabels();
+      allLabels.forEach(label => {
+        gmailLabelCache.set(label.getName(), label);
+      });
+      
+      const loadTime = Date.now() - startTime;
+      AppLogger.info('📚 GMAIL LABELS PRELOADED', {
+        labelCount: allLabels.length,
+        loadTime: loadTime + 'ms'
+      });
+    } catch (error) {
+      AppLogger.error('Failed to preload Gmail labels', {
+        error: String(error)
+      });
+    }
+  }
+  
+  /**
+   * Get cached Gmail label
+   */
+  function getCachedGmailLabel(labelName: string): GoogleAppsScript.Gmail.GmailLabel | null {
+    return gmailLabelCache.get(labelName) || null;
+  }
+  
   export interface ProcessingResult {
     threadId: string;
     isSupport: boolean;
@@ -431,8 +501,19 @@ namespace GmailService {
   
   export function getOrCreateLabel(name: string): GoogleAppsScript.Gmail.GmailLabel {
     try {
-      // T-19: Use label cache for resilient label operations
-      return LabelCache.getOrCreateLabel(name);
+      // Check preloaded cache first
+      const cachedLabel = getCachedGmailLabel(name);
+      if (cachedLabel) {
+        return cachedLabel;
+      }
+      
+      // T-19: Use label cache for creation if not found
+      const label = LabelCache.getOrCreateLabel(name);
+      
+      // Add newly created label to cache
+      gmailLabelCache.set(name, label);
+      
+      return label;
     } catch (error) {
       // Re-throw as structured error
       throw ErrorTaxonomy.createError(
@@ -483,6 +564,12 @@ namespace GmailService {
     needsContinuation: boolean;
     continuationState?: ContinuationTriggers.ContinuationState;
   } {
+    // Clear thread label cache for fresh data
+    clearThreadLabelCache();
+    
+    // Preload Gmail labels for faster lookups
+    preloadGmailLabels();
+    
     // Check if we need continuation support
     const continuationCheck = ContinuationTriggers.processThreadsWithContinuation(
       threads,
@@ -546,6 +633,12 @@ namespace GmailService {
   ): Map<string, ProcessingResult> {
     const startTime = Date.now();
     const results = new Map<string, ProcessingResult>();
+    
+    // Clear thread label cache for fresh data
+    clearThreadLabelCache();
+    
+    // Preload Gmail labels for faster lookups
+    preloadGmailLabels();
     
     if (threads.length === 0) return results;
     
@@ -663,7 +756,7 @@ namespace GmailService {
     emailsToClassify.forEach(email => {
       const threadData = threadMap.get(email.id);
       if (threadData) {
-        const allLabels = threadData.thread.getLabels().map(l => l.getName());
+        const allLabels = getThreadLabelsOptimized(threadData.thread);
         const corruptedAiLabels = allLabels.filter(name => name.startsWith('ai-'));
         if (corruptedAiLabels.length > 0) {
           AppLogger.error('🐛 CORRUPTED AI- LABELS DETECTED', {
@@ -749,6 +842,12 @@ namespace GmailService {
     
     const supportThreads: Array<{threadId: string, thread: GoogleAppsScript.Gmail.GmailThread, body: string, redactedBody: string, subject: string, sender: string}> = [];
     
+    // PERFORMANCE OPTIMIZATION: Batch all label operations instead of individual calls
+    const labelBatches = new Map<string, Array<{thread: GoogleAppsScript.Gmail.GmailThread, threadId: string}>>();
+    const processedBatch: Array<{thread: GoogleAppsScript.Gmail.GmailThread, threadId: string}> = [];
+    const errorBatch: Array<{thread: GoogleAppsScript.Gmail.GmailThread, threadId: string}> = [];
+    
+    // Step 1: Collect all label operations (FAST - no Gmail API calls)
     classifications.forEach(result => {
       // Check for cancellation on each thread
       if (PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED) === 'true') {
@@ -761,11 +860,22 @@ namespace GmailService {
       
       // Dynamic label handling - label comes from AI/docs
       const labelToApply = result.label || 'General';
-      const dynamicLabel = getOrCreateLabel(labelToApply);
       
       try {
-        // Apply the dynamic label from AI
-        threadData.thread.addLabel(dynamicLabel);
+        // Collect threads for this label (NO API calls yet)
+        if (!labelBatches.has(labelToApply)) {
+          labelBatches.set(labelToApply, []);
+        }
+        labelBatches.get(labelToApply)!.push({
+          thread: threadData.thread,
+          threadId: result.id
+        });
+        
+        // Add to processed batch
+        processedBatch.push({
+          thread: threadData.thread,
+          threadId: result.id
+        });
         
         // Check if this label should create drafts (from docs config)
         const docsPrompts = DocsPromptEditor.getPromptForLabels([labelToApply]);
@@ -782,8 +892,6 @@ namespace GmailService {
           });
         }
         
-        threadData.thread.addLabel(processedLabel);
-        
         results.set(result.id, {
           threadId: result.id,
           isSupport: shouldCreateDraft || false,
@@ -792,14 +900,14 @@ namespace GmailService {
         });
         
       } catch (error) {
-        const errorMessage = Utils.logAndHandleError(error, `Label application for thread ${result.id}`);
-        // Apply error label when processing fails
-        try {
-          const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
-          threadData.thread.addLabel(errorLabel);
-        } catch (labelError) {
-          AppLogger.warn('Could not apply AI_ERROR label', { error: String(labelError) });
-        }
+        const errorMessage = Utils.logAndHandleError(error, `Label collection for thread ${result.id}`);
+        
+        // Add to error batch
+        errorBatch.push({
+          thread: threadData.thread,
+          threadId: result.id
+        });
+        
         results.set(result.id, {
           threadId: result.id,
           isSupport: false,
@@ -808,6 +916,46 @@ namespace GmailService {
         });
       }
     });
+    
+    // Step 2: Apply all labels in batches (FAST - batched Gmail API calls)
+    for (const [labelName, threadBatch] of labelBatches) {
+      try {
+        const dynamicLabel = getOrCreateLabel(labelName);
+        // Apply same label to all threads at once
+        threadBatch.forEach(({thread}) => {
+          thread.addLabel(dynamicLabel);
+          invalidateThreadLabelCache(thread.getId());
+        });
+      } catch (error) {
+        AppLogger.warn(`Batch label application failed for ${labelName}`, { error: String(error) });
+      }
+    }
+    
+    // Step 3: Apply processed labels in batch
+    if (processedBatch.length > 0) {
+      try {
+        processedBatch.forEach(({thread}) => {
+          thread.addLabel(processedLabel);
+          invalidateThreadLabelCache(thread.getId());
+        });
+      } catch (error) {
+        AppLogger.warn('Batch processed label application failed', { error: String(error) });
+      }
+    }
+    
+    // Step 4: Apply error labels in batch
+    if (errorBatch.length > 0) {
+      try {
+        const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+        errorBatch.forEach(({thread}) => {
+          thread.addLabel(errorLabel);
+      invalidateThreadLabelCache(thread.getId());
+          invalidateThreadLabelCache(thread.getId());
+        });
+      } catch (error) {
+        AppLogger.warn('Batch error label application failed', { error: String(error) });
+      }
+    }
     
     // Step 4: Generate replies for support emails (individually, as they need custom responses)
     if (supportThreads.length > 0 && (createDrafts || autoReply)) {
@@ -868,6 +1016,7 @@ namespace GmailService {
             try {
               const blockedLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
               thread.addLabel(blockedLabel);
+              invalidateThreadLabelCache(thread.getId());
             } catch (e) {
               // Ignore label errors
             }
@@ -888,7 +1037,7 @@ namespace GmailService {
           };
           
           // Get thread labels for response prompt selection
-          const threadLabels = thread.getLabels().map(label => label.getName());
+          const threadLabels = getThreadLabelsOptimized(thread);
           const activeResponsePrompt = getResponsePrompt(responsePrompt, threadLabels);
           
           // Build recipient context for AI
@@ -1092,7 +1241,7 @@ namespace GmailService {
       };
       
       // Get thread labels for prompt selection
-      const allLabels = thread.getLabels().map(label => label.getName());
+      const allLabels = getThreadLabelsOptimized(thread);
       const corruptedAiLabels = allLabels.filter(name => name.startsWith('ai-'));
       if (corruptedAiLabels.length > 0) {
         AppLogger.error('🐛 CORRUPTED AI- LABELS DETECTED', {
@@ -1179,6 +1328,7 @@ namespace GmailService {
       if (shouldApplyLabels) {
         thread.addLabel(dynamicLabel);
         thread.addLabel(processedLabel);
+        invalidateThreadLabelCache(thread.getId());
       }
       
       if (shouldCreateDraft) {
@@ -1198,6 +1348,8 @@ namespace GmailService {
             // Apply error label and return
             const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
             thread.addLabel(errorLabel);
+      invalidateThreadLabelCache(thread.getId());
+            invalidateThreadLabelCache(thread.getId());
             return { isSupport: isSupport || false, error: 'No valid recipients: ' + recipientDecision.reason };
           }
           
@@ -1229,7 +1381,7 @@ namespace GmailService {
           };
           
           // Get thread labels for response prompt selection
-          const threadLabels = thread.getLabels().map(label => label.getName());
+          const threadLabels = getThreadLabelsOptimized(thread);
           const activeResponsePrompt = getResponsePrompt(responsePrompt, threadLabels);
           
           // Build recipient context for AI
@@ -1303,6 +1455,8 @@ namespace GmailService {
             // AI reply generation failed
             const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
             thread.addLabel(errorLabel);
+      invalidateThreadLabelCache(thread.getId());
+            invalidateThreadLabelCache(thread.getId());
             AppLogger.error('❌ FAILED TO GENERATE REPLY', {
               subject: subject,
               threadId: thread.getId(),
@@ -1316,6 +1470,7 @@ namespace GmailService {
     } catch (error) {
       const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
       thread.addLabel(errorLabel);
+      invalidateThreadLabelCache(thread.getId());
       const errorMessage = Utils.logAndHandleError(error, `Thread processing for ${thread.getId()}`);
       return { isSupport: false, error: errorMessage };
     }
