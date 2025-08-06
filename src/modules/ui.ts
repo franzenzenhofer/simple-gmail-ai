@@ -210,7 +210,7 @@ namespace UI {
                    '• Must start with "AIza"<br/>' +
                    '• Between 30-60 characters total<br/>' +
                    '• Contains letters, numbers, hyphens, or underscores<br/>' +
-                   '• Example: AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q')
+                   '• Example: AIzaSy[35-character-string-here]')
       );
     }
     
@@ -498,6 +498,106 @@ namespace UI {
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().pushCard(card))
       .build();
+  }
+  
+  /**
+   * Create success view with next steps after processing completion
+   */
+  export function buildSuccessWithNextStepsView(stats?: any, executionTime?: string): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    
+    // Success header
+    card.setHeader(CardService.newCardHeader()
+      .setTitle('✅ Processing Complete!')
+      .setSubtitle('Your inbox has been successfully analyzed')
+    );
+    
+    // Results section
+    const resultsSection = CardService.newCardSection()
+      .setHeader('📊 Results Summary');
+    
+    if (stats && executionTime) {
+      resultsSection.addWidget(
+        CardService.newKeyValue()
+          .setTopLabel('Analysis Results')
+          .setContent(`${stats.scanned} emails processed in ${executionTime}`)
+          .setIcon(CardService.Icon.EMAIL)
+      );
+      
+      if (stats.aiProcessedCount > 0) {
+        resultsSection.addWidget(
+          CardService.newKeyValue()
+            .setTopLabel('Successfully Processed')
+            .setContent(`${stats.aiProcessedCount} emails tagged with ${Config.LABELS.AI_PROCESSED}`)
+            .setIcon(CardService.Icon.CONFIRMATION_NUMBER_ICON)
+        );
+      }
+      
+      if (stats.labelCounts && Object.keys(stats.labelCounts).length > 0) {
+        const labelText = Object.entries(stats.labelCounts)
+          .filter(([label]) => label !== Config.LABELS.AI_PROCESSED && label !== Config.LABELS.AI_ERROR)
+          .map(([label, count]) => `${count}x ${label}`)
+          .join(', ');
+          
+        if (labelText) {
+          resultsSection.addWidget(
+            CardService.newKeyValue()
+              .setTopLabel('Labels Applied')
+              .setContent(labelText)
+              .setIcon(CardService.Icon.BOOKMARK)
+          );
+        }
+      }
+    }
+    
+    card.addSection(resultsSection);
+    
+    // Next Steps section
+    const nextStepsSection = CardService.newCardSection()
+      .setHeader('🎯 What Next?');
+    
+    nextStepsSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>Suggested next actions:</b><br>' +
+                 '• <b>View Details</b>: See processing logs and results<br>' +
+                 '• <b>Check Gmail</b>: Review labeled emails in your inbox<br>' +
+                 '• <b>Run Again</b>: Process more emails or test changes<br>' +
+                 '• <b>Adjust Settings</b>: Fine-tune prompts and models')
+    );
+    
+    card.addSection(nextStepsSection);
+    
+    // Quick Actions section
+    const actionsSection = CardService.newCardSection()
+      .setHeader('⚡ Quick Actions');
+    
+    // View Results button
+    actionsSection.addWidget(
+      CardService.newTextButton()
+        .setText('📋 View Processing Details')
+        .setOnClickAction(CardService.newAction().setFunctionName('showLiveLogTabUniversal'))
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    );
+    
+    // Analyze Again button  
+    actionsSection.addWidget(
+      CardService.newTextButton()
+        .setText('🔄 Analyze Inbox Again')
+        .setOnClickAction(CardService.newAction().setFunctionName('showHomepageUniversal'))
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+    );
+    
+    // Settings button
+    actionsSection.addWidget(
+      CardService.newTextButton()
+        .setText('⚙️ Adjust Settings')
+        .setOnClickAction(CardService.newAction().setFunctionName('showSettingsTabUniversal'))
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+    );
+    
+    card.addSection(actionsSection);
+    
+    return card.build();
   }
 
   export function buildLiveLogView(): GoogleAppsScript.Card_Service.Card {

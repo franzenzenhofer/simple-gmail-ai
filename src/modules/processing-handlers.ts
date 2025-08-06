@@ -144,11 +144,11 @@ namespace ProcessingHandlers {
   ): GoogleAppsScript.Card_Service.ActionResponse {
     try {
       // Use common processing logic
-      executeProcessing(apiKey, mode, prompt1, prompt2, createDrafts, autoReply);
+      const result = executeProcessing(apiKey, mode, prompt1, prompt2, createDrafts, autoReply);
       
-      // Navigate to live log view to show results
-      AppLogger.info('🚀 NAVIGATING TO LIVE LOG VIEW - processing complete');
-      return UI.navigateTo(UI.buildLiveLogView());
+      // Navigate to success view with next steps
+      AppLogger.info('🚀 SHOWING SUCCESS VIEW WITH NEXT STEPS - processing complete');
+      return UI.navigateTo(UI.buildSuccessWithNextStepsView(result.stats, result.executionTime));
       
     } catch (err) {
       // Special handling for timeout errors to preserve detailed message

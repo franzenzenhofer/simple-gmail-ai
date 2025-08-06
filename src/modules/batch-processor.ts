@@ -164,7 +164,7 @@ namespace BatchProcessor {
     batch: BatchItem[],
     basePrompt: string
   ): BatchResponse {
-    const batchId = 'batch_class_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const batchId = 'batch_class_' + Date.now() + '_' + (typeof Utilities !== 'undefined' ? Utilities.getUuid().substr(0, 8) : Math.random().toString(36).substr(2, 8));
     const startTime = Date.now();
     const scriptStartTime = ContinuationTriggers.isApproachingTimeLimit(0) ? Date.now() : 0;
 

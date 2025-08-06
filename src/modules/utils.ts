@@ -334,7 +334,7 @@ namespace Utils {
    * Generate a unique identifier
    */
   export function generateId(): string {
-    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return 'id_' + Date.now() + '_' + (typeof Utilities !== 'undefined' ? Utilities.getUuid().substr(0, 12) : Math.random().toString(36).substr(2, 12));
   }
   
   /**

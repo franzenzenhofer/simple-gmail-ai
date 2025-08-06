@@ -14,9 +14,9 @@ namespace EntryPoints {
       PropertiesService.getUserProperties().setProperty(Config.PROP_KEYS.AI_HEARTBEAT, timestamp);
       
       // Don't initialize logger for simple triggers - it's too heavy
-      console.log('Heartbeat written on add-on open:', timestamp);
+      // Heartbeat written silently for performance
     } catch (error) {
-      console.error('Failed to write heartbeat on open:', error);
+      // Silent fail to keep trigger lightweight
     }
   }
   

@@ -31,7 +31,7 @@ namespace AppLogger {
     dateString: string;
   }
   
-  export const executionId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  export const executionId = Date.now().toString(36) + (typeof Utilities !== 'undefined' ? Utilities.getUuid().substr(0, 8) : Math.random().toString(36).substr(2, 8));
   let spreadsheetConfig: SpreadsheetConfig | null = null;
   
   function getLogLevel(): LogLevel {

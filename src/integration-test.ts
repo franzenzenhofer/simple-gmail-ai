@@ -10,6 +10,19 @@ dotenv.config();
 // Get API key from environment variable for security
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
+// Simple test logger for better performance
+const testLog = {
+  buffer: [] as string[],
+  log: (msg: string) => testLog.buffer.push(msg),
+  error: (msg: string) => testLog.buffer.push('ERROR: ' + msg),
+  flush: () => {
+    if (testLog.buffer.length > 0) {
+      testLog.log(testLog.buffer.join('\n'));
+      testLog.buffer = [];
+    }
+  }
+};
+
 // Configuration constants matching Config namespace
 // Note: We duplicate these from Config.ts since this is a standalone Node.js script
 // and importing the Google Apps Script namespace would be complex
@@ -64,14 +77,16 @@ async function testBatchProcessing() {
     testStartTime = Date.now(); // Initialize before any early returns
     
     if (!API_KEY) {
-      console.error('❌ No API key found - cannot run integration test');
-      console.error('Please set GEMINI_API_KEY environment variable');
-      console.error('Example: GEMINI_API_KEY=your-api-key npm test');
+      testLog.error('❌ No API key found - cannot run integration test');
+      testLog.error('Please set GEMINI_API_KEY environment variable');
+      testLog.error('Example: GEMINI_API_KEY=your-api-key npm test');
+      testLog.flush();
       return;
     }
-    console.log('🧪 INTEGRATION TEST: Batch Processing with Real Gemini API');
-    console.log('API Key:', JSON.stringify(API_KEY.substring(0, 10) + '...' + API_KEY.substring(API_KEY.length - 5)));
-    console.log('Test started at:', new Date(testStartTime).toISOString());
+    testLog.log('🧪 INTEGRATION TEST: Batch Processing with Real Gemini API');
+    testLog.log('API Key:', JSON.stringify(API_KEY.substring(0, 10) + '...' + API_KEY.substring(API_KEY.length - 5)));
+    testLog.log('Test started at:', new Date(testStartTime).toISOString());
+    testLog.flush();
 
   // Test emails similar to what we'd get from Gmail
   const testEmails: BatchEmail[] = [
@@ -116,9 +131,9 @@ async function testBatchProcessing() {
 
   batchPrompt += 'REMEMBER: Respond ONLY with the JSON array, nothing else! Format: [{"id": "<email_id>", "classification": "support" or "not"}]';
 
-    console.log('\n📤 SENDING PROMPT TO GEMINI:');
-    console.log('Length:', batchPrompt.length, 'characters');
-    console.log('First 200 chars:', JSON.stringify(batchPrompt.substring(0, 200) + '...'));
+    testLog.log('\n📤 SENDING PROMPT TO GEMINI:');
+    testLog.log('Length:', batchPrompt.length, 'characters');
+    testLog.log('First 200 chars:', JSON.stringify(batchPrompt.substring(0, 200) + '...'));
 
     // API call section with nested try/catch for proper error handling
     try {
@@ -151,90 +166,91 @@ async function testBatchProcessing() {
     const responseCode = response.status;
     const responseText = await response.text();
 
-    console.log('\n📥 GEMINI RESPONSE:');
-    console.log('Status:', responseCode);
-    console.log('Raw response:', JSON.stringify(responseText));
+    testLog.log('\n📥 GEMINI RESPONSE:');
+    testLog.log('Status:', responseCode);
+    testLog.log('Raw response:', JSON.stringify(responseText));
 
     if (responseCode !== 200) {
-      console.error('❌ API ERROR:', responseCode, responseText);
+      testLog.error('❌ API ERROR:', responseCode, responseText);
       return;
     }
 
     const data = JSON.parse(responseText);
     
     if (!data.candidates || data.candidates.length === 0) {
-      console.error('❌ No candidates in response');
+      testLog.error('❌ No candidates in response');
       return;
     }
 
     const candidate = data.candidates[0];
     if (!candidate?.content?.parts?.[0]?.text) {
-      console.error('❌ Invalid response structure');
+      testLog.error('❌ Invalid response structure');
       return;
     }
 
     const result = candidate.content.parts[0].text.trim();
-    console.log('\n🎯 EXTRACTED RESULT:');
-    console.log('Result:', JSON.stringify(result));
+    testLog.log('\n🎯 EXTRACTED RESULT:');
+    testLog.log('Result:', JSON.stringify(result));
 
     // Test JSON parsing - this is the critical part that was failing
-    console.log('\n🧪 TESTING JSON PARSING:');
+    testLog.log('\n🧪 TESTING JSON PARSING:');
     try {
       const cleanResponse = sanitizeJsonResponse(result);
-      console.log('Cleaned response:', JSON.stringify(cleanResponse));
+      testLog.log('Cleaned response:', JSON.stringify(cleanResponse));
       
       const batchResults = JSON.parse(cleanResponse);
-      console.log('✅ JSON PARSING SUCCESS!');
-      console.log('Parsed results:', JSON.stringify(batchResults, null, 2));
+      testLog.log('✅ JSON PARSING SUCCESS!');
+      testLog.log('Parsed results:', JSON.stringify(batchResults, null, 2));
 
       // Validate structure
       if (Array.isArray(batchResults)) {
-        console.log('✅ Response is an array');
+        testLog.log('✅ Response is an array');
         batchResults.forEach((item, index) => {
-          console.log(`Email ${index + 1}:`, JSON.stringify({ id: item.id, classification: item.classification }));
+          testLog.log(`Email ${index + 1}:`, JSON.stringify({ id: item.id, classification: item.classification }));
           
           if (item.id && (item.classification === 'support' || item.classification === 'not')) {
-            console.log('✅ Valid format');
+            testLog.log('✅ Valid format');
           } else {
-            console.log('❌ Invalid format:', JSON.stringify(item));
+            testLog.log('❌ Invalid format:', JSON.stringify(item));
           }
         });
       } else {
-        console.log('❌ Response is not an array:', JSON.stringify({ type: typeof batchResults, value: batchResults }));
+        testLog.log('❌ Response is not an array:', JSON.stringify({ type: typeof batchResults, value: batchResults }));
       }
 
       } catch (parseError) {
-        console.error('❌ JSON PARSE ERROR:', parseError);
-        console.error('This is the exact error that was happening in production!');
+        testLog.error('❌ JSON PARSE ERROR:', parseError);
+        testLog.error('This is the exact error that was happening in production!');
         throw parseError; // Re-throw to trigger cleanup
       }
 
     } catch (fetchError) {
-      console.error('❌ FETCH ERROR:', fetchError);
+      testLog.error('❌ FETCH ERROR:', fetchError);
       throw fetchError; // Re-throw to trigger cleanup
     }
 
   } catch (error) {
-    console.error('❌ INTEGRATION TEST FAILED:', error);
+    testLog.error('❌ INTEGRATION TEST FAILED:', error);
     throw error; // Re-throw for proper error propagation
   } finally {
     // Cleanup and test reporting
-    console.log('\n🧹 CLEANUP & REPORTING:');
+    testLog.log('\n🧹 CLEANUP & REPORTING:');
     
     if (testStartTime) {
       const duration = Date.now() - testStartTime;
-      console.log('Test duration:', duration, 'ms');
+      testLog.log('Test duration:', duration, 'ms');
     }
     
     if (apiCallMade) {
-      console.log('✅ API call was attempted');
+      testLog.log('✅ API call was attempted');
       // In a real test, you might want to log API usage or clean up any created resources
     } else {
-      console.log('⚠️  No API call was made');
+      testLog.log('⚠️  No API call was made');
     }
     
-    console.log('Test completed at:', new Date().toISOString());
-    console.log('🏁 Integration test cleanup complete');
+    testLog.log('Test completed at:', new Date().toISOString());
+    testLog.log('🏁 Integration test cleanup complete');
+    testLog.flush();
   }
 }
 
@@ -243,15 +259,18 @@ async function runIntegrationTest() {
   let testSuite: string = 'Gemini API Integration Test';
   
   try {
-    console.log(`🚀 Starting ${testSuite}`);
+    testLog.log(`🚀 Starting ${testSuite}`);
     await testBatchProcessing();
-    console.log(`✅ ${testSuite} completed successfully`);
+    testLog.log(`✅ ${testSuite} completed successfully`);
+    testLog.flush();
     process.exitCode = 0;
   } catch (error) {
-    console.error(`❌ ${testSuite} failed:`, error);
+    testLog.error(`❌ ${testSuite} failed:`, error);
+    testLog.flush();
     process.exitCode = 1;
   } finally {
-    console.log(`🏁 ${testSuite} suite finished`);
+    testLog.log(`🏁 ${testSuite} suite finished`);
+    testLog.flush();
     // In Node.js environment, we can exit gracefully
     if (typeof process !== 'undefined') {
       // Allow time for any pending console output

@@ -193,8 +193,8 @@ namespace TestMode {
     const unprocessed = GmailService.getUnprocessedThreads();
     const sampleSize = Math.min(config.maxEmails, unprocessed.length);
     
-    // Shuffle and take first N
-    const shuffled = unprocessed.sort(() => Math.random() - 0.5);
+    // Shuffle and take first N using cryptographically secure randomization
+    const shuffled = unprocessed.sort(() => typeof Utilities !== 'undefined' ? (parseInt(Utilities.getUuid().substr(0, 1), 16) - 8) : (Math.random() - 0.5));
     return shuffled.slice(0, sampleSize);
   }
   

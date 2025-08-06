@@ -19,13 +19,15 @@ namespace ActionHandlers {
       // Test the API key with a simple request
       try {
         const testUrl = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent?key=' + encodeURIComponent(trimmedKey);
+        // Pre-create payload for better performance
+        const testPayload = {
+          contents: [{ parts: [{ text: 'test' }] }],
+          generationConfig: { temperature: 0 }
+        };
         const testResponse = UrlFetchApp.fetch(testUrl, {
           method: 'post',
           contentType: 'application/json',
-          payload: JSON.stringify({
-            contents: [{ parts: [{ text: 'test' }] }],
-            generationConfig: { temperature: 0 }
-          }),
+          payload: JSON.stringify(testPayload),
           muteHttpExceptions: true,
           // Use shorter timeout for API key validation test
           timeout: 30 // 30 seconds for validation test only

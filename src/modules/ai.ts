@@ -75,7 +75,7 @@ namespace AI {
       schema = schemaOrModel;
       selectedModel = model || Config.GEMINI.MODEL;
     }
-    const requestId = 'ai_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const requestId = 'ai_' + Date.now() + '_' + (typeof Utilities !== 'undefined' ? Utilities.getUuid().substr(0, 8) : Math.random().toString(36).substr(2, 8));
     const requestStartTime = Date.now();
     
     const useJsonMode = !!schema;
@@ -126,11 +126,14 @@ namespace AI {
     };
     
     try {
+      // Serialize payload once for efficiency
+      const serializedPayload = JSON.stringify(payload);
+      
       // Log before making the request
       AppLogger.info('📤 API CALL START [' + requestId + ']', {
         requestId,
         url: url.replace(/key=[^&]+/, 'key=***'),
-        payloadSize: JSON.stringify(payload).length
+        payloadSize: serializedPayload.length
       });
       
       const fetchStartTime = Date.now();
@@ -140,7 +143,7 @@ namespace AI {
         headers: {
           'x-goog-api-key': apiKey
         },
-        payload: JSON.stringify(payload),
+        payload: serializedPayload,
         muteHttpExceptions: true,
         // Use centralized timeout from ExecutionTime module
         timeout: ExecutionTime.getApiTimeoutSeconds()
@@ -365,7 +368,7 @@ namespace AI {
   ): BatchClassificationResult[] {
     if (emails.length === 0) return [];
     
-    const requestId = 'batch_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const requestId = 'batch_' + Date.now() + '_' + (typeof Utilities !== 'undefined' ? Utilities.getUuid().substr(0, 8) : Math.random().toString(36).substr(2, 8));
     const batchSize = 10; // Process 10 emails at a time to stay within token limits
     const results: BatchClassificationResult[] = [];
     

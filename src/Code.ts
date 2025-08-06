@@ -113,6 +113,10 @@ function saveModelSettings(e: any): GoogleAppsScript.Card_Service.ActionResponse
   return ActionHandlers.saveModelSettings(e);
 }
 
+function emergencyReset(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.emergencyReset(e);
+}
+
 // =============================================================================
 // 🔄 PROCESSING HANDLERS
 // Long-running email processing and continuation logic
