@@ -112,7 +112,7 @@ namespace UIImprovements {
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader()
         .setTitle('📧 Gmail AI Assistant • Main Settings')
-        .setSubtitle(apiKey ? '✅ Ready to analyze • v' + Config.VERSION : '⚠️ Setup required • v' + Config.VERSION)
+        .setSubtitle(apiKey ? '✅ Ready to analyze • v' + DeploymentInfo.getVersion() : '⚠️ Setup required • v' + DeploymentInfo.getVersion())
         .setImageUrl('https://www.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png')
         .setImageStyle(CardService.ImageStyle.CIRCLE));
     

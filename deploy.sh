@@ -85,9 +85,9 @@ echo "${DRY_RUN_PREFIX}🚀 Starting single-file deployment..."
 echo "${DRY_RUN_PREFIX}📋 Deployment must ALWAYS succeed!"
 echo "${DRY_RUN_PREFIX}📁 Working directory: $PROJECT_ROOT"
 
-# Get version info
+# Get version info - always use user's local time
 readonly VERSION="$(date +%Y%m%d_%H%M%S)"
-readonly TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+readonly TIMESTAMP="$(date +%Y-%m-%dT%H:%M:%S%z)"
 
 # Validate we're in the correct directory
 if [[ ! -f "package.json" ]] || [[ ! -d "src" ]]; then

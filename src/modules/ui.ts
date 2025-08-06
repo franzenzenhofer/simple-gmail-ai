@@ -23,7 +23,7 @@ namespace UI {
       .setHeader(
         CardService.newCardHeader()
           .setTitle('Gmail AI Assistant')
-          .setSubtitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
+          .setSubtitle(DeploymentInfo.getVersionText())
           .setImageUrl('https://www.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png')
           .setImageStyle(CardService.ImageStyle.CIRCLE)
       );
@@ -84,8 +84,8 @@ namespace UI {
     const promptSection = CardService.newCardSection()
       .setHeader('📝 Prompt Configuration');
     
-    // Check if prompt document exists
-    const promptDocUrl = PropertiesService.getUserProperties().getProperty('PROMPT_DOC_URL');
+    // Check if prompt document exists - use single source of truth
+    const promptDocUrl = DocsPromptEditor.getDocumentUrl();
     
     if (promptDocUrl) {
       promptSection.addWidget(
@@ -351,8 +351,8 @@ namespace UI {
     mainSection.addWidget(
       CardService.newKeyValue()
         .setTopLabel('Version')
-        .setContent('v' + Config.VERSION)
-        .setBottomLabel('Deployed: ' + Config.DEPLOY_TIME)
+        .setContent('v' + DeploymentInfo.getVersion())
+        .setBottomLabel('Deployed: ' + DeploymentInfo.getFormattedDeploymentInfo().full)
     );
     
     // T-05: Show last heartbeat for monitoring

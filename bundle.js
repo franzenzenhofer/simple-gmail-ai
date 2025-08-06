@@ -53,7 +53,8 @@ function analyzeDependencies(modulesDir) {
     'universal-actions',
     'factory-reset-handlers',
     'docs-prompt-editor',
-    'docs-prompt-handlers'
+    'docs-prompt-handlers',
+    'deployment-info'
   ];
   
   // Map of namespace names to module files
@@ -94,7 +95,8 @@ function analyzeDependencies(modulesDir) {
     'UniversalActions': 'universal-actions',
     'FactoryResetHandlers': 'factory-reset-handlers',
     'DocsPromptEditor': 'docs-prompt-editor',
-    'DocsPromptHandlers': 'docs-prompt-handlers'
+    'DocsPromptHandlers': 'docs-prompt-handlers',
+    'DeploymentInfo': 'deployment-info'
   };
   
   coreModules.forEach(moduleName => {

@@ -36,36 +36,8 @@ namespace WelcomeFlow {
    * Get version footer text
    */
   function getVersionFooter(): string {
-    // Version will be replaced during build
-    const version = Config.VERSION || 'Unknown';
-    
-    // Get stored deployment timestamp or use current time
-    const props = PropertiesService.getScriptProperties();
-    let deployTimestamp = props.getProperty('DEPLOY_TIMESTAMP');
-    
-    if (!deployTimestamp || deployTimestamp === 'null') {
-      // Store deployment timestamp on first run
-      deployTimestamp = new Date().toISOString();
-      try {
-        props.setProperty('DEPLOY_TIMESTAMP', deployTimestamp);
-      } catch (e) {
-        // If we can't write to script properties, just use current time
-        AppLogger.warn('Could not store deployment timestamp', { error: String(e) });
-      }
-    }
-    
-    const deployDate = new Date(deployTimestamp);
-    const dateStr = deployDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-    const timeStr = deployDate.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    return `<font color="#999999"><i>v${version} • Deployed ${dateStr} at ${timeStr}</i></font>`;
+    // Use the single source of truth for deployment info
+    return DeploymentInfo.getVersionFooterHtml();
   }
   
   /**
