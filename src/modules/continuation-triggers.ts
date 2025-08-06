@@ -39,7 +39,7 @@ namespace ContinuationTriggers {
   
   // Configuration
   export const CONFIG = {
-    MAX_EXECUTION_TIME_MS: 330 * 1000,         // 5 minutes 30 seconds (330s) - leaves 30s buffer for cleanup and error handling
+    MAX_EXECUTION_TIME_MS: ExecutionTime.LIMITS.SAFE_EXECUTION_MS,  // Use centralized timing
     CONTINUATION_DELAY_MS: 2000,               // 2 second delay between continuations
     CHECKPOINT_FREQUENCY: 50,                  // Save checkpoint every 50 processed emails
     MAX_CONTINUATIONS: 20,                     // Prevent infinite loops
@@ -49,10 +49,10 @@ namespace ContinuationTriggers {
   
   /**
    * Check if we're approaching execution time limit
+   * Delegates to ExecutionTime module for consistency
    */
   export function isApproachingTimeLimit(startTime: number): boolean {
-    const elapsed = Date.now() - startTime;
-    return elapsed >= CONFIG.MAX_EXECUTION_TIME_MS;
+    return ExecutionTime.isApproachingLimit(startTime);
   }
   
   /**

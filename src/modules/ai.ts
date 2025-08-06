@@ -58,21 +58,36 @@ namespace AI {
     return cleaned;
   }
 
-  // Enhanced callGemini with strict JSON mode support
-  export function callGemini(apiKey: string, prompt: string): GeminiResult;
-  export function callGemini<T>(apiKey: string, prompt: string, schema?: JSONSchema): GeminiResult<T>;
-  export function callGemini<T = string>(apiKey: string, prompt: string, schema?: JSONSchema): GeminiResult<T> {
+  // Enhanced callGemini with strict JSON mode support and model selection
+  export function callGemini(apiKey: string, prompt: string, model?: string): GeminiResult;
+  export function callGemini<T>(apiKey: string, prompt: string, schema?: JSONSchema, model?: string): GeminiResult<T>;
+  export function callGemini<T = string>(apiKey: string, prompt: string, schemaOrModel?: JSONSchema | string, model?: string): GeminiResult<T> {
+    // Handle overloaded parameters
+    let schema: JSONSchema | undefined;
+    let selectedModel: string;
+    
+    if (typeof schemaOrModel === 'string') {
+      // callGemini(apiKey, prompt, model)
+      schema = undefined;
+      selectedModel = schemaOrModel;
+    } else {
+      // callGemini(apiKey, prompt, schema, model)
+      schema = schemaOrModel;
+      selectedModel = model || Config.GEMINI.MODEL;
+    }
     const requestId = 'ai_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const requestStartTime = Date.now();
     
     const useJsonMode = !!schema;
     const schemaVersion = schema ? '1.0' : undefined;
     
     AppLogger.info('🚀 AI REQUEST [' + requestId + ']', {
-      model: Config.GEMINI.MODEL,
+      model: selectedModel,
       promptLength: prompt.length,
       useJsonMode,
       schemaVersion,
-      requestId
+      requestId,
+      startTime: new Date(requestStartTime).toISOString()
     });
     
     // Log the actual prompt being sent
@@ -81,7 +96,7 @@ namespace AI {
       requestId
     });
     
-    const url = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent';
+    const url = Config.GEMINI.API_URL + selectedModel + ':generateContent';
     
     // Check if this is a retry attempt and use temperature 0
     const isRetry = schema && schema.retryAttempt;
@@ -111,6 +126,14 @@ namespace AI {
     };
     
     try {
+      // Log before making the request
+      AppLogger.info('📤 API CALL START [' + requestId + ']', {
+        requestId,
+        url: url.replace(/key=[^&]+/, 'key=***'),
+        payloadSize: JSON.stringify(payload).length
+      });
+      
+      const fetchStartTime = Date.now();
       const response = UrlFetchApp.fetch(url, {
         method: 'post',
         contentType: 'application/json',
@@ -119,18 +142,24 @@ namespace AI {
         },
         payload: JSON.stringify(payload),
         muteHttpExceptions: true,
-        // Add timeout to prevent hanging requests
-        // Note: timeout is in seconds for UrlFetchApp, not milliseconds
-        timeout: Config.GEMINI.TIMEOUT_MS / 1000
+        // Use centralized timeout from ExecutionTime module
+        timeout: ExecutionTime.getApiTimeoutSeconds()
       } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions);
+      
+      const fetchEndTime = Date.now();
+      const fetchDuration = fetchEndTime - fetchStartTime;
       
       const responseCode = response.getResponseCode();
       const responseText = response.getContentText();
+      const totalDuration = Date.now() - requestStartTime;
       
       AppLogger.info('📨 AI RESPONSE [' + requestId + ']', {
         statusCode: responseCode,
         responseLength: responseText.length,
-        requestId
+        requestId,
+        fetchDuration: fetchDuration + 'ms',
+        totalDuration: totalDuration + 'ms',
+        tokensPerSecond: responseText.length > 0 ? Math.round((responseText.length / 3.5) / (totalDuration / 1000)) : 0
       });
       
       // Log the raw response received
@@ -263,10 +292,12 @@ namespace AI {
             };
           }
           
+          const finalDuration = Date.now() - requestStartTime;
           AppLogger.info('✅ AI JSON RESULT [' + requestId + ']', {
             result: parsedResult,
             schemaVersion,
-            requestId
+            requestId,
+            totalDuration: finalDuration + 'ms'
           });
           
           return { success: true, data: parsedResult as T, requestId, schemaVersion };
@@ -282,15 +313,24 @@ namespace AI {
         }
       } else {
         // Legacy string mode
+        const finalDuration = Date.now() - requestStartTime;
         AppLogger.info('✅ AI RESULT [' + requestId + ']', {
           result,
           requestId,
-          classification: result.toLowerCase().indexOf('support') === 0 ? 'SUPPORT' : 'NOT_SUPPORT'
+          classification: result.toLowerCase().indexOf('support') === 0 ? 'SUPPORT' : 'NOT_SUPPORT',
+          totalDuration: finalDuration + 'ms'
         });
         
         return { success: true, data: result as T, requestId };
       }
     } catch (error) {
+      const errorDuration = Date.now() - requestStartTime;
+      AppLogger.error('❌ AI REQUEST FAILED [' + requestId + ']', {
+        requestId,
+        duration: errorDuration + 'ms',
+        error: String(error)
+      });
+      
       // Parse and structure the error
       const appError = ErrorTaxonomy.parseError(error);
       

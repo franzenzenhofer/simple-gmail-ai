@@ -186,7 +186,10 @@ namespace ContextualActions {
       }
       
       try {
-        const responsePrompt = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.responsePrompt) || 'Generate a helpful response to this email.';
+        // Get response prompt from docs configuration
+        const threadLabels = GmailApp.getThreadById(context.threadId).getLabels().map(l => l.getName());
+        const docsPrompt = DocsPromptEditor.getPromptForLabels(threadLabels);
+        const responsePrompt = docsPrompt?.responsePrompt || 'Generate a helpful, professional response to this email.';
         
         // Create secure prompt with injection protection
         const fullPrompt = PromptSanitizer.createReplyPrompt(
@@ -194,15 +197,34 @@ namespace ContextualActions {
           context.body
         );
         
-        const result = AI.callGemini(apiKey, fullPrompt);
+        // Define JSON schema for reply
+        const replySchema = {
+          type: 'object',
+          properties: {
+            reply: { type: 'string' },
+            tone: { type: 'string' },
+            confidence: { type: 'number' }
+          },
+          required: ['reply']
+        };
+        
+        const result = AI.callGemini(apiKey, fullPrompt, replySchema);
         
         if (!result.success) {
-          throw new Error(result.error);
+          throw new Error(result.error || 'Failed to generate reply');
+        }
+        
+        // Parse JSON response
+        let replyData: { reply: string; tone?: string; confidence?: number };
+        if (typeof result.data === 'string') {
+          replyData = JSON.parse(result.data);
+        } else {
+          replyData = result.data as { reply: string; tone?: string; confidence?: number };
         }
         
         // Create draft with formatted text
         const thread = GmailApp.getThreadById(context.threadId);
-        const formattedReply = Utils.formatEmailText(result.data);
+        const formattedReply = Utils.formatEmailText(replyData.reply);
         thread.createDraftReply(formattedReply);
         
         return CardService.newActionResponseBuilder()
@@ -310,12 +332,42 @@ namespace ContextualActions {
           .build();
       }
       
-      const entities = extractEntities(apiKey, context.body);
-      
-      return CardService.newActionResponseBuilder()
-        .setNotification(CardService.newNotification()
-          .setText(`🔍 Found: ${entities.length} entities`))
-        .build();
+      try {
+        const entities = extractEntities(apiKey, context.body);
+        
+        if (entities.length === 0) {
+          return CardService.newActionResponseBuilder()
+            .setNotification(CardService.newNotification()
+              .setText('🔍 No entities found'))
+            .build();
+        }
+        
+        // Create a card to display the entities
+        const card = CardService.newCardBuilder()
+          .setHeader(CardService.newCardHeader()
+            .setTitle('Extracted Entities')
+            .setSubtitle(`Found ${entities.length} entities`));
+        
+        const section = CardService.newCardSection();
+        
+        // Group entities by type if we have type information
+        const entityList = entities.slice(0, 20); // Limit to 20 for UI
+        section.addWidget(CardService.newTextParagraph()
+          .setText('🔍 Entities found:\n• ' + entityList.join('\n• ')));
+        
+        card.addSection(section);
+        
+        return CardService.newActionResponseBuilder()
+          .setNavigation(CardService.newNavigation()
+            .pushCard(card.build()))
+          .build();
+          
+      } catch (error) {
+        return CardService.newActionResponseBuilder()
+          .setNotification(CardService.newNotification()
+            .setText('❌ ' + Utils.logAndHandleError(error, 'Extract entities')))
+          .build();
+      }
     }
   };
   
@@ -336,92 +388,298 @@ namespace ContextualActions {
           .build();
       }
       
-      const suggestions = suggestLabels(apiKey, context);
-      
-      return CardService.newActionResponseBuilder()
-        .setNotification(CardService.newNotification()
-          .setText('🏷️ Suggested: ' + suggestions.join(', ')))
-        .build();
+      try {
+        const suggestions = suggestLabels(apiKey, context);
+        
+        if (suggestions.length === 0) {
+          return CardService.newActionResponseBuilder()
+            .setNotification(CardService.newNotification()
+              .setText('🏷️ No additional labels suggested'))
+            .build();
+        }
+        
+        // Create a card with clickable label buttons
+        const card = CardService.newCardBuilder()
+          .setHeader(CardService.newCardHeader()
+            .setTitle('Suggested Labels')
+            .setSubtitle('Click to apply'));
+        
+        const section = CardService.newCardSection();
+        
+        suggestions.forEach(label => {
+          section.addWidget(CardService.newTextButton()
+            .setText('🏷️ ' + label)
+            .setOnClickAction(CardService.newAction()
+              .setFunctionName('applyLabelToThread')
+              .setParameters({
+                threadId: context.threadId,
+                labelName: label
+              })));
+        });
+        
+        card.addSection(section);
+        
+        return CardService.newActionResponseBuilder()
+          .setNavigation(CardService.newNavigation()
+            .pushCard(card.build()))
+          .build();
+          
+      } catch (error) {
+        return CardService.newActionResponseBuilder()
+          .setNotification(CardService.newNotification()
+            .setText('❌ ' + Utils.logAndHandleError(error, 'Suggest labels')))
+          .build();
+      }
     }
   };
   
   /**
    * Analyze a single message
    */
-  function analyzeMessage(_apiKey: string, context: MessageContext): MessageAnalysis {
-    // Note: Full AI analysis implementation would use:
-    // const prompt = `Analyze this email and provide:
-    // 1. Classification (support or not)
-    // 2. Confidence score (0-1)
-    // 3. Sentiment (positive/neutral/negative/urgent)
-    // 4. Intent of the sender
-    // 5. Key phrases
-    // 6. Suggested actions
-    //
-    // Email:
-    // Subject: ${context.subject}
-    // From: ${context.from}
-    // Body: ${context.body}`;
-    // const result = AI.callGemini(apiKey, prompt);
-    
-    // Parse response (simplified)
-    return {
-      classification: context.body.toLowerCase().includes('help') ? 'support' : 'not',
-      confidence: 0.85,
-      sentiment: 'neutral',
-      suggestedActions: ['Reply within 24h', 'Check documentation'],
-      keyPhrases: ['customer support', 'technical issue'],
-      intent: 'seeking assistance'
-    };
+  function analyzeMessage(apiKey: string, context: MessageContext): MessageAnalysis {
+    try {
+      // Define JSON schema for structured response
+      const analysisSchema = {
+        type: 'object',
+        properties: {
+          classification: { type: 'string' },
+          confidence: { type: 'number' },
+          sentiment: { 
+            type: 'string',
+            enum: ['positive', 'neutral', 'negative', 'urgent']
+          },
+          suggestedActions: {
+            type: 'array',
+            items: { type: 'string' }
+          },
+          keyPhrases: {
+            type: 'array',
+            items: { type: 'string' }
+          },
+          intent: { type: 'string' }
+        },
+        required: ['classification', 'confidence', 'sentiment', 'suggestedActions']
+      };
+      
+      const prompt = `Analyze this email and provide a detailed analysis:
+
+Email Details:
+Subject: ${context.subject}
+From: ${context.from}
+Body: ${context.body}
+
+Provide:
+1. Classification (what type of email this is)
+2. Confidence score (0-1)
+3. Sentiment (positive/neutral/negative/urgent)
+4. Intent of the sender
+5. Key phrases (important terms or concepts)
+6. Suggested actions (what should be done with this email)`;
+      
+      const result = AI.callGemini(apiKey, prompt, analysisSchema);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to analyze message');
+      }
+      
+      // Parse the JSON response
+      let analysisData: MessageAnalysis;
+      if (typeof result.data === 'string') {
+        analysisData = JSON.parse(result.data);
+      } else {
+        analysisData = result.data as MessageAnalysis;
+      }
+      
+      // Ensure all required fields are present
+      return {
+        classification: analysisData.classification || 'unknown',
+        confidence: analysisData.confidence || 0.5,
+        sentiment: analysisData.sentiment || 'neutral',
+        suggestedActions: analysisData.suggestedActions || [],
+        keyPhrases: analysisData.keyPhrases || [],
+        intent: analysisData.intent || 'unknown'
+      };
+      
+    } catch (error) {
+      AppLogger.error('Failed to analyze message', { error: Utils.handleError(error) });
+      // Return fallback analysis
+      return {
+        classification: 'unknown',
+        confidence: 0,
+        sentiment: 'neutral',
+        suggestedActions: ['Manual review required'],
+        keyPhrases: [],
+        intent: 'unknown'
+      };
+    }
   }
   
   /**
    * Extract entities from text
    */
-  function extractEntities(_apiKey: string, text: string): string[] {
-    // Simplified entity extraction
-    const entities: string[] = [];
-    
-    // Extract email addresses
-    const emails = text.match(/[\w._%+-]+@[\w.-]+\.[A-Za-z]{2,}/g) || [];
-    entities.push(...emails);
-    
-    // Extract URLs
-    const urls = text.match(/https?:\/\/[^\s]+/g) || [];
-    entities.push(...urls);
-    
-    // Extract potential product names (capitalized words)
-    const products = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) || [];
-    entities.push(...products.slice(0, 5));
-    
-    return [...new Set(entities)];
+  function extractEntities(apiKey: string, text: string): string[] {
+    try {
+      // Define JSON schema for entity extraction
+      const entitySchema = {
+        type: 'object',
+        properties: {
+          entities: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                text: { type: 'string' },
+                type: { type: 'string' }
+              },
+              required: ['text', 'type']
+            }
+          }
+        },
+        required: ['entities']
+      };
+      
+      const prompt = `Extract all important entities from this text. Include:
+- People names
+- Company/Organization names
+- Product names
+- Email addresses
+- URLs
+- Phone numbers
+- Dates
+- Monetary amounts
+- Technical terms
+
+Text: ${text}
+
+Return each entity with its type.`;
+      
+      const result = AI.callGemini(apiKey, prompt, entitySchema);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to extract entities');
+      }
+      
+      // Parse the JSON response
+      let entityData: { entities: Array<{ text: string; type: string }> };
+      if (typeof result.data === 'string') {
+        entityData = JSON.parse(result.data);
+      } else {
+        entityData = result.data as { entities: Array<{ text: string; type: string }> };
+      }
+      
+      // Extract unique entity texts
+      const uniqueEntities = [...new Set(entityData.entities.map(e => e.text))];
+      return uniqueEntities;
+      
+    } catch (error) {
+      AppLogger.warn('Failed to extract entities with AI, falling back to regex', { 
+        error: Utils.handleError(error) 
+      });
+      
+      // Fallback to regex-based extraction
+      const entities: string[] = [];
+      
+      // Extract email addresses
+      const emails = text.match(/[\w._%+-]+@[\w.-]+\.[A-Za-z]{2,}/g) || [];
+      entities.push(...emails);
+      
+      // Extract URLs
+      const urls = text.match(/https?:\/\/[^\s]+/g) || [];
+      entities.push(...urls);
+      
+      // Extract phone numbers
+      const phones = text.match(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g) || [];
+      entities.push(...phones);
+      
+      return [...new Set(entities)];
+    }
   }
   
   /**
    * Suggest labels for a message
    */
-  function suggestLabels(_apiKey: string, context: MessageContext): string[] {
-    const suggestions: string[] = [];
-    
-    // Basic keyword-based suggestions
-    const keywords = {
-      'urgent': ['Priority', 'Urgent'],
-      'bug': ['Bug Report', 'Technical Issue'],
-      'feature': ['Feature Request', 'Enhancement'],
-      'billing': ['Billing', 'Payment'],
-      'complaint': ['Complaint', 'Negative Feedback'],
-      'praise': ['Positive Feedback', 'Testimonial']
-    };
-    
-    const lowerBody = context.body.toLowerCase();
-    
-    Object.entries(keywords).forEach(([keyword, labels]) => {
-      if (lowerBody.includes(keyword)) {
-        suggestions.push(...labels);
+  function suggestLabels(apiKey: string, context: MessageContext): string[] {
+    try {
+      // Define JSON schema for label suggestions
+      const labelSchema = {
+        type: 'object',
+        properties: {
+          labels: {
+            type: 'array',
+            items: { type: 'string' },
+            maxItems: 5
+          },
+          reasoning: { type: 'string' }
+        },
+        required: ['labels']
+      };
+      
+      // Get existing labels from docs configuration if available
+      const docsPrompts = DocsPromptEditor.hasCompiledPrompts() ? 
+        'Consider these existing labels: ' + context.labels.join(', ') : '';
+      
+      const prompt = `Suggest up to 5 appropriate Gmail labels for this email based on its content.
+${docsPrompts}
+
+Email:
+Subject: ${context.subject}
+From: ${context.from}
+Body: ${context.body}
+
+Suggest specific, actionable labels that would help organize this email. Examples:
+- Priority/Urgent
+- Bug Report
+- Feature Request
+- Customer Complaint
+- Billing Issue
+- Technical Support
+- Follow-up Required
+- Positive Feedback`;
+      
+      const result = AI.callGemini(apiKey, prompt, labelSchema);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to suggest labels');
       }
-    });
-    
-    return [...new Set(suggestions)].slice(0, 5);
+      
+      // Parse the JSON response
+      let labelData: { labels: string[]; reasoning?: string };
+      if (typeof result.data === 'string') {
+        labelData = JSON.parse(result.data);
+      } else {
+        labelData = result.data as { labels: string[]; reasoning?: string };
+      }
+      
+      return labelData.labels || [];
+      
+    } catch (error) {
+      AppLogger.warn('Failed to suggest labels with AI, falling back to keywords', { 
+        error: Utils.handleError(error) 
+      });
+      
+      // Fallback to keyword-based suggestions
+      const suggestions: string[] = [];
+      const keywords = {
+        'urgent': ['Priority', 'Urgent'],
+        'bug': ['Bug Report', 'Technical Issue'],
+        'feature': ['Feature Request', 'Enhancement'],
+        'billing': ['Billing', 'Payment'],
+        'complaint': ['Complaint', 'Negative Feedback'],
+        'praise': ['Positive Feedback', 'Testimonial'],
+        'help': ['Support Request', 'Needs Assistance'],
+        'error': ['Error Report', 'System Issue']
+      };
+      
+      const lowerBody = (context.subject + ' ' + context.body).toLowerCase();
+      
+      Object.entries(keywords).forEach(([keyword, labels]) => {
+        if (lowerBody.includes(keyword)) {
+          suggestions.push(...labels);
+        }
+      });
+      
+      return [...new Set(suggestions)].slice(0, 5);
+    }
   }
   
   /**

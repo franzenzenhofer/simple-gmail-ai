@@ -337,6 +337,28 @@ namespace Utils {
   }
   
   /**
+   * Get memory usage info (simplified for Apps Script)
+   */
+  export function getMemoryUsage(): string {
+    // Apps Script doesn't provide direct memory info, return current timestamp
+    return 'T+' + new Date().toISOString();
+  }
+  
+  /**
+   * Log execution checkpoint with timing
+   */
+  export function logCheckpoint(operation: string, startTime?: number): void {
+    if (startTime) {
+      ExecutionTime.logTimeStatus(startTime, operation);
+    } else {
+      AppLogger.info('🔍 CHECKPOINT: ' + operation, {
+        timestamp: new Date().toISOString(),
+        memoryUsage: getMemoryUsage()
+      });
+    }
+  }
+  
+  /**
    * Get API key from user properties
    */
   export function getApiKey(): string | null {

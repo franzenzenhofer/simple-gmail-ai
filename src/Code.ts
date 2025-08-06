@@ -7,6 +7,7 @@
 /// <reference path="modules/config.ts" />
 /// <reference path="modules/types.ts" />
 /// <reference path="modules/logger.ts" />
+/// <reference path="modules/execution-time.ts" />
 /// <reference path="modules/utils.ts" />
 /// <reference path="modules/json-validator.ts" />
 /// <reference path="modules/ai-schemas.ts" />
@@ -106,6 +107,10 @@ function toggleDebugMode(e: any): GoogleAppsScript.Card_Service.ActionResponse {
 
 function toggleSpreadsheetLogging(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   return ActionHandlers.toggleSpreadsheetLogging(e);
+}
+
+function saveModelSettings(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.saveModelSettings(e);
 }
 
 // =============================================================================
@@ -328,6 +333,35 @@ function executeContextualAction(e: any): GoogleAppsScript.Card_Service.ActionRe
 
 function toggleSectionState(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   return UIImprovements.toggleSectionState(e);
+}
+
+function applyLabelToThread(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  try {
+    const threadId = e.parameters.threadId;
+    const labelName = e.parameters.labelName;
+    
+    if (!threadId || !labelName) {
+      return CardService.newActionResponseBuilder()
+        .setNotification(CardService.newNotification()
+          .setText('❌ Missing thread or label information'))
+        .build();
+    }
+    
+    const thread = GmailApp.getThreadById(threadId);
+    const label = GmailService.getOrCreateLabel(labelName);
+    thread.addLabel(label);
+    
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText(`✅ Applied label: ${labelName}`))
+      .build();
+      
+  } catch (error) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('❌ ' + Utils.logAndHandleError(error, 'Apply label')))
+      .build();
+  }
 }
 
 function updateLogFilter(e: any): GoogleAppsScript.Card_Service.ActionResponse {

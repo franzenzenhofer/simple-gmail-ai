@@ -166,22 +166,47 @@ namespace BatchProcessor {
   ): BatchResponse {
     const batchId = 'batch_class_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     const startTime = Date.now();
+    const scriptStartTime = ContinuationTriggers.isApproachingTimeLimit(0) ? Date.now() : 0;
 
     AppLogger.info('🔄 BATCH CLASSIFICATION START', {
       batchId,
       emailCount: batch.length,
-      maxBatchSize: CONFIG.MAX_BATCH_SIZE
+      maxBatchSize: CONFIG.MAX_BATCH_SIZE,
+      scriptElapsedTime: scriptStartTime > 0 ? Date.now() - scriptStartTime + 'ms' : 'N/A'
     });
 
+    // Check if we're already approaching time limit
+    if (scriptStartTime > 0 && ContinuationTriggers.isApproachingTimeLimit(scriptStartTime)) {
+      const elapsedSeconds = Math.floor((Date.now() - scriptStartTime) / 1000);
+      throw new Error(`Script timeout: ${elapsedSeconds}s elapsed, cannot start new batch`);
+    }
+
     try {
+      const promptCreateStart = Date.now();
       const prompt = createBatchClassificationPrompt(batch, basePrompt);
-      const result = AI.callGemini<BatchResult[]>(apiKey, prompt, BATCH_CLASSIFICATION_SCHEMA);
+      const promptCreateTime = Date.now() - promptCreateStart;
+      
+      AppLogger.info('📝 BATCH PROMPT CREATED', {
+        batchId,
+        promptLength: prompt.length,
+        promptCreateTime: promptCreateTime + 'ms'
+      });
+      
+      // Use fastest model for scanning
+      const scanModel = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.SCAN_MODEL) || Config.GEMINI.DEFAULT_SCAN_MODEL;
+      
+      const apiCallStart = Date.now();
+      const result = AI.callGemini<BatchResult[]>(apiKey, prompt, BATCH_CLASSIFICATION_SCHEMA, scanModel);
+      const apiCallTime = Date.now() - apiCallStart;
 
       if (!result.success) {
+        const processingTime = Date.now() - startTime;
         AppLogger.error('❌ BATCH CLASSIFICATION FAILED', {
           batchId,
           error: result.error,
-          statusCode: result.statusCode
+          statusCode: result.statusCode,
+          apiCallTime: apiCallTime + 'ms',
+          totalProcessingTime: processingTime + 'ms'
         });
 
         // Return error result for all emails in batch
@@ -223,6 +248,9 @@ namespace BatchProcessor {
         });
       }
 
+      const postProcessStart = Date.now();
+      // Post-processing timing
+      const postProcessTime = Date.now() - postProcessStart;
       const processingTime = Date.now() - startTime;
 
       AppLogger.info('✅ BATCH CLASSIFICATION SUCCESS', {
@@ -230,7 +258,11 @@ namespace BatchProcessor {
         emailCount: batch.length,
         successCount: result.data.filter(r => !r.error).length,
         errorCount: result.data.filter(r => r.error).length,
-        processingTime
+        promptCreateTime: promptCreateTime + 'ms',
+        apiCallTime: apiCallTime + 'ms',
+        postProcessTime: postProcessTime + 'ms',
+        totalProcessingTime: processingTime + 'ms',
+        avgTimePerEmail: Math.round(processingTime / batch.length) + 'ms'
       });
 
       return {
@@ -247,7 +279,8 @@ namespace BatchProcessor {
       AppLogger.error('❌ BATCH CLASSIFICATION EXCEPTION', {
         batchId,
         error: errorMessage,
-        processingTime
+        processingTime: processingTime + 'ms',
+        scriptElapsedTime: scriptStartTime > 0 ? Date.now() - scriptStartTime + 'ms' : 'N/A'
       });
 
       // Return error result for all emails in batch
@@ -282,25 +315,54 @@ namespace BatchProcessor {
     const allResults: BatchResult[] = [];
     const batches = createBatches(emails, CONFIG.MAX_BATCH_SIZE);
     
+    const overallStartTime = Date.now();
+    
     AppLogger.info('📦 BATCH PROCESSING START', {
       totalEmails: emails.length,
       totalBatches: batches.length,
-      maxBatchSize: CONFIG.MAX_BATCH_SIZE
+      maxBatchSize: CONFIG.MAX_BATCH_SIZE,
+      averageEmailsPerBatch: Math.round(emails.length / batches.length)
     });
 
     for (let i = 0; i < batches.length; i++) {
+      const batchStartTime = Date.now();
       const batch = batches[i];
       if (!batch || batch.length === 0) {
         continue;
       }
+      
+      AppLogger.info('🔢 PROCESSING BATCH', {
+        batchNumber: i + 1,
+        totalBatches: batches.length,
+        emailsInBatch: batch.length,
+        progressPercentage: Math.round(((i + 1) / batches.length) * 100) + '%'
+      });
+      
       const batchResponse = processBatchClassification(apiKey, batch, basePrompt);
+      const batchTime = Date.now() - batchStartTime;
       
       allResults.push(...batchResponse.results);
       
       // Call progress callback if provided
       if (onBatchComplete) {
+        const callbackStart = Date.now();
         onBatchComplete(batchResponse, i + 1, batches.length);
+        const callbackTime = Date.now() - callbackStart;
+        if (callbackTime > 100) {
+          AppLogger.warn('⚠️ SLOW CALLBACK', {
+            batchNumber: i + 1,
+            callbackTime: callbackTime + 'ms'
+          });
+        }
       }
+
+      AppLogger.info('✅ BATCH COMPLETE', {
+        batchNumber: i + 1,
+        totalBatches: batches.length,
+        batchTime: batchTime + 'ms',
+        averageTimePerEmail: Math.round(batchTime / batch.length) + 'ms',
+        overallElapsed: (Date.now() - overallStartTime) + 'ms'
+      });
 
       // Add delay between batches (except for the last one)
       if (i < batches.length - 1) {
@@ -313,11 +375,16 @@ namespace BatchProcessor {
       }
     }
 
+    const overallTime = Date.now() - overallStartTime;
+    
     AppLogger.info('✅ ALL BATCHES COMPLETE', {
       totalEmails: emails.length,
       totalBatches: batches.length,
       successCount: allResults.filter(r => !r.error).length,
-      errorCount: allResults.filter(r => r.error).length
+      errorCount: allResults.filter(r => r.error).length,
+      totalProcessingTime: overallTime + 'ms',
+      averageTimePerEmail: Math.round(overallTime / emails.length) + 'ms',
+      averageTimePerBatch: Math.round(overallTime / batches.length) + 'ms'
     });
 
     return allResults;

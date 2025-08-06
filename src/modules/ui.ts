@@ -359,6 +359,42 @@ namespace UI {
         )
     );
     
+    // Model Selection Section
+    const properties = PropertiesService.getUserProperties();
+    const scanModel = properties.getProperty(Config.PROP_KEYS.SCAN_MODEL) || Config.GEMINI.DEFAULT_SCAN_MODEL;
+    const replyModel = properties.getProperty(Config.PROP_KEYS.REPLY_MODEL) || Config.GEMINI.DEFAULT_REPLY_MODEL;
+    
+    mainSection.addWidget(
+      CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle('Scanning Model (Speed Priority)')
+        .setFieldName('scanModel')
+        .addItem('Flash-Lite (Fastest)', Config.GeminiModel.FLASH_LITE, scanModel === Config.GeminiModel.FLASH_LITE)
+        .addItem('Flash (Balanced)', Config.GeminiModel.FLASH, scanModel === Config.GeminiModel.FLASH)
+        .addItem('Pro (Highest Quality)', Config.GeminiModel.PRO, scanModel === Config.GeminiModel.PRO)
+        .setOnChangeAction(
+          CardService.newAction().setFunctionName('saveModelSettings')
+        )
+    );
+    
+    mainSection.addWidget(
+      CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle('Reply Model (Quality Priority)')
+        .setFieldName('replyModel')
+        .addItem('Flash-Lite (Fastest)', Config.GeminiModel.FLASH_LITE, replyModel === Config.GeminiModel.FLASH_LITE)
+        .addItem('Flash (Balanced)', Config.GeminiModel.FLASH, replyModel === Config.GeminiModel.FLASH)
+        .addItem('Pro (Highest Quality)', Config.GeminiModel.PRO, replyModel === Config.GeminiModel.PRO)
+        .setOnChangeAction(
+          CardService.newAction().setFunctionName('saveModelSettings')
+        )
+    );
+    
+    mainSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('📊 Flash-Lite: 252 tokens/sec, lowest cost\n⚖️ Flash: Balanced speed & quality\n🎯 Pro: Highest quality, slower')
+    );
+    
     mainSection.addWidget(
       CardService.newKeyValue()
         .setTopLabel('Version')

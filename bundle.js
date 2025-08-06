@@ -19,6 +19,7 @@ function analyzeDependencies(modulesDir) {
   const coreModules = [
     'config',
     'logger', 
+    'execution-time',
     'utils',
     'json-validator',
     'ai-schemas',
@@ -61,6 +62,7 @@ function analyzeDependencies(modulesDir) {
   const namespaceToModule = {
     'Config': 'config',
     'AppLogger': 'logger', 
+    'ExecutionTime': 'execution-time',
     'Utils': 'utils',
     'JsonValidator': 'json-validator',
     'AISchemas': 'ai-schemas',
@@ -96,7 +98,9 @@ function analyzeDependencies(modulesDir) {
     'FactoryResetHandlers': 'factory-reset-handlers',
     'DocsPromptEditor': 'docs-prompt-editor',
     'DocsPromptHandlers': 'docs-prompt-handlers',
-    'DeploymentInfo': 'deployment-info'
+    'DeploymentInfo': 'deployment-info',
+    'GeminiModel': 'config',
+    'LIMITS': 'execution-time'
   };
   
   coreModules.forEach(moduleName => {

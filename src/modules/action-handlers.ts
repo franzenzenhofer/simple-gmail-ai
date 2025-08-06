@@ -265,4 +265,41 @@ namespace ActionHandlers {
       return UI.showNotification('Error: ' + Utils.handleError(err));
     }
   }
+  
+  export function saveModelSettings(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      const properties = PropertiesService.getUserProperties();
+      const scanModel = Utils.getFormValue(e, 'scanModel');
+      const replyModel = Utils.getFormValue(e, 'replyModel');
+      
+      if (scanModel) {
+        properties.setProperty(Config.PROP_KEYS.SCAN_MODEL, scanModel);
+      }
+      if (replyModel) {
+        properties.setProperty(Config.PROP_KEYS.REPLY_MODEL, replyModel);
+      }
+      
+      let message = 'Model settings saved';
+      if (scanModel && replyModel) {
+        message = `Models updated: Scan(${scanModel.split('-').pop()}) Reply(${replyModel.split('-').pop()})`;
+      } else if (scanModel) {
+        message = `Scan model updated: ${scanModel.split('-').pop()}`;
+      } else if (replyModel) {
+        message = `Reply model updated: ${replyModel.split('-').pop()}`;
+      }
+      
+      AppLogger.info('🎯 MODEL SETTINGS UPDATED', {
+        scanModel: scanModel || 'unchanged',
+        replyModel: replyModel || 'unchanged'
+      });
+      
+      return CardService.newActionResponseBuilder()
+        .setNotification(CardService.newNotification().setText(message))
+        .setNavigation(CardService.newNavigation().updateCard(UI.buildSettingsTab()))
+        .build();
+        
+    } catch (error) {
+      return UI.showNotification('Error: ' + Utils.handleError(error));
+    }
+  }
 }

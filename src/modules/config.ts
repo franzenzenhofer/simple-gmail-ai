@@ -22,11 +22,23 @@ namespace Config {
   // All prompts must come from Google Docs - no hardcoded defaults
   // This ensures labels are 100% managed in the prompt document
   
+  // Available Gemini 2.5 models
+  export enum GeminiModel {
+    FLASH_LITE = 'gemini-2.5-flash-lite', // Fastest, lowest cost, 252 tokens/sec
+    FLASH = 'gemini-2.5-flash',           // Balanced speed & quality
+    PRO = 'gemini-2.5-pro'                // Highest quality, slower
+  }
+  
   export const GEMINI = {
-    MODEL: 'gemini-2.5-flash',
+    // Default models for different tasks
+    DEFAULT_SCAN_MODEL: GeminiModel.FLASH_LITE,  // Use fastest model for scanning
+    DEFAULT_REPLY_MODEL: GeminiModel.FLASH,      // Use balanced model for replies
+    MODEL: 'gemini-2.5-flash',  // Legacy default
     TEMPERATURE: 0.3,
     API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/',
-    TIMEOUT_MS: 30000 // 30 seconds timeout for API calls
+    // Performance settings
+    MAX_RETRIES: 2,
+    RETRY_DELAY_MS: 1000
   };
   
   // Property keys - centralized to avoid inconsistency
@@ -85,7 +97,11 @@ namespace Config {
     PROCESSING_STATS: 'PROCESSING_STATS',
     
     // Continuation & State
-    ACTIVE_CONTINUATION_KEY: 'ACTIVE_CONTINUATION_KEY'
+    ACTIVE_CONTINUATION_KEY: 'ACTIVE_CONTINUATION_KEY',
+    
+    // Model Selection
+    SCAN_MODEL: 'SCAN_MODEL',
+    REPLY_MODEL: 'REPLY_MODEL'
   };
   
   // Theme colors - can be customized or made theme-aware
