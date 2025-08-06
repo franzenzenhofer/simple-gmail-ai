@@ -702,6 +702,28 @@ For general emails that don't match specific categories, we just apply the "Gene
   }
   
   /**
+   * Get document last modified time
+   */
+  export function getDocumentLastModified(): string | null {
+    const docId = PropertiesService.getUserProperties().getProperty(PROMPT_DOC_ID_KEY);
+    
+    if (!docId) {
+      return null;
+    }
+    
+    try {
+      const file = DriveApp.getFileById(docId);
+      const lastUpdated = file.getLastUpdated();
+      
+      // Format as readable date/time using Utilities
+      return Utilities.formatDate(lastUpdated, Session.getScriptTimeZone(), 'MMM d, yyyy \'at\' h:mm a');
+    } catch (e) {
+      AppLogger.warn('Failed to get document last modified', { error: Utils.handleError(e) });
+      return null;
+    }
+  }
+  
+  /**
    * Reset document (for testing/development)
    */
   export function resetDocument(): void {

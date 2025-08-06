@@ -543,20 +543,41 @@ namespace GmailService {
     classificationPrompt: string,
     responsePrompt: string
   ): Map<string, ProcessingResult> {
+    const startTime = Date.now();
     const results = new Map<string, ProcessingResult>();
     
     if (threads.length === 0) return results;
     
     AppLogger.info('📦 BATCH PROCESSING START', {
       threadCount: threads.length,
-      mode: autoReply ? 'AUTO-REPLY' : (createDrafts ? 'DRAFT' : 'LABEL-ONLY')
+      mode: autoReply ? 'AUTO-REPLY' : (createDrafts ? 'DRAFT' : 'LABEL-ONLY'),
+      startTime: new Date(startTime).toISOString(),
+      maxExecutionTimeMs: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS
     });
     
     // Step 1: Prepare emails for batch classification using new BatchProcessor
     const emailsToClassify: BatchProcessor.BatchItem[] = [];
     const threadMap = new Map<string, {thread: GoogleAppsScript.Gmail.GmailThread, body: string, redactedBody: string, subject: string, sender: string}>();
     
-    threads.forEach(thread => {
+    // Progress tracking
+    let preparedCount = 0;
+    const totalThreads = threads.length;
+    
+    threads.forEach((thread, index) => {
+      // Check for timeout during preparation
+      if (ContinuationTriggers.isApproachingTimeLimit(startTime)) {
+        const elapsedMs = Date.now() - startTime;
+        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+        AppLogger.error('⏰ TIMEOUT DURING PREPARATION', {
+          preparedCount,
+          totalThreads,
+          elapsedSeconds,
+          elapsedMs,
+          timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
+          atThread: index + 1
+        });
+        throw new Error(`Execution timeout after ${elapsedSeconds} seconds while preparing thread ${index + 1} of ${totalThreads}. Prepared ${preparedCount} threads before timeout.`);
+      }
       try {
         const messages = thread.getMessages();
         if (messages.length === 0) {
@@ -605,6 +626,18 @@ namespace GmailService {
           subject: subject,
           sender: sender
         });
+        
+        preparedCount++;
+        
+        // Update progress every 10 threads
+        if (preparedCount % 10 === 0) {
+          AppLogger.info('📊 PREPARATION PROGRESS', {
+            preparedCount,
+            totalThreads,
+            percentComplete: Math.round((preparedCount / totalThreads) * 100),
+            elapsedSeconds: Math.floor((Date.now() - startTime) / 1000)
+          });
+        }
       } catch (error) {
         const errorMessage = Utils.logAndHandleError(error, `Thread preparation for ${thread.getId()}`);
         results.set(thread.getId(), {
@@ -641,7 +674,23 @@ namespace GmailService {
     // Process each prompt group separately
     const allClassifications: Array<{id: string; label: string; confidence?: number; error?: string}> = [];
     
+    let classifiedCount = 0;
+    
     emailsByPrompt.forEach(({prompt, emails}) => {
+      // Check for timeout before processing each batch
+      if (ContinuationTriggers.isApproachingTimeLimit(startTime)) {
+        const elapsedMs = Date.now() - startTime;
+        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+        AppLogger.error('⏰ TIMEOUT DURING CLASSIFICATION', {
+          classifiedCount,
+          totalToClassify: emailsToClassify.length,
+          elapsedSeconds,
+          elapsedMs,
+          timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS
+        });
+        throw new Error(`Execution timeout after ${elapsedSeconds} seconds during classification. Classified ${classifiedCount} of ${emailsToClassify.length} emails before timeout.`);
+      }
+      
       const savings = BatchProcessor.calculateBatchSavings(emails.length);
       AppLogger.info('📊 BATCH PROCESSING GROUP', {
         totalEmails: emails.length,
@@ -665,7 +714,16 @@ namespace GmailService {
         }
       );
       
+      classifiedCount += emails.length;
       allClassifications.push(...classifications);
+      
+      // Update overall progress
+      AppLogger.info('📈 CLASSIFICATION PROGRESS', {
+        classifiedCount,
+        totalToClassify: emailsToClassify.length,
+        percentComplete: Math.round((classifiedCount / emailsToClassify.length) * 100),
+        elapsedSeconds: Math.floor((Date.now() - startTime) / 1000)
+      });
     });
     
     // Use all classifications for processing
@@ -734,7 +792,25 @@ namespace GmailService {
         mode: autoReply ? 'AUTO-SEND' : 'DRAFT'
       });
       
-      supportThreads.forEach(({threadId, thread, redactedBody, subject, sender, body}) => {
+      let repliesGenerated = 0;
+    const totalReplies = supportThreads.length;
+    
+    supportThreads.forEach(({threadId, thread, redactedBody, subject, sender, body}, index) => {
+        // Check for timeout during reply generation
+        if (ContinuationTriggers.isApproachingTimeLimit(startTime)) {
+          const elapsedMs = Date.now() - startTime;
+          const elapsedSeconds = Math.floor(elapsedMs / 1000);
+          AppLogger.error('⏰ TIMEOUT DURING REPLY GENERATION', {
+            repliesGenerated,
+            totalReplies,
+            elapsedSeconds,
+            elapsedMs,
+            timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
+            atReply: index + 1
+          });
+          throw new Error(`Execution timeout after ${elapsedSeconds} seconds while generating reply ${index + 1} of ${totalReplies}. Generated ${repliesGenerated} replies before timeout.`);
+        }
+        
         // Check for cancellation at the start of each reply generation
         if (PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED) === 'true') {
           AppLogger.info('🛑 Processing cancelled during reply generation');
@@ -865,6 +941,18 @@ namespace GmailService {
             
             // T-12: Clear redaction cache after successful processing
             Redaction.clearRedactionCache(threadId);
+            
+            repliesGenerated++;
+            
+            // Update progress every 5 replies
+            if (repliesGenerated % 5 === 0 || repliesGenerated === totalReplies) {
+              AppLogger.info('📝 REPLY GENERATION PROGRESS', {
+                repliesGenerated,
+                totalReplies,
+                percentComplete: Math.round((repliesGenerated / totalReplies) * 100),
+                elapsedSeconds: Math.floor((Date.now() - startTime) / 1000)
+              });
+            }
           }
         } catch (error) {
           const errorMessage = Utils.logAndHandleError(error, `Reply creation for thread ${threadId}`);

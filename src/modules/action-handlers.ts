@@ -104,6 +104,25 @@ namespace ActionHandlers {
         return UI.showNotification('⚠️ Create Prompt Document first. Go to Prompt Editor tab to set up your prompts.');
       }
       
+      // Validate and refresh document if it has changed
+      AppLogger.info('🔄 Checking for prompt document updates');
+      if (DocsPromptEditor.hasDocumentChanged()) {
+        AppLogger.info('📝 Document has changed - revalidating');
+        const validation = DocsPromptEditor.validateDocument();
+        
+        if (!validation.success) {
+          AppLogger.error('❌ Prompt document validation failed', {
+            errors: validation.errors,
+            warnings: validation.warnings
+          });
+          return UI.showNotification('❌ Prompt document has errors. Please fix them in Google Docs.');
+        }
+        
+        AppLogger.info('✅ Prompt document validated and updated', {
+          labelsCount: validation.labelsCount
+        });
+      }
+      
       const mode = Utils.getFormValue(e, 'mode', Config.ProcessingMode.LABEL_ONLY);
       
       // Save mode setting for persistence

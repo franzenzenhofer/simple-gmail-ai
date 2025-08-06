@@ -371,6 +371,13 @@ function compilePrompts(): GoogleAppsScript.Card_Service.ActionResponse {
   return DocsPromptHandlers.compilePrompts();
 }
 
+/**
+ * Refresh prompt document
+ */
+function refreshPromptDocument(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.refreshPromptDocument();
+}
+
 // =============================================================================
 // 🏭 FACTORY RESET HANDLERS
 // Complete system reset functionality

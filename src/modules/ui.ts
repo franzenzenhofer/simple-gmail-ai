@@ -87,10 +87,19 @@ namespace UI {
     // Check if prompt document exists - use single source of truth
     const promptDocUrl = DocsPromptEditor.getDocumentUrl();
     
+    const promptDocTitle = DocsPromptEditor.getDocumentTitle();
+    const lastModified = DocsPromptEditor.getDocumentLastModified();
+    
     if (promptDocUrl) {
+      // Get validation info
+      const validation = DocsPromptEditor.validateDocument();
+      const statusText = validation.success 
+        ? `✅ ${validation.labelsCount} labels configured`
+        : `⚠️ ${validation.errors.length} errors - click to fix`;
+      
       promptSection.addWidget(
         CardService.newTextParagraph()
-          .setText('<b>✅ Prompt Document Active</b><br>All prompts are managed in your Google Docs document.')
+          .setText(`<b>${promptDocTitle || 'Prompt Document'}</b><br>${statusText}<br><i>Last edited: ${lastModified || 'Unknown'}</i>`)
       );
       
       promptSection.addWidget(
@@ -158,7 +167,9 @@ namespace UI {
           .setLoadIndicator(CardService.LoadIndicator.SPINNER) // Show spinner for immediate feedback
       );
     
-    if (!hasApiKey || isProcessing) {
+    // Disable button if no API key, no prompt document, or currently processing
+    const hasPromptDoc = DocsPromptEditor.hasPromptDocument();
+    if (!hasApiKey || !hasPromptDoc || isProcessing) {
       analyzeBtn.setDisabled(true);
     }
     
