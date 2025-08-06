@@ -8,6 +8,7 @@ namespace GmailService {
     threadId: string;
     isSupport: boolean;
     error?: string;
+    appliedLabels?: string[];  // Track all labels applied to this thread
   }
   
   // Email routing context interfaces
@@ -782,15 +783,24 @@ namespace GmailService {
         results.set(result.id, {
           threadId: result.id,
           isSupport: shouldCreateDraft || false,
-          error: result.error
+          error: result.error,
+          appliedLabels: [labelToApply, Config.LABELS.AI_PROCESSED]
         });
         
       } catch (error) {
         const errorMessage = Utils.logAndHandleError(error, `Label application for thread ${result.id}`);
+        // Apply error label when processing fails
+        try {
+          const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+          threadData.thread.addLabel(errorLabel);
+        } catch (labelError) {
+          AppLogger.warn('Could not apply AI_ERROR label', { error: String(labelError) });
+        }
         results.set(result.id, {
           threadId: result.id,
           isSupport: false,
-          error: errorMessage
+          error: errorMessage,
+          appliedLabels: [Config.LABELS.AI_ERROR]
         });
       }
     });

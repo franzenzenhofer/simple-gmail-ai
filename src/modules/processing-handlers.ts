@@ -22,7 +22,10 @@ namespace ProcessingHandlers {
       supports: 0,
       drafted: 0,
       sent: 0,
-      errors: 0
+      errors: 0,
+      labelCounts: {},
+      aiProcessedCount: 0,
+      aiErrorCount: 0
     };
     
     AppLogger.info('📊 Starting analysis', {
@@ -45,6 +48,20 @@ namespace ProcessingHandlers {
     // Process results and update stats
     results.forEach((result) => {
       stats.scanned++;
+      
+      // Track detailed label counts
+      if (result.appliedLabels) {
+        result.appliedLabels.forEach(label => {
+          stats.labelCounts[label] = (stats.labelCounts[label] || 0) + 1;
+          
+          // Track special system labels
+          if (label === Config.LABELS.AI_PROCESSED) {
+            stats.aiProcessedCount++;
+          } else if (label === Config.LABELS.AI_ERROR) {
+            stats.aiErrorCount++;
+          }
+        });
+      }
       
       if (result.error) {
         stats.errors++;
@@ -84,7 +101,27 @@ namespace ProcessingHandlers {
       minute: '2-digit',
       timeZone: Session.getScriptTimeZone()
     });
-    const statsString = `${stats.scanned} analyzed | ${stats.supports} labeled | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
+    
+    // Create detailed label breakdown
+    const labelBreakdown: string[] = [];
+    
+    // Add system label counts first
+    if (stats.aiProcessedCount > 0) {
+      labelBreakdown.push(`${stats.aiProcessedCount} ${Config.LABELS.AI_PROCESSED}`);
+    }
+    if (stats.aiErrorCount > 0) {
+      labelBreakdown.push(`${stats.aiErrorCount} ${Config.LABELS.AI_ERROR}`);
+    }
+    
+    // Add other label counts (excluding system labels)
+    Object.entries(stats.labelCounts).forEach(([label, count]) => {
+      if (label !== Config.LABELS.AI_PROCESSED && label !== Config.LABELS.AI_ERROR) {
+        labelBreakdown.push(`${count} ${label}`);
+      }
+    });
+    
+    const labelInfo = labelBreakdown.length > 0 ? ` | Labels: ${labelBreakdown.join(', ')}` : '';
+    const statsString = `${stats.scanned} analyzed | ${stats.supports} labeled | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}${labelInfo}`;
     
     props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_TIME, executionTime);
     props.setProperty(Config.PROP_KEYS.LAST_EXECUTION_STATS, statsString);
