@@ -340,15 +340,55 @@ else
     fi
     echo "$VERSION_OUTPUT"
 
-    # Deploy the new version
+    # Deploy the new version with automatic cleanup on failure
     echo "🏷️ Creating new deployment..."
     DEPLOY_DESC="v$VERSION - Single File Bundle - Gemini 2.5 Flash"
     if ! DEPLOY_OUTPUT=$(clasp deploy --description "$DEPLOY_DESC" 2>&1); then
         echo "❌ ERROR: Failed to create deployment!"
         echo "$DEPLOY_OUTPUT"
-        exit 1
+        
+        # Check if it's a deployment limit issue
+        if echo "$DEPLOY_OUTPUT" | grep -q "may only have up to.*deployments"; then
+            echo "🧹 DEPLOYMENT LIMIT REACHED - Auto-cleaning old deployments..."
+            
+            # Get current deployment count
+            DEPLOY_COUNT=$(clasp deployments 2>/dev/null | head -1 | sed 's/[^0-9].*//g' || echo "0")
+            echo "📊 Current deployments: $DEPLOY_COUNT"
+            
+            if [ "$DEPLOY_COUNT" -gt 15 ]; then
+                echo "🗑️ Removing old deployments to make space..."
+                
+                # Get list of old deployments (excluding @HEAD) and remove oldest ones
+                OLD_DEPLOYMENTS=$(clasp deployments 2>/dev/null | grep -v "@HEAD" | tail -n +3 | head -5 | awk '{print $2}' || echo "")
+                
+                for deployment_id in $OLD_DEPLOYMENTS; do
+                    if [ -n "$deployment_id" ]; then
+                        echo "🗑️ Removing deployment: $deployment_id"
+                        clasp undeploy "$deployment_id" 2>/dev/null || echo "⚠️ Could not remove deployment $deployment_id"
+                    fi
+                done
+                
+                echo "✅ Cleanup complete. Retrying deployment..."
+                
+                # Retry deployment
+                if ! DEPLOY_OUTPUT=$(clasp deploy --description "$DEPLOY_DESC" 2>&1); then
+                    echo "❌ ERROR: Deployment still failed after cleanup!"
+                    echo "$DEPLOY_OUTPUT"
+                    exit 1
+                fi
+                echo "✅ DEPLOYMENT SUCCESSFUL after cleanup!"
+                echo "$DEPLOY_OUTPUT"
+            else
+                echo "❌ Deployment failed but not due to limit issue"
+                exit 1
+            fi
+        else
+            exit 1
+        fi
+    else
+        echo "✅ DEPLOYMENT SUCCESSFUL!"
+        echo "$DEPLOY_OUTPUT"
     fi
-    echo "$DEPLOY_OUTPUT"
 
     # List deployments
     echo ""
