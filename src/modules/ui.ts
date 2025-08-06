@@ -392,7 +392,7 @@ namespace UI {
     
     mainSection.addWidget(
       CardService.newTextParagraph()
-        .setText('📊 Flash-Lite: 252 tokens/sec, lowest cost\n⚖️ Flash: Balanced speed & quality\n🎯 Pro: Highest quality, slower')
+        .setText(`📊 Flash-Lite: 252 tokens/sec, lowest cost\n⚖️ Flash: Balanced speed & quality\n🎯 Pro: Highest quality, slower\n\n⏱️ Max execution: ${ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS)}\n🔌 API timeout: ${ExecutionTime.formatDuration(ExecutionTime.LIMITS.API_TIMEOUT_MS)}`)
     );
     
     mainSection.addWidget(

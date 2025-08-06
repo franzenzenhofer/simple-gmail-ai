@@ -552,7 +552,7 @@ namespace GmailService {
       threadCount: threads.length,
       mode: autoReply ? 'AUTO-REPLY' : (createDrafts ? 'DRAFT' : 'LABEL-ONLY'),
       startTime: new Date(startTime).toISOString(),
-      maxExecutionTimeMs: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS
+      maxExecutionTime: ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS)
     });
     
     // Step 1: Prepare emails for batch classification using new BatchProcessor
@@ -565,15 +565,14 @@ namespace GmailService {
     
     threads.forEach((thread, index) => {
       // Check for timeout during preparation
-      if (ContinuationTriggers.isApproachingTimeLimit(startTime)) {
-        const elapsedMs = Date.now() - startTime;
+      if (ExecutionTime.isApproachingLimit(startTime)) {
+        const elapsedMs = ExecutionTime.getElapsedTime(startTime);
         const elapsedSeconds = Math.floor(elapsedMs / 1000);
         AppLogger.error('⏰ TIMEOUT DURING PREPARATION', {
           preparedCount,
           totalThreads,
-          elapsedSeconds,
-          elapsedMs,
-          timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
+          elapsedTime: ExecutionTime.formatDuration(elapsedMs),
+          timeoutLimit: ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS),
           atThread: index + 1
         });
         throw ErrorTaxonomy.createError(
@@ -688,15 +687,14 @@ namespace GmailService {
     
     emailsByPrompt.forEach(({prompt, emails}) => {
       // Check for timeout before processing each batch
-      if (ContinuationTriggers.isApproachingTimeLimit(startTime)) {
-        const elapsedMs = Date.now() - startTime;
+      if (ExecutionTime.isApproachingLimit(startTime)) {
+        const elapsedMs = ExecutionTime.getElapsedTime(startTime);
         const elapsedSeconds = Math.floor(elapsedMs / 1000);
         AppLogger.error('⏰ TIMEOUT DURING CLASSIFICATION', {
           classifiedCount,
           totalToClassify: emailsToClassify.length,
-          elapsedSeconds,
-          elapsedMs,
-          timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS
+          elapsedTime: ExecutionTime.formatDuration(elapsedMs),
+          timeoutLimit: ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS)
         });
         throw ErrorTaxonomy.createError(
           ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT,
@@ -816,15 +814,14 @@ namespace GmailService {
     
     supportThreads.forEach(({threadId, thread, redactedBody, subject, sender, body}, index) => {
         // Check for timeout during reply generation
-        if (ContinuationTriggers.isApproachingTimeLimit(startTime)) {
-          const elapsedMs = Date.now() - startTime;
+        if (ExecutionTime.isApproachingLimit(startTime)) {
+          const elapsedMs = ExecutionTime.getElapsedTime(startTime);
           const elapsedSeconds = Math.floor(elapsedMs / 1000);
           AppLogger.error('⏰ TIMEOUT DURING REPLY GENERATION', {
             repliesGenerated,
             totalReplies,
-            elapsedSeconds,
-            elapsedMs,
-            timeoutLimit: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
+            elapsedTime: ExecutionTime.formatDuration(elapsedMs),
+            timeoutLimit: ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS),
             atReply: index + 1
           });
           throw ErrorTaxonomy.createError(

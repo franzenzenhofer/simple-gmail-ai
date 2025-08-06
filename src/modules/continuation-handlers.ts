@@ -154,7 +154,7 @@ namespace ContinuationHandlers {
       
       AppLogger.info('🚀 INITIALIZING LARGE INBOX PROCESSING', {
         totalThreads: threads.length,
-        maxExecutionTime: ContinuationTriggers.CONFIG.MAX_EXECUTION_TIME_MS,
+        maxExecutionTime: ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS),
         batchSize: ContinuationTriggers.CONFIG.BATCH_SIZE_FOR_CONTINUATION
       });
       

@@ -176,9 +176,9 @@ namespace BatchProcessor {
     });
 
     // Check if we're already approaching time limit
-    if (scriptStartTime > 0 && ContinuationTriggers.isApproachingTimeLimit(scriptStartTime)) {
-      const elapsedSeconds = Math.floor((Date.now() - scriptStartTime) / 1000);
-      throw new Error(`Script timeout: ${elapsedSeconds}s elapsed, cannot start new batch`);
+    if (scriptStartTime > 0 && ExecutionTime.isApproachingLimit(scriptStartTime)) {
+      const elapsedTime = ExecutionTime.getElapsedTime(scriptStartTime);
+      throw new Error(`Script timeout: ${ExecutionTime.formatDuration(elapsedTime)} elapsed, cannot start new batch`);
     }
 
     try {

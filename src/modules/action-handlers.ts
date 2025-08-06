@@ -27,8 +27,8 @@ namespace ActionHandlers {
             generationConfig: { temperature: 0 }
           }),
           muteHttpExceptions: true,
-          // Add timeout for API key validation (shorter timeout since it's just a test)
-          timeout: 10 // 10 seconds timeout
+          // Use centralized timeout for API key validation
+          timeout: ExecutionTime.getApiTimeoutSeconds()
         } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions);
         
         if (testResponse.getResponseCode() === 403) {
@@ -42,7 +42,7 @@ namespace ActionHandlers {
           throw new Error(errorMessage);
         }
         if (errorMessage.includes('Timeout') || errorMessage.includes('timeout')) {
-          throw new Error('API key validation timed out after 10 seconds. Please check your internet connection and try again.');
+          throw new Error(`API key validation timed out after ${ExecutionTime.LIMITS.API_TIMEOUT_MS / 1000} seconds. Please check your internet connection and try again.`);
         }
         throw new Error('Failed to validate API key: ' + errorMessage);
       }
