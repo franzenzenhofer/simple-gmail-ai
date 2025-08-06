@@ -1,0 +1,366 @@
+/**
+ * Comprehensive tests for prompt document creation, recognition, and retrieval
+ */
+
+import { jest } from '@jest/globals';
+
+// Mock Google Apps Script services
+const mockPropertiesService = {
+  getUserProperties: jest.fn()
+};
+
+const mockDocumentApp = {
+  create: jest.fn(),
+  openById: jest.fn()
+};
+
+const mockDocument = {
+  getId: jest.fn(),
+  getBody: jest.fn(),
+  getUrl: jest.fn()
+};
+
+const mockBody = {
+  clear: jest.fn(),
+  appendParagraph: jest.fn(),
+  setText: jest.fn(),
+  getText: jest.fn()
+};
+
+const mockParagraph = {
+  setHeading: jest.fn().mockReturnThis()
+};
+
+const mockUserProperties = {
+  getProperty: jest.fn(),
+  setProperty: jest.fn(),
+  deleteProperty: jest.fn()
+};
+
+// Set up global mocks
+(global as any).PropertiesService = mockPropertiesService;
+(global as any).DocumentApp = mockDocumentApp;
+
+// Mock the config
+jest.mock('../src/modules/config', () => ({
+  Config: {
+    PROP_KEYS: {
+      API_KEY: 'API_KEY'
+    }
+  }
+}));
+
+// Mock utilities
+jest.mock('../src/modules/utils', () => ({
+  Utils: {
+    handleError: (e: any) => ({ message: e.message || String(e) })
+  }
+}));
+
+// Mock logger
+jest.mock('../src/modules/logger', () => ({
+  AppLogger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn()
+  }
+}));
+
+// Import after mocks are set up
+let DocsPromptEditor: typeof import('../src/modules/docs-prompt-editor').DocsPromptEditor;
+
+describe('Prompt Document Integration Tests', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Reset mock implementations
+    mockPropertiesService.getUserProperties.mockReturnValue(mockUserProperties);
+    mockDocumentApp.create.mockReturnValue(mockDocument);
+    mockDocumentApp.openById.mockReturnValue(mockDocument);
+    mockDocument.getId.mockReturnValue('doc-123');
+    mockDocument.getBody.mockReturnValue(mockBody);
+    mockDocument.getUrl.mockReturnValue('https://docs.google.com/document/d/doc-123/edit');
+    mockBody.appendParagraph.mockReturnValue(mockParagraph);
+    
+    // Reimport to get fresh module state  
+    delete require.cache[require.resolve('../src/modules/docs-prompt-editor')];
+    DocsPromptEditor = require('../src/modules/docs-prompt-editor').DocsPromptEditor;
+  });
+
+  describe('createPromptDocument', () => {
+    it('should create a new document and store its ID', () => {
+      const docId = DocsPromptEditor.createPromptDocument();
+      
+      expect(mockDocumentApp.create).toHaveBeenCalledWith(
+        expect.stringContaining('Gmail AI Prompts - ')
+      );
+      expect(mockUserProperties.setProperty).toHaveBeenCalledWith(
+        'PROMPT_DOC_ID',
+        'doc-123'
+      );
+      expect(docId).toBe('doc-123');
+    });
+
+    it('should auto-compile the initial template', () => {
+      // Mock the validation to succeed
+      mockBody.getText.mockReturnValue(`
+# Gmail AI Labels
+
+## Support
+### When to Apply This Label
+- Customer asking for help
+### Response Instructions
+Reply professionally
+      `);
+      
+      DocsPromptEditor.createPromptDocument();
+      
+      // Should store compiled prompts
+      expect(mockUserProperties.setProperty).toHaveBeenCalledWith(
+        'GOOGLE_DOCS_PROMPTS_RAW',
+        expect.any(String)
+      );
+    });
+
+    it('should handle document creation failure gracefully', () => {
+      mockDocumentApp.create.mockImplementation(() => {
+        throw new Error('No permission to create document');
+      });
+      
+      expect(() => DocsPromptEditor.createPromptDocument()).toThrow(
+        'Unable to create prompt document'
+      );
+    });
+  });
+
+  describe('hasPromptDocument', () => {
+    it('should return true when document ID exists', () => {
+      mockUserProperties.getProperty.mockReturnValue('doc-123');
+      
+      expect(DocsPromptEditor.hasPromptDocument()).toBe(true);
+      expect(mockUserProperties.getProperty).toHaveBeenCalledWith('PROMPT_DOC_ID');
+    });
+
+    it('should return false when document ID is missing', () => {
+      mockUserProperties.getProperty.mockReturnValue(null);
+      
+      expect(DocsPromptEditor.hasPromptDocument()).toBe(false);
+    });
+
+    it('should return false for empty string', () => {
+      mockUserProperties.getProperty.mockReturnValue('');
+      
+      expect(DocsPromptEditor.hasPromptDocument()).toBe(false);
+    });
+  });
+
+  describe('hasCompiledPrompts', () => {
+    it('should return true when compiled prompts exist', () => {
+      mockUserProperties.getProperty.mockReturnValue(JSON.stringify({
+        labels: [{ label: 'Support' }]
+      }));
+      
+      expect(DocsPromptEditor.hasCompiledPrompts()).toBe(true);
+      expect(mockUserProperties.getProperty).toHaveBeenCalledWith('GOOGLE_DOCS_PROMPTS_RAW');
+    });
+
+    it('should return false when no compiled prompts', () => {
+      mockUserProperties.getProperty.mockReturnValue(null);
+      
+      expect(DocsPromptEditor.hasCompiledPrompts()).toBe(false);
+    });
+
+    it('should return false for empty string', () => {
+      mockUserProperties.getProperty.mockReturnValue('');
+      
+      expect(DocsPromptEditor.hasCompiledPrompts()).toBe(false);
+    });
+
+    it('should handle property access errors', () => {
+      mockUserProperties.getProperty.mockImplementation(() => {
+        throw new Error('Property service unavailable');
+      });
+      
+      expect(DocsPromptEditor.hasCompiledPrompts()).toBe(false);
+    });
+  });
+
+  describe('getPromptForLabels', () => {
+    const mockCompiledData = {
+      labels: [
+        {
+          label: 'Support',
+          emailPatterns: ['help', 'issue'],
+          responseGuidelines: 'Be helpful'
+        },
+        {
+          label: 'Refund',
+          emailPatterns: ['refund', 'money back'],
+          responseGuidelines: 'Check policy'
+        }
+      ],
+      generalGuidelines: {
+        classification: 'Classify accurately',
+        response: 'Be professional'
+      }
+    };
+
+    beforeEach(() => {
+      mockUserProperties.getProperty.mockReturnValue(
+        JSON.stringify(mockCompiledData)
+      );
+    });
+
+    it('should return matching label configuration', () => {
+      const config = DocsPromptEditor.getPromptForLabels(['Support']);
+      
+      expect(config).not.toBeNull();
+      expect(config?.label).toBe('Support');
+      expect(config?.classificationPrompt).toContain('help');
+      expect(config?.responsePrompt).toContain('Be helpful');
+    });
+
+    it('should return general configuration for unknown labels', () => {
+      const config = DocsPromptEditor.getPromptForLabels(['Unknown']);
+      
+      expect(config).not.toBeNull();
+      expect(config?.label).toBe('General');
+      expect(config?.classificationPrompt).toContain('Classify accurately');
+      expect(config?.responsePrompt).toContain('Be professional');
+    });
+
+    it('should return null when no compiled prompts exist', () => {
+      mockUserProperties.getProperty.mockReturnValue(null);
+      
+      const config = DocsPromptEditor.getPromptForLabels(['Support']);
+      
+      expect(config).toBeNull();
+    });
+
+    it('should handle invalid JSON gracefully', () => {
+      mockUserProperties.getProperty.mockReturnValue('invalid json');
+      
+      const config = DocsPromptEditor.getPromptForLabels(['Support']);
+      
+      expect(config).toBeNull();
+    });
+  });
+
+  describe('validateDocument', () => {
+    beforeEach(() => {
+      mockUserProperties.getProperty
+        .mockReturnValueOnce('doc-123') // PROMPT_DOC_ID
+        .mockReturnValueOnce('rev-1');  // PROMPT_DOC_REV
+    });
+
+    it('should validate and compile valid document', () => {
+      mockBody.getText.mockReturnValue(`
+# Gmail AI Labels
+
+## Support
+### When to Apply This Label
+- Customer needs help
+### Response Instructions  
+Be helpful and professional
+
+## General Guidelines
+### Classification Approach
+Classify emails accurately
+### Response Approach
+Always be professional
+      `);
+      
+      const result = DocsPromptEditor.validateDocument();
+      
+      expect(result.success).toBe(true);
+      expect(result.labelsCount).toBe(1);
+      expect(result.errors).toHaveLength(0);
+      
+      // Should store compiled prompts
+      expect(mockUserProperties.setProperty).toHaveBeenCalledWith(
+        'GOOGLE_DOCS_PROMPTS_RAW',
+        expect.stringContaining('Support')
+      );
+    });
+
+    it('should detect missing general guidelines', () => {
+      mockBody.getText.mockReturnValue(`
+# Gmail AI Labels
+
+## Support
+### When to Apply This Label
+- Customer needs help
+      `);
+      
+      const result = DocsPromptEditor.validateDocument();
+      
+      expect(result.success).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          type: 'missing_general',
+          message: expect.stringContaining('General Guidelines')
+        })
+      );
+    });
+
+    it('should detect duplicate labels', () => {
+      mockBody.getText.mockReturnValue(`
+# Gmail AI Labels
+
+## Support
+### When to Apply This Label
+- Help request
+
+## Support
+### When to Apply This Label  
+- Another support
+
+## General Guidelines
+### Classification Approach
+Classify well
+      `);
+      
+      const result = DocsPromptEditor.validateDocument();
+      
+      expect(result.success).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          type: 'duplicate_labels',
+          details: ['Support']
+        })
+      );
+    });
+  });
+
+  describe('resetDocument', () => {
+    it('should clear all document-related properties', () => {
+      DocsPromptEditor.resetDocument();
+      
+      expect(mockUserProperties.deleteProperty).toHaveBeenCalledWith('PROMPT_DOC_ID');
+      expect(mockUserProperties.deleteProperty).toHaveBeenCalledWith('PROMPT_DOC_REV');
+      expect(mockUserProperties.deleteProperty).toHaveBeenCalledWith('GOOGLE_DOCS_PROMPTS_RAW');
+      expect(mockUserProperties.deleteProperty).toHaveBeenCalledWith('PROMPTS_COMPILED_AT');
+    });
+  });
+
+  describe('Welcome Flow Integration', () => {
+    it('should handle prompt document creation in welcome flow', () => {
+      // Simulate API key save triggering document creation
+      mockUserProperties.getProperty.mockReturnValue(null); // No existing doc
+      
+      const docId = DocsPromptEditor.createPromptDocument();
+      const hasDoc = DocsPromptEditor.hasPromptDocument();
+      const hasCompiled = DocsPromptEditor.hasCompiledPrompts();
+      
+      // Reset property mocks for verification
+      mockUserProperties.getProperty.mockReset();
+      mockUserProperties.getProperty
+        .mockReturnValueOnce('doc-123')  // hasPromptDocument check
+        .mockReturnValueOnce('{"labels":[]}'); // hasCompiledPrompts check
+      
+      expect(docId).toBe('doc-123');
+      expect(DocsPromptEditor.hasPromptDocument()).toBe(true);
+      expect(DocsPromptEditor.hasCompiledPrompts()).toBe(true);
+    });
+  });
+});

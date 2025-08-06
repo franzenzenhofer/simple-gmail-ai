@@ -85,6 +85,28 @@ namespace DocsPromptEditor {
     
     AppLogger.info('Created prompt document', { docId: docId });
     
+    // Auto-compile the initial template
+    try {
+      AppLogger.info('Auto-compiling initial template prompts');
+      const validation = validateDocument();
+      if (validation.success) {
+        AppLogger.info('✅ Initial prompts compiled successfully', {
+          labelsCount: validation.labelsCount
+        });
+      } else {
+        AppLogger.warn('Initial template has validation issues', { 
+          success: validation.success,
+          labelsCount: validation.labelsCount,
+          errorCount: validation.errors.length,
+          warningCount: validation.warnings.length
+        });
+      }
+    } catch (compileError) {
+      AppLogger.error('Failed to auto-compile initial prompts', { 
+        error: Utils.handleError(compileError) 
+      });
+    }
+    
     return docId;
     } catch (error) {
       AppLogger.error('Failed to create prompt document', { error: Utils.handleError(error) });

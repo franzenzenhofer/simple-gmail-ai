@@ -81,7 +81,7 @@ namespace AI {
       requestId
     });
     
-    const url = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
+    const url = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent';
     
     // Check if this is a retry attempt and use temperature 0
     const isRetry = schema && schema.retryAttempt;
@@ -114,6 +114,9 @@ namespace AI {
       const response = UrlFetchApp.fetch(url, {
         method: 'post',
         contentType: 'application/json',
+        headers: {
+          'x-goog-api-key': apiKey
+        },
         payload: JSON.stringify(payload),
         muteHttpExceptions: true,
         // Add timeout to prevent hanging requests
@@ -147,14 +150,46 @@ namespace AI {
           errorType = ErrorTaxonomy.AppErrorType.NETWORK_UNAVAILABLE;
         }
         
+        // Parse error details for better user feedback
+        let errorDetails = '';
+        try {
+          const errorData = JSON.parse(responseText);
+          if (errorData.error?.message) {
+            errorDetails = errorData.error.message;
+          }
+        } catch (e) {
+          errorDetails = responseText.substring(0, 200);
+        }
+        
+        // Create user-friendly error messages
+        let userMessage = '';
+        if (responseCode === 401) {
+          userMessage = '❌ Invalid API key. Please check your Gemini API key in Settings.';
+        } else if (responseCode === 403) {
+          userMessage = '❌ Access denied. Your API key may not have the required permissions.';
+        } else if (responseCode === 429) {
+          userMessage = '⏱️ Rate limit exceeded. Please wait a moment and try again.';
+        } else if (responseCode === 404) {
+          userMessage = '❌ API endpoint not found. This may be a configuration issue.';
+        } else if (responseCode === 500 || responseCode === 503) {
+          userMessage = '🔧 Gemini service is temporarily unavailable. Please try again later.';
+        } else {
+          userMessage = `❌ API Error (${responseCode}): ${errorDetails}`;
+        }
+        
         const appError = ErrorTaxonomy.createError(
           errorType,
-          'API error: ' + responseCode + ' - ' + responseText,
-          { statusCode: responseCode, requestId }
+          userMessage,
+          { 
+            statusCode: responseCode, 
+            requestId,
+            errorDetails,
+            url: url.replace(/key=[^&]+/, 'key=***') // Mask API key
+          }
         );
         
         ErrorTaxonomy.logError(appError);
-        return { success: false, error: appError.message, statusCode: responseCode, requestId };
+        return { success: false, error: userMessage, statusCode: responseCode, requestId };
       }
       
       const data = JSON.parse(responseText) as Types.GeminiResponse;

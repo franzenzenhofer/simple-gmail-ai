@@ -276,24 +276,8 @@ function saveApiKeyFromWelcome(e: any): GoogleAppsScript.Card_Service.ActionResp
   return WelcomeFlow.saveApiKeyFromWelcome(e);
 }
 
-function createPromptDocumentFromWelcome(): GoogleAppsScript.Card_Service.ActionResponse {
-  return WelcomeFlow.createPromptDocumentFromWelcome();
-}
-
 function runWelcomeTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
   return WelcomeFlow.runWelcomeTestAnalysis();
-}
-
-function toggleDarkModeFromWelcome(): GoogleAppsScript.Card_Service.ActionResponse {
-  DarkMode.toggleDarkMode();
-  return CardService.newActionResponseBuilder()
-    .setNotification(CardService.newNotification()
-      .setText('🌓 Theme preference saved'))
-    .build();
-}
-
-function finishWelcomeFlow(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  return WelcomeFlow.finishWelcomeFlow(e);
 }
 
 // =============================================================================
