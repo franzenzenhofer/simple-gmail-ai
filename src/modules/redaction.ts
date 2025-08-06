@@ -59,14 +59,15 @@ namespace Redaction {
   }
   
   /**
-   * Redact PII from text and return mapping - ULTRA FAST VERSION
+   * Redact PII from text and return mapping - FAST WITH MINIMAL LOGGING
    */
   export function redactPII(text: string, threadId: string): RedactionResult {
+    const startTime = Date.now();
     let redactedText = text;
     const mapping: RedactionMapping = {};
     let tokenIndex = 0;
     
-    // FAST: Apply patterns with ZERO logging during processing
+    // FAST: Apply patterns with minimal logging
     Object.entries(PII_PATTERNS).forEach(([_type, pattern]) => {
       redactedText = redactedText.replace(pattern, (match: string) => {
         const token = '{{token' + tokenIndex + '}}';
@@ -76,9 +77,21 @@ namespace Redaction {
       });
     });
     
-    // Store mapping silently (no logging)
+    // Store mapping with minimal timing log
     if (tokenIndex > 0) {
       storeMappingInCacheFast(threadId, mapping);
+    }
+    
+    const processingTime = Date.now() - startTime;
+    
+    // Only log if there were redactions or it took longer than expected
+    if (tokenIndex > 0 || processingTime > 50) {
+      AppLogger.info('🔒 PII REDACTION', {
+        threadId: threadId.substring(0, 8),
+        redactionCount: tokenIndex,
+        processingTime: processingTime + 'ms',
+        textLength: text.length
+      });
     }
     
     return {
@@ -89,10 +102,12 @@ namespace Redaction {
   }
 
   /**
-   * BATCH redact PII from multiple texts at once - for when we want security
+   * BATCH redact PII from multiple texts at once - FAST WITH BATCH LOGGING
    */
   export function redactPIIBatch(texts: string[], threadIds: string[]): RedactionResult[] {
+    const batchStartTime = Date.now();
     const results: RedactionResult[] = [];
+    let totalRedactions = 0;
     
     for (let i = 0; i < texts.length; i++) {
       const text = texts[i] || '';
@@ -101,7 +116,7 @@ namespace Redaction {
       const mapping: RedactionMapping = {};
       let tokenIndex = 0;
       
-      // Apply patterns quickly without any logging
+      // Apply patterns quickly with minimal per-item logging
       Object.entries(PII_PATTERNS).forEach(([_type, pattern]) => {
         redactedText = redactedText.replace(pattern, (match: string) => {
           const token = '{{token' + tokenIndex + '}}';
@@ -111,15 +126,29 @@ namespace Redaction {
         });
       });
       
-      // Store mapping if needed (no logging)
+      // Store mapping if needed 
       if (tokenIndex > 0 && threadId) {
         storeMappingInCacheFast(threadId, mapping);
       }
+      
+      totalRedactions += tokenIndex;
       
       results.push({
         redactedText: redactedText,
         mapping: mapping,
         redactionCount: tokenIndex
+      });
+    }
+    
+    const batchTime = Date.now() - batchStartTime;
+    
+    // Log batch summary (not per-item)
+    if (totalRedactions > 0 || batchTime > 100) {
+      AppLogger.info('🔒 PII BATCH REDACTION', {
+        itemCount: texts.length,
+        totalRedactions: totalRedactions,
+        batchTime: batchTime + 'ms',
+        avgTimePerItem: Math.round(batchTime / texts.length) + 'ms'
       });
     }
     
