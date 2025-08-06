@@ -37,9 +37,9 @@ namespace ContinuationTriggers {
     lastActivityTime: number;
   }
   
-  // Configuration
+  // Configuration - ALL TIMEOUTS USE SAME VALUE!
   export const CONFIG = {
-    MAX_EXECUTION_TIME_MS: ExecutionTime.LIMITS.SAFE_EXECUTION_MS,  // Use centralized timing
+    MAX_EXECUTION_TIME_MS: ExecutionTime.LIMITS.SAFE_EXECUTION_MS,  // 5 minutes 50 seconds
     CONTINUATION_DELAY_MS: 2000,               // 2 second delay between continuations
     CHECKPOINT_FREQUENCY: 50,                  // Save checkpoint every 50 processed emails
     MAX_CONTINUATIONS: 20,                     // Prevent infinite loops

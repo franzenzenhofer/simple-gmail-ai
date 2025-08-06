@@ -9,17 +9,17 @@ namespace ExecutionTime {
     // Maximum execution time for Google Apps Script (6 minutes = 360 seconds)
     SCRIPT_MAX_MS: 360 * 1000,
     
-    // Safe execution time with buffer (5 minutes 30 seconds = 330 seconds)
-    SAFE_EXECUTION_MS: 330 * 1000,
+    // Safe execution time with buffer (5 minutes 50 seconds = 350 seconds)
+    SAFE_EXECUTION_MS: 350 * 1000,
     
-    // API request timeout (must be less than safe execution time)
-    API_TIMEOUT_MS: 30 * 1000,  // 30 seconds
+    // API request timeout - SAME AS EXECUTION TIME!
+    API_TIMEOUT_MS: 350 * 1000,  // 5 minutes 50 seconds - SINGLE SOURCE OF TRUTH!
     
     // Warning threshold - log warnings when approaching limit
     WARNING_THRESHOLD_MS: 300 * 1000,  // 5 minutes
     
     // Buffer time for cleanup and error handling
-    CLEANUP_BUFFER_MS: 30 * 1000  // 30 seconds
+    CLEANUP_BUFFER_MS: 10 * 1000  // 10 seconds buffer
   };
   
   // Get API timeout in seconds (for UrlFetchApp)

@@ -27,8 +27,8 @@ namespace ActionHandlers {
             generationConfig: { temperature: 0 }
           }),
           muteHttpExceptions: true,
-          // Use centralized timeout for API key validation
-          timeout: ExecutionTime.getApiTimeoutSeconds()
+          // Use shorter timeout for API key validation test
+          timeout: 30 // 30 seconds for validation test only
         } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions);
         
         if (testResponse.getResponseCode() === 403) {

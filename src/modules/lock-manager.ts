@@ -7,7 +7,7 @@
  */
 
 namespace LockManager {
-  const LOCK_TIMEOUT_MS = ExecutionTime.LIMITS.API_TIMEOUT_MS; // Use centralized timeout
+  const LOCK_TIMEOUT_MS = 30 * 1000; // 30 seconds for lock acquisition - don't use full execution time
   
   export interface LockInfo {
     executionId: string;
