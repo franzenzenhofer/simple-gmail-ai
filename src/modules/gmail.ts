@@ -614,13 +614,6 @@ namespace GmailService {
         const redactionResult = Redaction.redactPII(body, threadId);
         const redactedBody = redactionResult.redactedText;
         
-        if (redactionResult.redactionCount > 0) {
-          AppLogger.info('🔒 PII REDACTED FOR BATCH', {
-            threadId: threadId,
-            tokensRedacted: redactionResult.redactionCount
-          });
-        }
-        
         emailsToClassify.push({
           id: threadId,
           subject: subject,
@@ -1061,13 +1054,6 @@ namespace GmailService {
       // T-12: Redact PII before sending to AI
       const redactionResult = Redaction.redactPII(body, thread.getId());
       const redactedBody = redactionResult.redactedText;
-      
-      if (redactionResult.redactionCount > 0) {
-        AppLogger.info('🔒 PII REDACTED FOR CLASSIFICATION', {
-          threadId: thread.getId(),
-          tokensRedacted: redactionResult.redactionCount
-        });
-      }
       
       // T-14: Use structured JSON response for classification
       // Schema allows ANY label name - labels are managed in Google Docs

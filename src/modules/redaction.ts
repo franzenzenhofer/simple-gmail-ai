@@ -59,34 +59,26 @@ namespace Redaction {
   }
   
   /**
-   * Redact PII from text and return mapping
+   * Redact PII from text and return mapping - ULTRA FAST VERSION
    */
   export function redactPII(text: string, threadId: string): RedactionResult {
     let redactedText = text;
     const mapping: RedactionMapping = {};
     let tokenIndex = 0;
     
-    // Apply each pattern
-    Object.entries(PII_PATTERNS).forEach(([type, pattern]) => {
-      redactedText = redactedText.replace(pattern, (match) => {
+    // FAST: Apply patterns with ZERO logging during processing
+    Object.entries(PII_PATTERNS).forEach(([_type, pattern]) => {
+      redactedText = redactedText.replace(pattern, (match: string) => {
         const token = '{{token' + tokenIndex + '}}';
         mapping[token] = match;
         tokenIndex++;
-        
-        AppLogger.info('🔒 REDACTED PII', {
-          type: type,
-          token: token,
-          originalLength: match.length,
-          threadId: threadId
-        });
-        
         return token;
       });
     });
     
-    // Store mapping in cache if any redactions were made
+    // Store mapping silently (no logging)
     if (tokenIndex > 0) {
-      storeMappingInCache(threadId, mapping);
+      storeMappingInCacheFast(threadId, mapping);
     }
     
     return {
@@ -94,6 +86,44 @@ namespace Redaction {
       mapping: mapping,
       redactionCount: tokenIndex
     };
+  }
+
+  /**
+   * BATCH redact PII from multiple texts at once - for when we want security
+   */
+  export function redactPIIBatch(texts: string[], threadIds: string[]): RedactionResult[] {
+    const results: RedactionResult[] = [];
+    
+    for (let i = 0; i < texts.length; i++) {
+      const text = texts[i] || '';
+      const threadId = threadIds[i] || '';
+      let redactedText: string = text;
+      const mapping: RedactionMapping = {};
+      let tokenIndex = 0;
+      
+      // Apply patterns quickly without any logging
+      Object.entries(PII_PATTERNS).forEach(([_type, pattern]) => {
+        redactedText = redactedText.replace(pattern, (match: string) => {
+          const token = '{{token' + tokenIndex + '}}';
+          mapping[token] = match;
+          tokenIndex++;
+          return token;
+        });
+      });
+      
+      // Store mapping if needed (no logging)
+      if (tokenIndex > 0 && threadId) {
+        storeMappingInCacheFast(threadId, mapping);
+      }
+      
+      results.push({
+        redactedText: redactedText,
+        mapping: mapping,
+        redactionCount: tokenIndex
+      });
+    }
+    
+    return results;
   }
   
   /**
@@ -110,49 +140,31 @@ namespace Redaction {
     
     // Replace tokens with original values
     Object.entries(mapping).forEach(([token, originalValue]) => {
-      // Token doesn't need escaping since it's a simple pattern like {{token0}}
-      // but we escape it to be safe
       const tokenRegex = new RegExp(escapeRegExp(token), 'g');
       restoredText = restoredText.replace(tokenRegex, originalValue);
-    });
-    
-    AppLogger.info('🔓 RESTORED PII', {
-      threadId: threadId,
-      tokensRestored: Object.keys(mapping).length
     });
     
     return restoredText;
   }
   
   /**
-   * Store redaction mapping in CacheService
+   * Store redaction mapping in CacheService - FAST VERSION (no logging)
    */
-  function storeMappingInCache(threadId: string, mapping: RedactionMapping): void {
+  function storeMappingInCacheFast(threadId: string, mapping: RedactionMapping): void {
     try {
       const cache = CacheService.getUserCache();
-      if (!cache) {
-        AppLogger.warn('Cache service unavailable, cannot store redaction mapping');
-        return;
-      }
+      if (!cache) return;
       
       const cacheKey = 'redaction_' + threadId;
       const mappingJson = JSON.stringify(mapping);
       
-      // Cache for 6 hours (max allowed)
+      // Cache for 6 hours (max allowed) - no logging for speed
       cache.put(cacheKey, mappingJson, 21600);
-      
-      AppLogger.info('💾 STORED REDACTION MAPPING', {
-        threadId: threadId,
-        tokenCount: Object.keys(mapping).length,
-        cacheKey: cacheKey
-      });
-    } catch (error) {
-      AppLogger.error('Failed to store redaction mapping', {
-        error: String(error),
-        threadId: threadId
-      });
+    } catch (_error) {
+      // Silently fail for maximum speed
     }
   }
+
   
   /**
    * Retrieve redaction mapping from CacheService

@@ -122,3 +122,16 @@ Since this is a Google Apps Script project, there are no traditional build/test 
 - API key is stored in user properties (not hardcoded)
 - Auto-reply feature has explicit warning and requires user opt-in
 - All Gmail operations require explicit user authorization
+
+## DEPLOYMENT PROTOCOL ⚠️ CRITICAL
+
+**ALWAYS RUN `npm run deploy` AFTER ANY CHANGES!**
+
+The deployment process is fully automated and MUST be run after every change:
+- Runs all tests and linting
+- Creates optimized single-file bundle
+- Automatically cleans up old deployments when hitting limits  
+- Deploys to Google Apps Script with versioning
+- Provides verification URLs and status
+
+**Never skip deployment** - the local code changes don't take effect until deployed!
