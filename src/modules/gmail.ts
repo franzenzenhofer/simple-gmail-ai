@@ -663,7 +663,16 @@ namespace GmailService {
     emailsToClassify.forEach(email => {
       const threadData = threadMap.get(email.id);
       if (threadData) {
-        const threadLabels = threadData.thread.getLabels().map(l => l.getName());
+        const allLabels = threadData.thread.getLabels().map(l => l.getName());
+        const corruptedAiLabels = allLabels.filter(name => name.startsWith('ai-'));
+        if (corruptedAiLabels.length > 0) {
+          AppLogger.error('🐛 CORRUPTED AI- LABELS DETECTED', {
+            threadId: email.id.substring(0, 8),
+            corruptedLabels: corruptedAiLabels,
+            allLabels: allLabels
+          });
+        }
+        const threadLabels = allLabels.filter(name => !name.startsWith('ai-')); // CRITICAL: Filter out corrupted ai- labels
         const activePrompt = getClassificationPrompt(classificationPrompt, threadLabels);
         
         // Group by prompt
@@ -715,13 +724,8 @@ namespace GmailService {
         emails, 
         prompt,
         (batchResponse, batchIndex, totalBatches) => {
-          AppLogger.info('🔄 BATCH PROGRESS', {
-            batchIndex,
-            totalBatches,
-            emailsInBatch: batchResponse.results.length,
-            processingTime: batchResponse.processingTime,
-            success: batchResponse.success
-          });
+          // Fast minimal logging - avoid complex object serialization
+          AppLogger.info(`🔄 BATCH ${batchIndex}/${totalBatches} completed: ${batchResponse.results.length} emails in ${batchResponse.processingTime}ms`);
         }
       );
       
@@ -1088,7 +1092,16 @@ namespace GmailService {
       };
       
       // Get thread labels for prompt selection
-      const threadLabels = thread.getLabels().map(label => label.getName());
+      const allLabels = thread.getLabels().map(label => label.getName());
+      const corruptedAiLabels = allLabels.filter(name => name.startsWith('ai-'));
+      if (corruptedAiLabels.length > 0) {
+        AppLogger.error('🐛 CORRUPTED AI- LABELS DETECTED', {
+          threadId: thread.getId().substring(0, 8),
+          corruptedLabels: corruptedAiLabels,
+          allLabels: allLabels
+        });
+      }
+      const threadLabels = allLabels.filter(name => !name.startsWith('ai-')); // CRITICAL: Filter out corrupted ai- labels
       const activeClassificationPrompt = getClassificationPrompt(classificationPrompt, threadLabels);
       
       // Get label options from docs configuration
