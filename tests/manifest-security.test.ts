@@ -14,13 +14,19 @@ describe('Apps Script Manifest Security', () => {
     expect(() => JSON.parse(manifestContent)).not.toThrow();
   });
 
-  it('should contain urlFetchWhitelist as empty array (required by Google)', () => {
+  it('should contain urlFetchWhitelist with only allowed URLs', () => {
     const manifestContent = fs.readFileSync(manifestPath, 'utf8');
     const manifest = JSON.parse(manifestContent);
     
     // While deprecated in docs, Google's deployment still requires this field
     expect(manifest).toHaveProperty('urlFetchWhitelist');
-    expect(manifest.urlFetchWhitelist).toEqual([]);
+    
+    // Liberal whitelist - prefix matching allows all paths under this domain
+    const allowedUrls = [
+      'https://generativelanguage.googleapis.com/'
+    ];
+    
+    expect(manifest.urlFetchWhitelist).toEqual(allowedUrls);
   });
 
   it('should not contain executionApi with ANYONE access', () => {
