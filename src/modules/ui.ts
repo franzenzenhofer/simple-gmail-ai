@@ -434,13 +434,29 @@ namespace UI {
     
     card.addSection(mainSection);
     
-    // Factory Reset section
+    // Emergency and Factory Reset section
     const resetSection = CardService.newCardSection()
-      .setHeader('🏭 Factory Reset');
+      .setHeader('🚨 Emergency & Reset Options');
+    
+    // Emergency Reset for stuck button
+    resetSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>🚨 Button Stuck on "Processing"?</b><br/>Use this if the Analyze Inbox button is stuck and won\'t reset.')
+    );
+    
+    resetSection.addWidget(
+      CardService.newTextButton()
+        .setText('🚨 Emergency Reset')
+        .setBackgroundColor('#ff6600')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('emergencyReset')
+        )
+    );
     
     resetSection.addWidget(
       CardService.newTextParagraph()
-        .setText('Reset the application to initial state. This will delete ALL data including your API key, settings, labels, and logs.')
+        .setText('<b>🏭 Factory Reset</b><br/>Reset the application to initial state. This will delete ALL data including your API key, settings, labels, and logs.')
     );
     
     resetSection.addWidget(

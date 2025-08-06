@@ -88,6 +88,7 @@ namespace ActionHandlers {
   }
 
   export function runAnalysis(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    let lockAcquired = false;
     try {
       // CRITICAL: Initialize spreadsheet logging for this execution
       AppLogger.initSpreadsheet();
@@ -143,6 +144,7 @@ namespace ActionHandlers {
         AppLogger.warn('Analysis already running, cannot start new analysis');
         return UI.showNotification('Analysis is already running. Please wait for it to complete.');
       }
+      lockAcquired = true;
       
       // Clear any previous cancellation flag
       userProps.deleteProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED);
@@ -166,7 +168,18 @@ namespace ActionHandlers {
       return ProcessingHandlers.continueProcessingAndNavigate(apiKey, mode, '', '', createDrafts, autoReply);
       
     } catch (err) {
-      LockManager.releaseLock();
+      if (lockAcquired) {
+        LockManager.releaseLock();
+      }
+      
+      // Clear real-time stats on error
+      const userProps = PropertiesService.getUserProperties();
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_SCANNED);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_SUPPORTS);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_DRAFTED);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_SENT);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_ERRORS);
+      
       // Special handling for timeout errors to preserve detailed message
       if (err instanceof ErrorTaxonomy.AppError && err.type === ErrorTaxonomy.AppErrorType.PROCESSING_TIMEOUT) {
         AppLogger.error('Processing timeout in runAnalysis', {
@@ -300,6 +313,33 @@ namespace ActionHandlers {
         
     } catch (error) {
       return UI.showNotification('Error: ' + Utils.handleError(error));
+    }
+  }
+
+  export function emergencyReset(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      // Force clear all locks and processing states
+      LockManager.forceClearLocks();
+      
+      const userProps = PropertiesService.getUserProperties();
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_SCANNED);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_SUPPORTS);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_DRAFTED);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_SENT);
+      userProps.deleteProperty(Config.PROP_KEYS.CURRENT_ERRORS);
+      userProps.deleteProperty(Config.PROP_KEYS.ANALYSIS_CANCELLED);
+      
+      AppLogger.warn('Emergency reset performed - all processing states cleared');
+      
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification().setText('Emergency reset completed - button should be unstuck now')
+        )
+        .setNavigation(CardService.newNavigation().updateCard(UI.buildHomepage()))
+        .build();
+        
+    } catch (error) {
+      return UI.showNotification('Error during emergency reset: ' + Utils.handleError(error));
     }
   }
 }
