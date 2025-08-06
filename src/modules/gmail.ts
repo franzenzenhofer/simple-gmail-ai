@@ -757,15 +757,7 @@ namespace GmailService {
       const threadData = threadMap.get(email.id);
       if (threadData) {
         const allLabels = getThreadLabelsOptimized(threadData.thread);
-        const corruptedAiLabels = allLabels.filter(name => name.startsWith('ai-'));
-        if (corruptedAiLabels.length > 0) {
-          AppLogger.error('🐛 CORRUPTED AI- LABELS DETECTED', {
-            threadId: email.id.substring(0, 8),
-            corruptedLabels: corruptedAiLabels,
-            allLabels: allLabels
-          });
-        }
-        const threadLabels = allLabels.filter(name => !name.startsWith('ai-')); // CRITICAL: Filter out corrupted ai- labels
+        const threadLabels = allLabels; // Use all labels directly - no ai- filtering needed
         const activePrompt = getClassificationPrompt(classificationPrompt, threadLabels);
         
         // Group by prompt
@@ -1194,14 +1186,37 @@ namespace GmailService {
       // Ignore test mode check errors
     }
     
+    // Get labels ready for all code paths (outside try-catch)
+    let dynamicLabel: GoogleAppsScript.Gmail.GmailLabel | null = null;
+    let processedLabel: GoogleAppsScript.Gmail.GmailLabel | null = null;
+    let shouldApplyLabels = true;
+    
     try {
       const messages = thread.getMessages();
-      if (messages.length === 0) return { isSupport: false };
+      if (messages.length === 0) {
+        // Apply error label for empty threads
+        const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+        thread.addLabel(errorLabel);
+        invalidateThreadLabelCache(thread.getId());
+        return { isSupport: false };
+      }
       
       const msg = messages[messages.length - 1];
-      if (!msg) return { isSupport: false };
+      if (!msg) {
+        // Apply error label for missing message
+        const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+        thread.addLabel(errorLabel);
+        invalidateThreadLabelCache(thread.getId());
+        return { isSupport: false };
+      }
       const body = msg.getPlainBody().trim();
-      if (!body) return { isSupport: false };
+      if (!body) {
+        // Apply error label for empty body
+        const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+        thread.addLabel(errorLabel);
+        invalidateThreadLabelCache(thread.getId());
+        return { isSupport: false };
+      }
       
       const subject = thread.getFirstMessageSubject();
       const sender = msg.getFrom();
@@ -1242,15 +1257,7 @@ namespace GmailService {
       
       // Get thread labels for prompt selection
       const allLabels = getThreadLabelsOptimized(thread);
-      const corruptedAiLabels = allLabels.filter(name => name.startsWith('ai-'));
-      if (corruptedAiLabels.length > 0) {
-        AppLogger.error('🐛 CORRUPTED AI- LABELS DETECTED', {
-          threadId: thread.getId().substring(0, 8),
-          corruptedLabels: corruptedAiLabels,
-          allLabels: allLabels
-        });
-      }
-      const threadLabels = allLabels.filter(name => !name.startsWith('ai-')); // CRITICAL: Filter out corrupted ai- labels
+      const threadLabels = allLabels; // Use all labels directly - no ai- filtering needed
       const activeClassificationPrompt = getClassificationPrompt(classificationPrompt, threadLabels);
       
       // Get label options from docs configuration
@@ -1313,23 +1320,19 @@ namespace GmailService {
         threadId: thread.getId()
       });
       
-      const dynamicLabel = getOrCreateLabel(labelToApply);
-      const processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
-      
       // Check if this label should create drafts (from docs config)
       const docsPrompts = DocsPromptEditor.getPromptForLabels([labelToApply]);
       const shouldCreateDraft = docsPrompts && docsPrompts.responsePrompt && (createDrafts || autoReply);
       const isSupport = shouldCreateDraft || false; // For backward compatibility
       
       // T-10: Skip labeling in test mode if configured
-      const shouldApplyLabels = !(testConfig && testConfig.enabled && testConfig.skipLabeling);
+      shouldApplyLabels = !(testConfig && testConfig.enabled && testConfig.skipLabeling);
       
-      // Apply dynamic label
-      if (shouldApplyLabels) {
-        thread.addLabel(dynamicLabel);
-        thread.addLabel(processedLabel);
-        invalidateThreadLabelCache(thread.getId());
-      }
+      // Get labels ready for all code paths
+      dynamicLabel = getOrCreateLabel(labelToApply);
+      processedLabel = getOrCreateLabel(Config.LABELS.AI_PROCESSED);
+      
+      let hasError = false;
       
       if (shouldCreateDraft) {
           // Extract thread context for recipient determination
@@ -1345,11 +1348,17 @@ namespace GmailService {
               warnings: recipientDecision.warnings
             });
             
-            // Apply error label and return
-            const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
-            thread.addLabel(errorLabel);
-      invalidateThreadLabelCache(thread.getId());
-            invalidateThreadLabelCache(thread.getId());
+            hasError = true;
+            
+            // Apply error label ONLY and return
+            if (shouldApplyLabels) {
+              if (dynamicLabel) {
+                thread.addLabel(dynamicLabel);
+              }
+              const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+              thread.addLabel(errorLabel);
+              invalidateThreadLabelCache(thread.getId());
+            }
             return { isSupport: isSupport || false, error: 'No valid recipients: ' + recipientDecision.reason };
           }
           
@@ -1420,6 +1429,17 @@ namespace GmailService {
             const validation = Guardrails.validateReply(replyBody);
             if (!validation.isValid) {
               // Apply guardrails failed label and skip sending
+              hasError = true;
+              
+              if (shouldApplyLabels) {
+                if (dynamicLabel) {
+                  thread.addLabel(dynamicLabel);
+                }
+                const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+                thread.addLabel(errorLabel);
+                invalidateThreadLabelCache(thread.getId());
+              }
+              
               Guardrails.applyGuardrailsLabel(thread, validation.failureReasons.join('; '));
               AppLogger.warn('🚫 REPLY BLOCKED BY GUARDRAILS', {
                 subject: subject,
@@ -1453,10 +1473,15 @@ namespace GmailService {
             Redaction.clearRedactionCache(thread.getId());
           } else {
             // AI reply generation failed
-            const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
-            thread.addLabel(errorLabel);
-      invalidateThreadLabelCache(thread.getId());
-            invalidateThreadLabelCache(thread.getId());
+            hasError = true;
+            
+            if (shouldApplyLabels) {
+              thread.addLabel(dynamicLabel);
+              const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+              thread.addLabel(errorLabel);
+              invalidateThreadLabelCache(thread.getId());
+            }
+            
             AppLogger.error('❌ FAILED TO GENERATE REPLY', {
               subject: subject,
               threadId: thread.getId(),
@@ -1466,11 +1491,29 @@ namespace GmailService {
           }
       }
       
+      // Apply success labels if no error occurred
+      if (!hasError && shouldApplyLabels) {
+        if (dynamicLabel) {
+          thread.addLabel(dynamicLabel);
+        }
+        if (processedLabel) {
+          thread.addLabel(processedLabel);
+        }
+        invalidateThreadLabelCache(thread.getId());
+      }
+      
       return { isSupport: isSupport || false };
     } catch (error) {
-      const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
-      thread.addLabel(errorLabel);
-      invalidateThreadLabelCache(thread.getId());
+      // Apply error label in catch block
+      if (shouldApplyLabels) {
+        if (dynamicLabel) {
+          thread.addLabel(dynamicLabel);
+        }
+        const errorLabel = getOrCreateLabel(Config.LABELS.AI_ERROR);
+        thread.addLabel(errorLabel);
+        invalidateThreadLabelCache(thread.getId());
+      }
+      
       const errorMessage = Utils.logAndHandleError(error, `Thread processing for ${thread.getId()}`);
       return { isSupport: false, error: errorMessage };
     }
