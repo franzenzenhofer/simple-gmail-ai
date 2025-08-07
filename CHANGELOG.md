@@ -1,50 +1,26 @@
 # Changelog
 
-## [1.9.0] - 2025-08-02
+All notable changes to this project will be documented in this file.
 
-### Added
-- **Modular Architecture**: Split code into 7 focused modules
-  - `config.ts` - Configuration and constants
-  - `types.ts` - TypeScript interfaces
-  - `logger.ts` - Comprehensive logging system
-  - `ai.ts` - Gemini API integration
-  - `gmail.ts` - Email processing logic
-  - `ui.ts` - UI building functions
-  - `utils.ts` - Utility functions
-- **Enhanced Logging**:
-  - Spreadsheet logging enabled by default
-  - Daily log rotation with folder structure
-  - Direct clickable links to logs
-  - Unique AI request/response tracking with emojis
-- **Improved UI/UX**:
-  - Tab-based navigation (Main, API Key, Logs, Settings)
-  - Three-dot menu integration for quick access
-  - Clean interface without unnecessary warnings
-  - Settings tab for advanced options
-- **Architecture Documentation**: Comprehensive docs for maintainability
-
-### Changed
-- **Label Names**: Shorter, cleaner labels
-  - `support` (was: Support Request)
-  - `undefined` (was: Not Support Request)
-  - `ai✓` (was: AI Processed)
-  - `ai✗` (was: AI Error)
-- **Main Tab**: Now includes mode selection and prompt customization
-- **API Key**: Moved to dedicated tab with better validation
-- **Bundler**: Enhanced to handle modular structure
+## [2.62.0] - 2025-08-07
 
 ### Fixed
-- Form input handling for better compatibility
-- Console logging with proper ESLint exceptions
-- TypeScript compilation issues
+- **CRITICAL**: Fixed "ai-" label creation bug that was affecting new email conversations
+  - Added `mapAILabelVariants()` to properly map AI label variants to ai✓/aiX
+  - Added `preventAiDashLabel()` to prevent creation of forbidden "ai-" patterns
+  - Updated `sanitizeGmailLabel()` to use the new protection functions
+  - Ensures ONLY ai✓ and aiX labels exist in the system
+  - All 25 dangerous inputs tested with 0 creating "ai-" labels
 
-### Technical
-- Modular namespace-based architecture
-- Enhanced bundling process
-- Improved test coverage
-- Simplified linting with TypeScript compiler
+### Added
+- Comprehensive test scripts for AI label verification
+- Documentation for the AI label fix in `documentation/ai-label-fix-summary.md`
 
-## [1.8.0] - Previous Version
-- Basic functionality with monolithic code structure
-- Simple logging to console only
-- All settings on single page
+## [2.61.0] - 2025-08-07
+
+### Changed
+- Updated label sanitization logic
+- Enhanced Gmail label validation
+
+## Previous versions...
+- See git history for detailed changes

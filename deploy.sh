@@ -85,9 +85,9 @@ echo "${DRY_RUN_PREFIX}🚀 Starting single-file deployment..."
 echo "${DRY_RUN_PREFIX}📋 Deployment must ALWAYS succeed!"
 echo "${DRY_RUN_PREFIX}📁 Working directory: $PROJECT_ROOT"
 
-# Get version info
+# Get version info - always use user's local time
 readonly VERSION="$(date +%Y%m%d_%H%M%S)"
-readonly TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+readonly TIMESTAMP="$(date +%Y-%m-%dT%H:%M:%S%z)"
 
 # Validate we're in the correct directory
 if [[ ! -f "package.json" ]] || [[ ! -d "src" ]]; then
@@ -152,7 +152,7 @@ if [ ! -f "dist/Code.gs" ]; then
     exit 1
 fi
 
-# Get file size and verify it's not empty - portable across macOS and Linux
+# Get file size and verify it's not empty - portable across all platforms
 get_file_size() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
@@ -160,6 +160,13 @@ get_file_size() {
         return
     fi
     
+    # Use portable Node.js script if available
+    if command -v node &> /dev/null && [[ -f "$PROJECT_ROOT/get-file-size.js" ]]; then
+        node "$PROJECT_ROOT/get-file-size.js" "$file" 2>/dev/null || echo "0"
+        return
+    fi
+    
+    # Fallback to platform-specific stat commands
     # Try macOS stat first, then Linux stat
     if stat -f%z "$file" 2>/dev/null; then
         return
@@ -170,8 +177,14 @@ get_file_size() {
     fi
 }
 
-readonly BUNDLE_SIZE="$(ls -lh dist/Code.gs | awk '{print $5}')"
 readonly BUNDLE_BYTES="$(get_file_size "dist/Code.gs")"
+# Use portable human-readable size if Node.js is available
+if command -v node &> /dev/null && [[ -f "$PROJECT_ROOT/file-utils.js" ]]; then
+    readonly BUNDLE_SIZE="$(node "$PROJECT_ROOT/file-utils.js" human-size "dist/Code.gs")"
+else
+    # Fallback to ls -lh
+    readonly BUNDLE_SIZE="$(ls -lh dist/Code.gs | awk '{print $5}')"
+fi
 
 if [ "$BUNDLE_BYTES" -lt 1000 ]; then
     echo "❌ CRITICAL: Bundle too small! Only $BUNDLE_SIZE ($BUNDLE_BYTES bytes)"
@@ -207,7 +220,14 @@ const DEPLOYMENT_TIMESTAMP = '$TIMESTAMP';
 EOF
 
     # Append the bundled content (skip any existing headers)
-    tail -n +10 dist/Code.gs >> "$TEMP_BUNDLE"
+    # Use Node.js script for robust header stripping if available
+    if command -v node &> /dev/null && [[ -f "$PROJECT_ROOT/strip-header.js" ]]; then
+        node "$PROJECT_ROOT/strip-header.js" dist/Code.gs >> "$TEMP_BUNDLE"
+    else
+        # Fallback to tail (less robust but works in most cases)
+        # Skip first 15 lines to be safe (header is usually ~10 lines)
+        tail -n +15 dist/Code.gs >> "$TEMP_BUNDLE"
+    fi
     mv "$TEMP_BUNDLE" dist/Code.gs
 fi
 
@@ -242,8 +262,20 @@ else
     # CRITICAL: Remove any old .js files to avoid conflicts
     echo "🧹 Cleaning old deployment files..."
     find . -maxdepth 1 -name "*.js" -type f -delete 2>/dev/null || true
+    # Use cross-platform cleanup
+    if command -v node &> /dev/null; then
+        node "$PROJECT_ROOT/clean-dist.js" || true
+    else
+        # Fallback to rm if node not available
+        if [[ -d "src" ]]; then
+            rm -rf "src"  # Remove any src subdirectory completely
+        fi
+    fi
+    
+    # Extra cleanup for TypeScript output that may have been created after bundling
     if [[ -d "src" ]]; then
-        rm -rf "src"  # Remove any src subdirectory completely
+        echo "🧹 Extra cleanup: removing src/ directory created by TypeScript..."
+        rm -rf "src"
     fi
 
     # List what we're deploying
@@ -252,9 +284,7 @@ else
 
     # CRITICAL: Remove ANY test files that might exist from previous deployments
     echo "🧹 Ensuring NO test files exist..."
-    if [[ -d "tests" ]]; then
-        rm -rf "tests"
-    fi
+    # Already handled by clean-dist.js above
     find . -maxdepth 1 \( -name "*.test.js" -o -name "*.spec.js" -o -name "setup.js" \) -type f -delete 2>/dev/null || true
 
     # List what we're deploying (should ONLY be Code.gs and appsscript.json)
@@ -310,15 +340,55 @@ else
     fi
     echo "$VERSION_OUTPUT"
 
-    # Deploy the new version
+    # Deploy the new version with automatic cleanup on failure
     echo "🏷️ Creating new deployment..."
     DEPLOY_DESC="v$VERSION - Single File Bundle - Gemini 2.5 Flash"
     if ! DEPLOY_OUTPUT=$(clasp deploy --description "$DEPLOY_DESC" 2>&1); then
         echo "❌ ERROR: Failed to create deployment!"
         echo "$DEPLOY_OUTPUT"
-        exit 1
+        
+        # Check if it's a deployment limit issue
+        if echo "$DEPLOY_OUTPUT" | grep -q "may only have up to.*deployments"; then
+            echo "🧹 DEPLOYMENT LIMIT REACHED - Auto-cleaning old deployments..."
+            
+            # Get current deployment count
+            DEPLOY_COUNT=$(clasp deployments 2>/dev/null | head -1 | sed 's/[^0-9].*//g' || echo "0")
+            echo "📊 Current deployments: $DEPLOY_COUNT"
+            
+            if [ "$DEPLOY_COUNT" -gt 15 ]; then
+                echo "🗑️ Removing old deployments to make space..."
+                
+                # Get list of old deployments (excluding @HEAD) and remove oldest ones
+                OLD_DEPLOYMENTS=$(clasp deployments 2>/dev/null | grep -v "@HEAD" | tail -n +3 | head -5 | awk '{print $2}' || echo "")
+                
+                for deployment_id in $OLD_DEPLOYMENTS; do
+                    if [ -n "$deployment_id" ]; then
+                        echo "🗑️ Removing deployment: $deployment_id"
+                        clasp undeploy "$deployment_id" 2>/dev/null || echo "⚠️ Could not remove deployment $deployment_id"
+                    fi
+                done
+                
+                echo "✅ Cleanup complete. Retrying deployment..."
+                
+                # Retry deployment
+                if ! DEPLOY_OUTPUT=$(clasp deploy --description "$DEPLOY_DESC" 2>&1); then
+                    echo "❌ ERROR: Deployment still failed after cleanup!"
+                    echo "$DEPLOY_OUTPUT"
+                    exit 1
+                fi
+                echo "✅ DEPLOYMENT SUCCESSFUL after cleanup!"
+                echo "$DEPLOY_OUTPUT"
+            else
+                echo "❌ Deployment failed but not due to limit issue"
+                exit 1
+            fi
+        else
+            exit 1
+        fi
+    else
+        echo "✅ DEPLOYMENT SUCCESSFUL!"
+        echo "$DEPLOY_OUTPUT"
     fi
-    echo "$DEPLOY_OUTPUT"
 
     # List deployments
     echo ""

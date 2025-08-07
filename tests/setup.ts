@@ -1,7 +1,10 @@
 /**
  * Test setup for Gmail Support Triage AI
- * Following the principle: No mocks, fail fast, fail hard
+ * Provides utilities for both mocked and real Google Apps Script environments
  */
+
+import { withMockedServices, clearMockedServices } from './mocked-services';
+import './json-matchers';
 
 // Global Google Apps Script types and services setup
 declare global {
@@ -9,6 +12,11 @@ declare global {
   var GmailApp: GoogleAppsScript.Gmail.GmailApp;
   var PropertiesService: GoogleAppsScript.Properties.PropertiesService;
   var UrlFetchApp: GoogleAppsScript.URL_Fetch.UrlFetchApp;
+  var SpreadsheetApp: GoogleAppsScript.Spreadsheet.SpreadsheetApp;
+  var DriveApp: GoogleAppsScript.Drive.DriveApp;
+  var Session: GoogleAppsScript.Base.Session;
+  var Utilities: GoogleAppsScript.Utilities.Utilities;
+  var Logger: GoogleAppsScript.Base.Logger;
   var console: Console;
 }
 
@@ -45,3 +53,18 @@ export const setupMinimalEnvironment = () => {
     } as any;
   }
 };
+
+// Export the mocking utilities for easy access
+export { withMockedServices, clearMockedServices };
+
+// Setup for Jest - automatically use mocked services for all tests
+beforeEach(() => {
+  // Clear any existing mocks and set up fresh ones
+  clearMockedServices();
+  withMockedServices();
+});
+
+afterEach(() => {
+  // Clean up after each test
+  clearMockedServices();
+});

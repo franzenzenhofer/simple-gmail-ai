@@ -4,9 +4,6 @@
     "enabledAdvancedServices": []
   },
   "exceptionLogging": "STACKDRIVER",
-  "executionApi": {
-    "access": "ANYONE"
-  },
   "runtimeVersion": "V8",
   "oauthScopes": [
     "https://www.googleapis.com/auth/gmail.addons.execute",
@@ -17,7 +14,8 @@
     "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/documents"
   ],
   "urlFetchWhitelist": [
     "https://generativelanguage.googleapis.com/"
@@ -31,8 +29,20 @@
         "runFunction": "onHomepage"
       },
       "universalActions": [{
+        "label": "Home",
+        "runFunction": "showHomepageUniversal"
+      }, {
         "label": "API Key",
         "runFunction": "showApiKeyTabUniversal"
+      }, {
+        "label": "Test Mode",
+        "runFunction": "showTestModeUniversal"
+      }, {
+        "label": "Welcome Flow",
+        "runFunction": "showWelcomeFlowUniversal"
+      }, {
+        "label": "Prompt Editor",
+        "runFunction": "showPromptEditorUniversal"
       }, {
         "label": "Live Log",
         "runFunction": "showLiveLogTabUniversal"

@@ -4,31 +4,28 @@
  */
 
 namespace UI {
+  // Type for log entries used in UI
+  interface UILogEntry {
+    timestamp: string;
+    level: string;
+    message: string;
+    executionId: string;
+    shortMessage?: string;
+  }
   export function buildHomepage(): GoogleAppsScript.Card_Service.Card {
-    const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
+    const savedKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY) || '';
     const hasApiKey = savedKey.trim() !== '';
     
-    // Check if processing, with failsafe for stale flags (clear after 5 minutes)
-    const props = PropertiesService.getUserProperties();
-    let isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
-    
-    if (isProcessing) {
-      const lastStartTime = props.getProperty('ANALYSIS_START_TIME');
-      if (lastStartTime) {
-        const elapsed = Date.now() - parseInt(lastStartTime);
-        if (elapsed > 300000) { // 5 minutes
-          // Clear stale flag
-          props.setProperty('ANALYSIS_RUNNING', 'false');
-          isProcessing = false;
-          AppLogger.info('Cleared stale ANALYSIS_RUNNING flag', { elapsed });
-        }
-      }
-    }
+    // Check if processing using robust lock manager
+    const isProcessing = LockManager.isLocked();
     
     const card = CardService.newCardBuilder()
       .setHeader(
         CardService.newCardHeader()
-          .setTitle('v' + Config.VERSION + ' • ' + Config.DEPLOY_TIME)
+          .setTitle('Gmail AI Assistant')
+          .setSubtitle(DeploymentInfo.getVersionText())
+          .setImageUrl('https://www.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png')
+          .setImageStyle(CardService.ImageStyle.CIRCLE)
       );
     
     if (!hasApiKey) {
@@ -53,47 +50,94 @@ namespace UI {
     const mainSection = CardService.newCardSection();
     
     // Mode Selection - 3 clear radio buttons with persistence
-    const savedMode = PropertiesService.getUserProperties().getProperty('PROCESSING_MODE') || 'label';
+    const savedMode = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.PROCESSING_MODE) || Config.ProcessingMode.LABEL_ONLY;
     
     mainSection.addWidget(
       CardService.newSelectionInput()
         .setFieldName('mode')
         .setTitle('Processing Mode')
         .setType(CardService.SelectionInputType.RADIO_BUTTON)
-        .addItem('Labels only', 'label', savedMode === 'label')
-        .addItem('Labels + Draft', 'draft', savedMode === 'draft')
-        .addItem('Labels + Send', 'send', savedMode === 'send')
+        .addItem('Labels only', Config.ProcessingMode.LABEL_ONLY, savedMode === Config.ProcessingMode.LABEL_ONLY)
+        .addItem('Labels + Draft', Config.ProcessingMode.CREATE_DRAFTS, savedMode === Config.ProcessingMode.CREATE_DRAFTS)
+        .addItem('Labels + Send', Config.ProcessingMode.AUTO_SEND, savedMode === Config.ProcessingMode.AUTO_SEND)
+    );
+    
+    // T-10: Add test mode toggle
+    const isTestMode = TestMode.isTestModeActive();
+    mainSection.addWidget(
+      CardService.newDecoratedText()
+        .setText('🧪 Test Run (1 email)')
+        .setBottomLabel(isTestMode ? 'Test mode active - safe dry-run' : 'Process normally')
+        .setSwitchControl(
+          CardService.newSwitch()
+            .setFieldName('testMode')
+            .setValue(isTestMode ? 'true' : 'false')
+            .setOnChangeAction(
+              CardService.newAction().setFunctionName('toggleTestModeQuick')
+            )
+        )
     );
     
     card.addSection(mainSection);
     
-    // Classification Prompt - Large editor
-    const promptSection = CardService.newCardSection();
+    // Prompts Section - ONLY Docs Editor
+    const promptSection = CardService.newCardSection()
+      .setHeader('📝 Prompt Configuration');
+    
+    // Check if prompt document exists - use single source of truth
+    const promptDocUrl = DocsPromptEditor.getDocumentUrl();
+    
+    const promptDocTitle = DocsPromptEditor.getDocumentTitle();
+    const lastModified = DocsPromptEditor.getDocumentLastModified();
+    
+    if (promptDocUrl) {
+      // Get validation info
+      const validation = DocsPromptEditor.validateDocument();
+      const statusText = validation.success 
+        ? `✅ ${validation.labelsCount} labels configured`
+        : `⚠️ ${validation.errors.length} errors - click to fix`;
+      
+      promptSection.addWidget(
+        CardService.newTextParagraph()
+          .setText(`<b>${promptDocTitle || 'Prompt Document'}</b><br>${statusText}<br><i>Last edited: ${lastModified || 'Unknown'}</i>`)
+      );
+      
+      promptSection.addWidget(
+        CardService.newTextButton()
+          .setText('📝 Edit Prompts in Google Docs')
+          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+          .setOpenLink(CardService.newOpenLink()
+            .setUrl(promptDocUrl)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE))
+      );
+    } else {
+      promptSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>⚠️ No Prompt Document</b><br>Click below to create your prompt configuration document.')
+      );
+    }
+    
     promptSection.addWidget(
-      CardService.newTextInput()
-        .setFieldName('prompt1')
-        .setTitle('🎯 Classification Prompt (How to identify support emails)')
-        .setHint('Tell the AI how to classify emails as "support" or "undefined"')
-        .setValue(PropertiesService.getUserProperties().getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION)
-        .setMultiline(true)
+      CardService.newTextButton()
+        .setText(promptDocUrl ? '🔄 Refresh from Docs' : '📝 Create Prompt Document')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('showPromptEditor')
+        )
     );
     
-    // Response Prompt - Large editor  
     promptSection.addWidget(
-      CardService.newTextInput()
-        .setFieldName('prompt2')
-        .setTitle('✍️ Response Prompt (How to draft replies)')
-        .setHint('Tell the AI how to write helpful customer support responses')
-        .setValue(PropertiesService.getUserProperties().getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE)
-        .setMultiline(true)
+      CardService.newTextParagraph()
+        .setText('<i>All prompts are managed exclusively in Google Docs for better organization and per-label customization.</i>')
     );
     
     card.addSection(promptSection);
     
     // Last Execution section
     const lastExecSection = CardService.newCardSection();
-    const lastExecTime = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_TIME');
-    const lastExecStats = PropertiesService.getUserProperties().getProperty('LAST_EXECUTION_STATS');
+    const lastExecTime = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LAST_EXECUTION_TIME);
+    const lastExecStats = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LAST_EXECUTION_STATS);
     
     if (lastExecTime && lastExecStats) {
       lastExecSection.addWidget(
@@ -116,14 +160,16 @@ namespace UI {
     // Fixed action button at bottom
     const analyzeBtn = CardService.newTextButton()
       .setText(isProcessing ? 'Processing...' : 'Analyze Inbox')
-      .setBackgroundColor(isProcessing ? '#999999' : '#1a73e8')
+      .setBackgroundColor(isProcessing ? Config.COLORS.PRIMARY_DISABLED : Config.COLORS.PRIMARY)
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('runAnalysis')
           .setLoadIndicator(CardService.LoadIndicator.SPINNER) // Show spinner for immediate feedback
       );
     
-    if (!hasApiKey || isProcessing) {
+    // Disable button if no API key, no prompt document, or currently processing
+    const hasPromptDoc = DocsPromptEditor.hasPromptDocument();
+    if (!hasApiKey || !hasPromptDoc || isProcessing) {
       analyzeBtn.setDisabled(true);
     }
     
@@ -136,7 +182,7 @@ namespace UI {
   }
   
   export function buildApiKeyTab(): GoogleAppsScript.Card_Service.Card {
-    const savedKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
+    const savedKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY) || '';
     const hasApiKey = savedKey.trim() !== '';
     
     const card = CardService.newCardBuilder()
@@ -156,18 +202,40 @@ namespace UI {
       );
     }
     
+    // Add API key format validation info
+    if (!hasApiKey) {
+      mainSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('<b>📋 API Key Format:</b><br/>' +
+                   '• Must start with "AIza"<br/>' +
+                   '• Between 30-60 characters total<br/>' +
+                   '• Contains letters, numbers, hyphens, or underscores<br/>' +
+                   '• Example: AIzaSy[35-character-string-here]')
+      );
+    }
+    
     mainSection.addWidget(
       CardService.newTextInput()
         .setFieldName('apiKey')
         .setTitle('Gemini API Key')
-        .setHint('Your Gemini 2.5 Flash API key')
+        .setHint(hasApiKey ? 'Current key: ...' + savedKey.slice(-8) : 'Format: AIzaSy... (30-60 chars)')
         .setValue(savedKey)
+    );
+    
+    // Add validation button
+    mainSection.addWidget(
+      CardService.newTextButton()
+        .setText('🔍 Validate Format')
+        .setBackgroundColor(Config.COLORS.PRIMARY)
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('validateApiKeyFormat')
+        )
     );
     
     mainSection.addWidget(
       CardService.newTextButton()
-        .setText('Save API Key')
-        .setBackgroundColor('#34a853')
+        .setText('💾 Save API Key')
+        .setBackgroundColor(Config.COLORS.SUCCESS)
         .setOnClickAction(
           CardService.newAction().setFunctionName('saveApiKey')
         )
@@ -195,8 +263,12 @@ namespace UI {
   }
   
   export function buildLogsTab(): GoogleAppsScript.Card_Service.Card {
-    AppLogger.initSpreadsheet();
-    const config = AppLogger.getSpreadsheetConfig();
+    // Only initialize if not already configured
+    let config = AppLogger.getSpreadsheetConfig();
+    if (!config) {
+      AppLogger.initSpreadsheet();
+      config = AppLogger.getSpreadsheetConfig();
+    }
     
     const card = CardService.newCardBuilder()
       .setHeader(
@@ -257,7 +329,7 @@ namespace UI {
     
     const mainSection = CardService.newCardSection();
     
-    const isDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
+    const isDebugMode = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.DEBUG_MODE) === 'true';
     mainSection.addWidget(
       CardService.newDecoratedText()
         .setText(isDebugMode ? 'Debug Mode: ON' : 'Debug Mode: OFF')
@@ -272,7 +344,7 @@ namespace UI {
         )
     );
     
-    const spreadsheetDisabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
+    const spreadsheetDisabled = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.SPREADSHEET_LOGGING) === 'false';
     mainSection.addWidget(
       CardService.newDecoratedText()
         .setText(spreadsheetDisabled ? 'Spreadsheet Logs: OFF' : 'Spreadsheet Logs: ON')
@@ -287,14 +359,117 @@ namespace UI {
         )
     );
     
+    // Model Selection Section
+    const properties = PropertiesService.getUserProperties();
+    const scanModel = properties.getProperty(Config.PROP_KEYS.SCAN_MODEL) || Config.GEMINI.DEFAULT_SCAN_MODEL;
+    const replyModel = properties.getProperty(Config.PROP_KEYS.REPLY_MODEL) || Config.GEMINI.DEFAULT_REPLY_MODEL;
+    
+    mainSection.addWidget(
+      CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle('Scanning Model (Speed Priority)')
+        .setFieldName('scanModel')
+        .addItem('Flash-Lite (Fastest)', Config.GeminiModel.FLASH_LITE, scanModel === Config.GeminiModel.FLASH_LITE)
+        .addItem('Flash (Balanced)', Config.GeminiModel.FLASH, scanModel === Config.GeminiModel.FLASH)
+        .addItem('Pro (Highest Quality)', Config.GeminiModel.PRO, scanModel === Config.GeminiModel.PRO)
+        .setOnChangeAction(
+          CardService.newAction().setFunctionName('saveModelSettings')
+        )
+    );
+    
+    mainSection.addWidget(
+      CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setTitle('Reply Model (Quality Priority)')
+        .setFieldName('replyModel')
+        .addItem('Flash-Lite (Fastest)', Config.GeminiModel.FLASH_LITE, replyModel === Config.GeminiModel.FLASH_LITE)
+        .addItem('Flash (Balanced)', Config.GeminiModel.FLASH, replyModel === Config.GeminiModel.FLASH)
+        .addItem('Pro (Highest Quality)', Config.GeminiModel.PRO, replyModel === Config.GeminiModel.PRO)
+        .setOnChangeAction(
+          CardService.newAction().setFunctionName('saveModelSettings')
+        )
+    );
+    
+    mainSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('📊 Flash-Lite: 252 tokens/sec, lowest cost\n⚖️ Flash: Balanced speed & quality\n🎯 Pro: Highest quality, slower')
+    );
+    
+    // System Performance Settings
+    mainSection.addWidget(
+      CardService.newKeyValue()
+        .setTopLabel('Script Timeout')
+        .setContent(ExecutionTime.formatDuration(ExecutionTime.LIMITS.SAFE_EXECUTION_MS))
+        .setBottomLabel('Maximum execution time per run')
+    );
+    
+    mainSection.addWidget(
+      CardService.newKeyValue()
+        .setTopLabel('API Timeout')
+        .setContent(ExecutionTime.formatDuration(ExecutionTime.LIMITS.API_TIMEOUT_MS))
+        .setBottomLabel('Maximum time per API request')
+    );
+    
     mainSection.addWidget(
       CardService.newKeyValue()
         .setTopLabel('Version')
-        .setContent('v' + Config.VERSION)
-        .setBottomLabel('Deployed: ' + Config.DEPLOY_TIME)
+        .setContent('v' + DeploymentInfo.getVersion())
+        .setBottomLabel('Deployed: ' + DeploymentInfo.getFormattedDeploymentInfo().full)
     );
     
+    // T-05: Show last heartbeat for monitoring
+    const lastHeartbeat = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.AI_HEARTBEAT);
+    if (lastHeartbeat) {
+      const heartbeatDate = new Date(lastHeartbeat);
+      const now = new Date();
+      const diffMinutes = Math.floor((now.getTime() - heartbeatDate.getTime()) / 60000);
+      
+      mainSection.addWidget(
+        CardService.newKeyValue()
+          .setTopLabel('Last Heartbeat')
+          .setContent(heartbeatDate.toLocaleString())
+          .setBottomLabel(diffMinutes === 0 ? 'Just now' : diffMinutes + ' minutes ago')
+      );
+    }
+    
     card.addSection(mainSection);
+    
+    // Emergency and Factory Reset section
+    const resetSection = CardService.newCardSection()
+      .setHeader('🚨 Emergency & Reset Options');
+    
+    // Emergency Reset for stuck button
+    resetSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>🚨 Button Stuck on "Processing"?</b><br/>Use this if the Analyze Inbox button is stuck and won\'t reset.')
+    );
+    
+    resetSection.addWidget(
+      CardService.newTextButton()
+        .setText('🚨 Emergency Reset')
+        .setBackgroundColor('#ff6600')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('emergencyReset')
+        )
+    );
+    
+    resetSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>🏭 Factory Reset</b><br/>Reset the application to initial state. This will delete ALL data including your API key, settings, labels, and logs.')
+    );
+    
+    resetSection.addWidget(
+      CardService.newTextButton()
+        .setText('Factory Reset...')
+        .setBackgroundColor('#dc3545')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('showFactoryResetConfirmation')
+        )
+    );
+    
+    card.addSection(resetSection);
     
     // Back button
     const footerSection = CardService.newCardSection();
@@ -324,10 +499,116 @@ namespace UI {
       .setNavigation(CardService.newNavigation().pushCard(card))
       .build();
   }
+  
+  /**
+   * Create success view with next steps after processing completion
+   */
+  export function buildSuccessWithNextStepsView(stats?: any, executionTime?: string): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    
+    // Success header
+    card.setHeader(CardService.newCardHeader()
+      .setTitle('✅ Processing Complete!')
+      .setSubtitle('Your inbox has been successfully analyzed')
+    );
+    
+    // Results section
+    const resultsSection = CardService.newCardSection()
+      .setHeader('📊 Results Summary');
+    
+    if (stats && executionTime) {
+      resultsSection.addWidget(
+        CardService.newKeyValue()
+          .setTopLabel('Analysis Results')
+          .setContent(`${stats.scanned} emails processed in ${executionTime}`)
+          .setIcon(CardService.Icon.EMAIL)
+      );
+      
+      if (stats.aiProcessedCount > 0) {
+        resultsSection.addWidget(
+          CardService.newKeyValue()
+            .setTopLabel('Successfully Processed')
+            .setContent(`${stats.aiProcessedCount} emails tagged with ${Config.LABELS.AI_PROCESSED}`)
+            .setIcon(CardService.Icon.CONFIRMATION_NUMBER_ICON)
+        );
+      }
+      
+      if (stats.labelCounts && Object.keys(stats.labelCounts).length > 0) {
+        const labelText = Object.entries(stats.labelCounts)
+          .filter(([label]) => label !== Config.LABELS.AI_PROCESSED && label !== Config.LABELS.AI_ERROR)
+          .map(([label, count]) => `${count}x ${label}`)
+          .join(', ');
+          
+        if (labelText) {
+          resultsSection.addWidget(
+            CardService.newKeyValue()
+              .setTopLabel('Labels Applied')
+              .setContent(labelText)
+              .setIcon(CardService.Icon.BOOKMARK)
+          );
+        }
+      }
+    }
+    
+    card.addSection(resultsSection);
+    
+    // Next Steps section
+    const nextStepsSection = CardService.newCardSection()
+      .setHeader('🎯 What Next?');
+    
+    nextStepsSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>Suggested next actions:</b><br>' +
+                 '• <b>View Details</b>: See processing logs and results<br>' +
+                 '• <b>Check Gmail</b>: Review labeled emails in your inbox<br>' +
+                 '• <b>Run Again</b>: Process more emails or test changes<br>' +
+                 '• <b>Adjust Settings</b>: Fine-tune prompts and models')
+    );
+    
+    card.addSection(nextStepsSection);
+    
+    // Quick Actions section
+    const actionsSection = CardService.newCardSection()
+      .setHeader('⚡ Quick Actions');
+    
+    // View Results button
+    actionsSection.addWidget(
+      CardService.newTextButton()
+        .setText('📋 View Processing Details')
+        .setOnClickAction(CardService.newAction().setFunctionName('showLiveLogTabUniversal'))
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    );
+    
+    // Analyze Again button  
+    actionsSection.addWidget(
+      CardService.newTextButton()
+        .setText('🔄 Analyze Inbox Again')
+        .setOnClickAction(CardService.newAction().setFunctionName('showHomepageUniversal'))
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+    );
+    
+    // Settings button
+    actionsSection.addWidget(
+      CardService.newTextButton()
+        .setText('⚙️ Adjust Settings')
+        .setOnClickAction(CardService.newAction().setFunctionName('showSettingsTabUniversal'))
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+    );
+    
+    card.addSection(actionsSection);
+    
+    return card.build();
+  }
 
   export function buildLiveLogView(): GoogleAppsScript.Card_Service.Card {
     AppLogger.initSpreadsheet();
     const config = AppLogger.getSpreadsheetConfig();
+    
+    AppLogger.info('🔧 BUILDING LIVE LOG VIEW', {
+      spreadsheetId: config?.todaySpreadsheetId || 'none',
+      hasConfig: !!config,
+      timestamp: new Date().toISOString()
+    });
     
     const card = CardService.newCardBuilder()
       .setHeader(
@@ -336,12 +617,21 @@ namespace UI {
           .setSubtitle('Real-time Email Processing')
       );
     
+    AppLogger.info('✅ Live log view card header created');
+    
     // === REAL-TIME STATS SECTION ===
     const statsSection = CardService.newCardSection();
-    const isRunning = PropertiesService.getUserProperties().getProperty('ANALYSIS_RUNNING') === 'true';
+    const isRunning = LockManager.isLocked();
+    
+    AppLogger.info('📊 BUILDING STATS SECTION', {
+      isRunning: isRunning,
+      lockManagerState: LockManager.isLocked()
+    });
     
     // Get current stats from properties
     const currentStats = getCurrentProcessingStats();
+    
+    AppLogger.info('📈 CURRENT STATS RETRIEVED', currentStats);
     
     // Stats display with live counters
     statsSection.addWidget(
@@ -355,7 +645,7 @@ namespace UI {
         CardService.newTextParagraph()
           .setText('<b>📊 LIVE STATS:</b> ' + 
             '📧 ' + currentStats.scanned + ' processed | ' +
-            '🎯 ' + currentStats.supports + ' support | ' +
+            '🎯 ' + currentStats.supports + ' labeled | ' +
             '📝 ' + currentStats.drafted + ' drafts | ' +
             '📤 ' + currentStats.sent + ' sent' +
             (currentStats.errors > 0 ? ' | ❌ ' + currentStats.errors + ' errors' : ''))
@@ -364,13 +654,26 @@ namespace UI {
     
     card.addSection(statsSection);
     
+    AppLogger.info('✅ Stats section added to card');
+    
     // === LIVE ACTIVITY FEED ===
     const activitySection = CardService.newCardSection();
+    
+    AppLogger.info('🔄 BUILDING ACTIVITY FEED', {
+      isRunning: isRunning,
+      executionId: AppLogger.executionId,
+      lastExecutionId: PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.LAST_EXECUTION_ID)
+    });
     
     // Get filtered, relevant log entries - current execution if running, otherwise last execution
     const relevantLogs = isRunning ? 
       getCurrentExecutionLogs(15) : 
       getLastExecutionLogs(15);
+    
+    AppLogger.info('📋 LOG ENTRIES RETRIEVED', {
+      logCount: relevantLogs.length,
+      source: isRunning ? 'current_execution' : 'last_execution'
+    });
     
     if (relevantLogs.length > 0) {
       activitySection.addWidget(
@@ -378,7 +681,7 @@ namespace UI {
           .setText('<b>📋 ACTIVITY FEED:</b>')
       );
       
-      relevantLogs.forEach((logEntry: any) => {
+      relevantLogs.forEach((logEntry: UILogEntry) => {
         const timeOnly = logEntry.timestamp.substring(11, 19);
         
         // Use shortMessage if available, otherwise fall back to full message
@@ -402,7 +705,7 @@ namespace UI {
         } else if (logEntry.message.includes('❌')) {
           icon = '❌';
           importance = 'high';
-        } else if (logEntry.message.includes('✅ BATCH CLASSIFICATION COMPLETE')) {
+        } else if (logEntry.message.includes('CLASSIFICATION COMPLETE') || logEntry.message.includes('BATCH COMPLETE')) {
           icon = '🏁';
           importance = 'high';
         } else if (logEntry.message.includes('📤 PROMPT SENT')) {
@@ -466,7 +769,7 @@ namespace UI {
       quickActionsSection.addWidget(
         CardService.newTextButton()
           .setText('🛑 Cancel Processing')
-          .setBackgroundColor('#dc3545')
+          .setBackgroundColor(Config.COLORS.DANGER)
           .setOnClickAction(
             CardService.newAction().setFunctionName('cancelProcessing')
           )
@@ -483,16 +786,22 @@ namespace UI {
     
     card.addSection(quickActionsSection);
     
+    AppLogger.info('🎯 LIVE LOG VIEW CONSTRUCTION COMPLETE', {
+      sectionsAdded: ['stats', 'activity', 'quickActions'],
+      cardBuilt: true,
+      timestamp: new Date().toISOString()
+    });
+    
     return card.build();
   }
 
   function getCurrentProcessingStats(): {scanned: number, supports: number, drafted: number, sent: number, errors: number} {
     try {
-      const scanned = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SCANNED') || '0');
-      const supports = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SUPPORTS') || '0');
-      const drafted = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_DRAFTED') || '0');
-      const sent = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_SENT') || '0');
-      const errors = parseInt(PropertiesService.getUserProperties().getProperty('CURRENT_ERRORS') || '0');
+      const scanned = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_SCANNED) || '0');
+      const supports = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_SUPPORTS) || '0');
+      const drafted = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_DRAFTED) || '0');
+      const sent = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_SENT) || '0');
+      const errors = parseInt(PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.CURRENT_ERRORS) || '0');
       
       return { scanned, supports, drafted, sent, errors };
     } catch (error) {
@@ -505,7 +814,7 @@ namespace UI {
       // Read from CacheService first - FAST and has more space!
       const cache = CacheService.getUserCache();
       const props = PropertiesService.getUserProperties();
-      const currentExecutionId = props.getProperty('CURRENT_EXECUTION_ID') || AppLogger.executionId;
+      const currentExecutionId = props.getProperty(Config.PROP_KEYS.CURRENT_EXECUTION_ID) || AppLogger.executionId;
       const logKey = 'LIVE_LOG_' + currentExecutionId;
       
       // Try cache first
@@ -523,7 +832,7 @@ namespace UI {
       const logs = JSON.parse(logsJson);
       
       // Map to expected format and reverse (newest first)
-      const entries = logs.map((log: any) => ({
+      const entries = logs.map((log: UILogEntry) => ({
         timestamp: log.timestamp || '',
         executionId: currentExecutionId,
         level: log.level || 'INFO',
@@ -533,7 +842,7 @@ namespace UI {
       return entries.slice(0, limit);
       
     } catch (error) {
-      console.error('Failed to get current execution logs:', String(error));
+      Utils.logAndHandleError(error, 'Current execution logs retrieval');
       return [];
     }
   }
@@ -543,7 +852,7 @@ namespace UI {
       // Find the last execution ID from properties
       const props = PropertiesService.getUserProperties();
       const cache = CacheService.getUserCache();
-      const lastExecutionId = props.getProperty('LAST_EXECUTION_ID');
+      const lastExecutionId = props.getProperty(Config.PROP_KEYS.LAST_EXECUTION_ID);
       
       if (!lastExecutionId) {
         return [];
@@ -566,7 +875,7 @@ namespace UI {
       const logs = JSON.parse(logsJson);
       
       // Map to expected format and reverse (newest first)
-      const entries = logs.map((log: any) => ({
+      const entries = logs.map((log: UILogEntry) => ({
         timestamp: log.timestamp || '',
         executionId: lastExecutionId,
         level: log.level || 'INFO',
@@ -576,7 +885,7 @@ namespace UI {
       return entries.slice(0, limit);
       
     } catch (error) {
-      console.error('Failed to get last execution logs:', String(error));
+      Utils.logAndHandleError(error, 'Last execution logs retrieval');
       return [];
     }
   }

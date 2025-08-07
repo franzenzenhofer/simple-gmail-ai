@@ -29,5 +29,8 @@ namespace Types {
     drafted: number;
     sent: number;
     errors: number;
+    labelCounts: { [labelName: string]: number };
+    aiProcessedCount: number;  // ai✓ labels applied
+    aiErrorCount: number;      // aiX labels applied
   }
 }

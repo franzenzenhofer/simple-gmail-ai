@@ -1,548 +1,434 @@
 /**
  * Gmail Support Triage & Auto-Reply Add-on
- * Main entry point - imports all modules
+ * Main entry point - imports all modules and exposes global functions
  */
 
 // Module imports (will be inlined by bundler)
 /// <reference path="modules/config.ts" />
 /// <reference path="modules/types.ts" />
 /// <reference path="modules/logger.ts" />
+/// <reference path="modules/execution-time.ts" />
+/// <reference path="modules/utils.ts" />
+/// <reference path="modules/json-validator.ts" />
+/// <reference path="modules/ai-schemas.ts" />
+/// <reference path="modules/batch-processor.ts" />
+/// <reference path="modules/continuation-triggers.ts" />
+/// <reference path="modules/continuation-handlers.ts" />
+/// <reference path="modules/function-calling.ts" />
+/// <reference path="modules/dark-mode.ts" />
+/// <reference path="modules/test-mode.ts" />
+/// <reference path="modules/contextual-actions.ts" />
+/// <reference path="modules/welcome-flow.ts" />
+/// <reference path="modules/ui-improvements.ts" />
 /// <reference path="modules/ai.ts" />
+/// <reference path="modules/structured-ai.ts" />
 /// <reference path="modules/gmail.ts" />
 /// <reference path="modules/ui.ts" />
-/// <reference path="modules/utils.ts" />
+/// <reference path="modules/error-handling.ts" />
+/// <reference path="modules/entry-points.ts" />
+/// <reference path="modules/navigation-handlers.ts" />
+/// <reference path="modules/action-handlers.ts" />
+/// <reference path="modules/processing-handlers.ts" />
+/// <reference path="modules/universal-actions.ts" />
+/// <reference path="modules/docs-prompt-editor.ts" />
+/// <reference path="modules/docs-prompt-handlers.ts" />
+/// <reference path="modules/prompt-sanitizer.ts" />
 
-// ===== MAIN ENTRY POINTS =====
+// ===== GLOBAL FUNCTION EXPORTS =====
+// These functions must be globally accessible for Google Apps Script
+// Organized by functional category for better maintainability
 
-/**
- * Initialize global error handler
- */
-function handleGlobalError(error: any): GoogleAppsScript.Card_Service.Card {
-  const errorMessage = error?.message || String(error);
-  
-  const card = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader()
-      .setTitle('⚠️ Error')
-      .setSubtitle('Gmail AI Support Triage'))
-    .addSection(CardService.newCardSection()
-      .addWidget(CardService.newTextParagraph()
-        .setText('An error occurred: ' + errorMessage))
-      .addWidget(CardService.newTextParagraph()
-        .setText('Please try reloading Gmail or reinstalling the add-on.')));
-  
-  return card.build();
+// =============================================================================
+// 🚀 ADD-ON TRIGGERS & ENTRY POINTS
+// Core functions called by Google Apps Script runtime
+// =============================================================================
+
+function onAddOnOpen(e: any): void {
+  return EntryPoints.onAddOnOpen(e);
 }
 
-/**
- * Entry point for Gmail add-on homepage
- */
 function onHomepage(): GoogleAppsScript.Card_Service.Card {
-  try {
-    AppLogger.initSpreadsheet();
-    
-    // Clear any stale processing flags on add-on load
-    const props = PropertiesService.getUserProperties();
-    const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
-    if (isProcessing) {
-      const lastStartTime = props.getProperty('ANALYSIS_START_TIME');
-      if (lastStartTime) {
-        const elapsed = Date.now() - parseInt(lastStartTime);
-        // Clear if older than 2 minutes (processing should never take that long)
-        if (elapsed > 120000) {
-          props.setProperty('ANALYSIS_RUNNING', 'false');
-          AppLogger.info('Cleared stale ANALYSIS_RUNNING flag on startup', { elapsed });
-        }
-      } else {
-        // No start time recorded, clear the flag
-        props.setProperty('ANALYSIS_RUNNING', 'false');
-        AppLogger.info('Cleared ANALYSIS_RUNNING flag (no start time)');
-      }
-    }
-    
-    AppLogger.info('Gmail Add-on started', {
-      version: Config.VERSION,
-      executionId: AppLogger.executionId
-    });
-    
-    return UI.buildHomepage();
-  } catch (error) {
-    return handleGlobalError(error);
-  }
+  return EntryPoints.onHomepage();
 }
 
-// ===== NAVIGATION HANDLERS =====
+function onGmailMessage(e: any): GoogleAppsScript.Card_Service.Card {
+  return EntryPoints.onGmailMessage(e);
+}
+
+// =============================================================================
+// 🧭 NAVIGATION HANDLERS  
+// Tab switching and page navigation within the add-on UI
+// =============================================================================
 
 function showApiKeyTab(): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    return UI.navigateTo(UI.buildApiKeyTab());
-  } catch (error) {
-    return UI.navigateTo(handleGlobalError(error));
-  }
+  return NavigationHandlers.showApiKeyTab();
 }
 
 function showLogsTab(): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    return UI.navigateTo(UI.buildLogsTab());
-  } catch (error) {
-    return UI.navigateTo(handleGlobalError(error));
-  }
+  return NavigationHandlers.showLogsTab();
 }
 
 function showSettingsTab(): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    return UI.navigateTo(UI.buildSettingsTab());
-  } catch (error) {
-    return UI.navigateTo(handleGlobalError(error));
-  }
+  return NavigationHandlers.showSettingsTab();
 }
 
 function backToMain(): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    return UI.navigateTo(UI.buildHomepage());
-  } catch (error) {
-    return UI.navigateTo(handleGlobalError(error));
-  }
-}
-
-// ===== ACTION HANDLERS =====
-
-function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    const apiKey = Utils.getFormValue(e, 'apiKey');
-    
-    if (!apiKey || apiKey.trim() === '') {
-      throw new Error('Please enter an API key');
-    }
-    
-    // Validate Gemini API key format
-    const trimmedKey = apiKey.trim();
-    if (!trimmedKey.match(/^AIza[0-9A-Za-z\-_]{35}$/)) {
-      throw new Error('Invalid API key format. Gemini API keys start with "AIza" followed by 35 characters.');
-    }
-    
-    // Test the API key with a simple request
-    try {
-      const testUrl = Config.GEMINI.API_URL + Config.GEMINI.MODEL + ':generateContent?key=' + encodeURIComponent(trimmedKey);
-      const testResponse = UrlFetchApp.fetch(testUrl, {
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify({
-          contents: [{ parts: [{ text: 'test' }] }],
-          generationConfig: { temperature: 0 }
-        }),
-        muteHttpExceptions: true
-      });
-      
-      if (testResponse.getResponseCode() === 403) {
-        throw new Error('API key is invalid or has insufficient permissions');
-      } else if (testResponse.getResponseCode() !== 200) {
-        throw new Error('API key validation failed. Please check your key.');
-      }
-    } catch (testError) {
-      const errorMessage = String(testError);
-      if (errorMessage.includes('API key')) {
-        throw new Error(errorMessage);
-      }
-      throw new Error('Failed to validate API key: ' + errorMessage);
-    }
-    
-    PropertiesService.getUserProperties().setProperty('GEMINI_API_KEY', trimmedKey);
-    AppLogger.info('API key saved and validated successfully');
-    
-    return CardService.newActionResponseBuilder()
-      .setNotification(
-        CardService.newNotification().setText('API key saved and validated successfully')
-      )
-      .setNavigation(CardService.newNavigation().updateCard(UI.buildApiKeyTab()))
-      .build();
-      
-  } catch (err) {
-    AppLogger.error('Error saving API key', { error: Utils.handleError(err) });
-    return UI.showNotification('Error: ' + Utils.handleError(err));
-  }
-}
-
-function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    // CRITICAL: Initialize spreadsheet logging for this execution
-    AppLogger.initSpreadsheet();
-    AppLogger.info('🔥 RUNANALYSIS CALLED - Button click received!');
-    
-    const apiKey = PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new Error('Please configure your API key first');
-    }
-    
-    const mode = Utils.getFormValue(e, 'mode', 'label');
-    const prompt1 = Utils.getFormValue(e, 'prompt1', Config.PROMPTS.CLASSIFICATION);
-    const prompt2 = Utils.getFormValue(e, 'prompt2', Config.PROMPTS.RESPONSE);
-    
-    // Save ALL settings for persistence
-    const userProps = PropertiesService.getUserProperties();
-    userProps.setProperty('PROCESSING_MODE', mode);
-    userProps.setProperty('PROMPT_1', prompt1);
-    userProps.setProperty('PROMPT_2', prompt2);
-    
-    // Determine processing flags based on mode
-    const createDrafts = (mode === 'draft' || mode === 'send');
-    const autoReply = (mode === 'send');
-    
-    AppLogger.info('🔧 PARAMETERS EXTRACTED', { mode, createDrafts, autoReply, hasPrompt1: !!prompt1, hasPrompt2: !!prompt2 });
-    
-    // Mark analysis as starting with timestamp for stale flag detection
-    userProps.setProperty('ANALYSIS_RUNNING', 'true');
-    userProps.setProperty('ANALYSIS_START_TIME', Date.now().toString());
-    
-    // Clear any previous cancellation flag
-    userProps.deleteProperty('ANALYSIS_CANCELLED');
-    
-    // Initialize real-time stats tracking
-    userProps.setProperty('CURRENT_SCANNED', '0');
-    userProps.setProperty('CURRENT_SUPPORTS', '0');
-    userProps.setProperty('CURRENT_DRAFTED', '0');
-    userProps.setProperty('CURRENT_SENT', '0');
-    userProps.setProperty('CURRENT_ERRORS', '0');
-    
-    AppLogger.info('🚀 ANALYSIS STARTED', {
-      mode: mode,
-      createDrafts: createDrafts,
-      autoReply: autoReply,
-      promptsConfigured: true
-    });
-    
-    // START PROCESSING IMMEDIATELY AND GO TO LIVE LOG VIEW
-    return continueProcessingAndNavigate(apiKey, mode, prompt1, prompt2, createDrafts, autoReply);
-    
-  } catch (err) {
-    PropertiesService.getUserProperties().setProperty('ANALYSIS_RUNNING', 'false');
-    AppLogger.error('Error starting analysis', { error: Utils.handleError(err) });
-    return UI.showNotification('Error: ' + Utils.handleError(err));
-  }
-}
-
-function continueProcessingAndNavigate(
-  apiKey: string,
-  mode: string,
-  prompt1: string,
-  prompt2: string,
-  createDrafts: boolean,
-  autoReply: boolean
-): GoogleAppsScript.Card_Service.ActionResponse {
-  const userProps = PropertiesService.getUserProperties();
-  
-  try {
-    // START ACTUAL PROCESSING
-    const threads = GmailService.getUnprocessedThreads();
-    const stats: Types.ProcessingStats = {
-      scanned: 0,
-      supports: 0,
-      drafted: 0,
-      sent: 0,
-      errors: 0
-    };
-    
-    AppLogger.info('📊 Starting analysis', {
-      threadCount: threads.length,
-      mode,
-      createDrafts,
-      autoReply
-    });
-    
-    // Use batch processing instead of individual thread processing
-    const results = GmailService.processThreads(
-      threads,
-      apiKey,
-      createDrafts,
-      autoReply,
-      prompt1,
-      prompt2
-    );
-    
-    // Process results and update stats
-    results.forEach((result) => {
-      stats.scanned++;
-      
-      if (result.error) {
-        stats.errors++;
-      } else if (result.isSupport) {
-        stats.supports++;
-        if (createDrafts) {
-          stats.drafted++;
-        }
-        if (autoReply) {
-          stats.sent++;
-        }
-      }
-      
-      // Update real-time stats after each thread is processed
-      const properties = PropertiesService.getUserProperties();
-      properties.setProperty('CURRENT_SCANNED', stats.scanned.toString());
-      properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
-      properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
-      properties.setProperty('CURRENT_SENT', stats.sent.toString());
-      properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
-    });
-    
-    AppLogger.info('🎯 Analysis completed', { stats });
-    
-    // Mark analysis as complete and save execution info
-    const props = PropertiesService.getUserProperties();
-    props.setProperty('ANALYSIS_RUNNING', 'false');
-    
-    // Save last execution time and stats
-    const executionTime = new Date().toLocaleString('de-AT', {
-      year: 'numeric',
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Vienna'
-    });
-    const statsString = `${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
-    
-    props.setProperty('LAST_EXECUTION_TIME', executionTime);
-    props.setProperty('LAST_EXECUTION_STATS', statsString);
-    
-    // CRITICAL: Save this execution ID as the last one for live log view
-    props.setProperty('LAST_EXECUTION_ID', AppLogger.executionId);
-    
-    const message = `✅ COMPLETED: ${statsString}`;
-    AppLogger.info(message);
-    
-    // Navigate to live log view to show results
-    AppLogger.info('🚀 NAVIGATING TO LIVE LOG VIEW - processing complete');
-    return UI.navigateTo(UI.buildLiveLogView());
-    
-  } catch (err) {
-    userProps.setProperty('ANALYSIS_RUNNING', 'false');
-    AppLogger.error('Error in processing', { error: Utils.handleError(err) });
-    return UI.showNotification('Error: ' + Utils.handleError(err));
-  }
-}
-
-function continueProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const userProps = PropertiesService.getUserProperties();
-  
-  try {
-    // Retrieve saved parameters
-    const mode = userProps.getProperty('PROCESSING_MODE') || 'label';
-    const prompt1 = userProps.getProperty('PROMPT_1') || Config.PROMPTS.CLASSIFICATION;
-    const prompt2 = userProps.getProperty('PROMPT_2') || Config.PROMPTS.RESPONSE;
-    const apiKey = userProps.getProperty('GEMINI_API_KEY');
-    
-    if (!apiKey) {
-      throw new Error('API key not found');
-    }
-    
-    const createDrafts = (mode === 'draft' || mode === 'send');
-    const autoReply = (mode === 'send');
-    
-    // START ACTUAL PROCESSING
-    const threads = GmailService.getUnprocessedThreads();
-    const stats: Types.ProcessingStats = {
-      scanned: 0,
-      supports: 0,
-      drafted: 0,
-      sent: 0,
-      errors: 0
-    };
-    
-    AppLogger.info('📊 Starting analysis', {
-      threadCount: threads.length,
-      mode,
-      createDrafts,
-      autoReply
-    });
-    
-    // Use batch processing instead of individual thread processing
-    const results = GmailService.processThreads(
-      threads,
-      apiKey,
-      createDrafts,
-      autoReply,
-      prompt1,
-      prompt2
-    );
-    
-    // Process results and update stats
-    results.forEach((result) => {
-      stats.scanned++;
-      
-      if (result.error) {
-        stats.errors++;
-      } else if (result.isSupport) {
-        stats.supports++;
-        if (createDrafts) {
-          stats.drafted++;
-        }
-        if (autoReply) {
-          stats.sent++;
-        }
-      }
-      
-      // Update real-time stats after each thread is processed
-      const properties = PropertiesService.getUserProperties();
-      properties.setProperty('CURRENT_SCANNED', stats.scanned.toString());
-      properties.setProperty('CURRENT_SUPPORTS', stats.supports.toString());
-      properties.setProperty('CURRENT_DRAFTED', stats.drafted.toString());
-      properties.setProperty('CURRENT_SENT', stats.sent.toString());
-      properties.setProperty('CURRENT_ERRORS', stats.errors.toString());
-    });
-    
-    AppLogger.info('🎯 Analysis completed', { stats });
-    
-    // Mark analysis as complete and save execution info
-    const props = PropertiesService.getUserProperties();
-    props.setProperty('ANALYSIS_RUNNING', 'false');
-    
-    // Save last execution time and stats
-    const executionTime = new Date().toLocaleString('de-AT', {
-      year: 'numeric',
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Vienna'
-    });
-    const statsString = `${stats.scanned} analyzed | ${stats.supports} support | ${stats.drafted} drafts | ${stats.sent} sent${stats.errors > 0 ? ' | ' + stats.errors + ' errors' : ''}`;
-    
-    props.setProperty('LAST_EXECUTION_TIME', executionTime);
-    props.setProperty('LAST_EXECUTION_STATS', statsString);
-    
-    // CRITICAL: Save this execution ID as the last one for live log view
-    props.setProperty('LAST_EXECUTION_ID', AppLogger.executionId);
-    
-    const message = `✅ COMPLETED: ${statsString}`;
-    AppLogger.info(message);
-    
-    // Navigate to live log view to show results
-    AppLogger.info('🚀 NAVIGATING TO LIVE LOG VIEW - using pushCard() now');
-    return UI.navigateTo(UI.buildLiveLogView());
-    
-  } catch (err) {
-    userProps.setProperty('ANALYSIS_RUNNING', 'false');
-    AppLogger.error('Error in processing', { error: Utils.handleError(err) });
-    return UI.showNotification('Error: ' + Utils.handleError(err));
-  }
-}
-
-
-function toggleDebugMode(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const currentDebugMode = PropertiesService.getUserProperties().getProperty('DEBUG_MODE') === 'true';
-  const newDebugMode = !currentDebugMode;
-  
-  PropertiesService.getUserProperties().setProperty('DEBUG_MODE', newDebugMode.toString());
-  AppLogger.info('Debug mode toggled', { newValue: newDebugMode });
-  
-  return CardService.newActionResponseBuilder()
-    .setNotification(
-      CardService.newNotification()
-        .setText(newDebugMode ? 'Debug mode enabled' : 'Debug mode disabled')
-    )
-    .setNavigation(CardService.newNavigation().updateCard(UI.buildSettingsTab()))
-    .build();
-}
-
-function toggleSpreadsheetLogging(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const currentDisabled = PropertiesService.getUserProperties().getProperty('SPREADSHEET_LOGGING') === 'false';
-  const newDisabled = !currentDisabled;
-  
-  PropertiesService.getUserProperties().setProperty('SPREADSHEET_LOGGING', newDisabled ? 'false' : 'true');
-  
-  if (!newDisabled) {
-    AppLogger.initSpreadsheet();
-  }
-  
-  return CardService.newActionResponseBuilder()
-    .setNotification(
-      CardService.newNotification()
-        .setText(newDisabled ? 'Spreadsheet logging disabled' : 'Spreadsheet logging enabled')
-    )
-    .setNavigation(CardService.newNavigation().updateCard(UI.buildSettingsTab()))
-    .build();
-}
-
-// ===== UNIVERSAL ACTIONS =====
-
-function viewLogsUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
-  return CardService.newUniversalActionResponseBuilder()
-    .displayAddOnCards([UI.buildLogsTab()])
-    .build();
-}
-
-function showApiKeyTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
-  return CardService.newUniversalActionResponseBuilder()
-    .displayAddOnCards([UI.buildApiKeyTab()])
-    .build();
-}
-
-function showLogsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
-  return CardService.newUniversalActionResponseBuilder()
-    .displayAddOnCards([UI.buildLogsTab()])
-    .build();
-}
-
-function showSettingsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
-  return CardService.newUniversalActionResponseBuilder()
-    .displayAddOnCards([UI.buildSettingsTab()])
-    .build();
-}
-
-function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
-  return CardService.newUniversalActionResponseBuilder()
-    .displayAddOnCards([UI.buildLiveLogView()])
-    .build();
+  return NavigationHandlers.backToMain();
 }
 
 function refreshLiveLog(): GoogleAppsScript.Card_Service.ActionResponse {
-  try {
-    return UI.navigateTo(UI.buildLiveLogView());
-  } catch (error) {
-    return UI.navigateTo(handleGlobalError(error));
+  return NavigationHandlers.refreshLiveLog();
+}
+
+// =============================================================================
+// ⚡ ACTION HANDLERS
+// Core user actions: settings, configuration, email processing
+// =============================================================================
+
+function saveApiKey(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.saveApiKey(e);
+}
+
+function validateApiKeyFormat(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.validateApiKeyFormat(e);
+}
+
+function runAnalysis(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.runAnalysis(e);
+}
+
+function cancelProcessing(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.cancelProcessing(e);
+}
+
+function toggleDebugMode(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.toggleDebugMode(e);
+}
+
+function toggleSpreadsheetLogging(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.toggleSpreadsheetLogging(e);
+}
+
+function saveModelSettings(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.saveModelSettings(e);
+}
+
+function emergencyReset(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.emergencyReset(e);
+}
+
+// =============================================================================
+// 🔄 PROCESSING HANDLERS
+// Long-running email processing and continuation logic
+// =============================================================================
+
+function continueProcessing(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return ProcessingHandlers.continueProcessing(e);
+}
+
+// =============================================================================
+// 🌐 UNIVERSAL ACTIONS
+// Three-dot menu actions available from any screen
+// =============================================================================
+
+function viewLogsUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.viewLogsUniversal();
+}
+
+function showApiKeyTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showApiKeyTabUniversal();
+}
+
+function showLogsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showLogsTabUniversal();
+}
+
+function showSettingsTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showSettingsTabUniversal();
+}
+
+function showLiveLogTabUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showLiveLogTabUniversal();
+}
+
+function showHomepageUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showHomepageUniversal();
+}
+
+function showPromptEditorUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showPromptEditorUniversal();
+}
+
+function showTestModeUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showTestModeUniversal();
+}
+
+function showWelcomeFlowUniversal(): GoogleAppsScript.Card_Service.UniversalActionResponse {
+  return UniversalActions.showWelcomeFlowUniversal();
+}
+
+// =============================================================================
+// ⏳ CONTINUATION HANDLERS
+// Background processing for large inbox operations
+// =============================================================================
+
+function continueLargeInboxProcessing(): void {
+  return ContinuationHandlers.continueLargeInboxProcessing();
+}
+
+// =============================================================================
+// 🧪 TEST MODE HANDLERS
+// Safe testing with limited email processing
+// =============================================================================
+
+function toggleTestMode(): GoogleAppsScript.Card_Service.ActionResponse {
+  const isActive = TestMode.isTestModeActive();
+  
+  if (isActive) {
+    TestMode.disableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('🧪 Test mode disabled'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(UI.buildHomepage()))
+      .build();
+  } else {
+    TestMode.enableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('🧪 Test mode enabled - safe processing active'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(TestMode.createTestModeCard()))
+      .build();
   }
 }
 
-function cancelProcessing(_e: any): GoogleAppsScript.Card_Service.ActionResponse {
+function runTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
+  const apiKey = PropertiesService.getUserProperties().getProperty(Config.PROP_KEYS.API_KEY);
+  if (!apiKey) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('❌ API key not configured'))
+      .build();
+  }
+  
+  const result = TestMode.runTestAnalysis(
+    apiKey,
+    'Classify this email according to the configured labels.',
+    'Generate an appropriate response to this email.'
+  );
+  
+  // T-10: Show results inline on card
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation()
+      .pushCard(TestMode.createTestResultCard(result)))
+    .build();
+}
+
+// T-10: Quick test mode toggle from main UI
+function toggleTestModeQuick(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const isEnabled = e.formInput.testMode === 'true';
+  
+  if (isEnabled) {
+    TestMode.enableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('🧪 Test mode enabled - will process only 1 email'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(UI.buildHomepage()))
+      .build();
+  } else {
+    TestMode.disableTestMode();
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('✅ Test mode disabled - normal processing'))
+      .setNavigation(CardService.newNavigation()
+        .updateCard(UI.buildHomepage()))
+      .build();
+  }
+}
+
+// Navigate to test mode card
+function showTestModeCard(): GoogleAppsScript.Card_Service.ActionResponse {
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation()
+      .pushCard(TestMode.createTestModeCard()))
+    .build();
+}
+
+// =============================================================================
+// 🎨 THEME & UI HANDLERS
+// Dark mode and visual preferences
+// =============================================================================
+
+function toggleDarkMode(): GoogleAppsScript.Card_Service.ActionResponse {
+  const newMode = DarkMode.toggleDarkMode();
+  
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification()
+      .setText(newMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled'))
+    .setNavigation(CardService.newNavigation()
+      .updateCard(UIImprovements.createCondensedMainCard()))
+    .build();
+}
+
+// =============================================================================
+// 👋 WELCOME FLOW HANDLERS
+// First-time user onboarding experience
+// =============================================================================
+
+function startWelcomeFlow(): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.startWelcomeFlow();
+}
+
+function saveApiKeyFromWelcome(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.saveApiKeyFromWelcome(e);
+}
+
+function runWelcomeTestAnalysis(): GoogleAppsScript.Card_Service.ActionResponse {
+  return WelcomeFlow.runWelcomeTestAnalysis();
+}
+
+// =============================================================================
+// 📨 CONTEXTUAL ACTIONS
+// Email-specific actions and smart suggestions
+// =============================================================================
+
+function executeContextualAction(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const actionId = e.parameters.actionId;
+  const messageId = e.parameters.messageId;
+  const threadId = e.parameters.threadId;
+  
+  // Get the action and execute it
+  const message = GmailApp.getMessageById(messageId);
+  const thread = GmailApp.getThreadById(threadId);
+  
+  const context: ContextualActions.MessageContext = {
+    messageId: messageId,
+    threadId: threadId,
+    subject: message.getSubject(),
+    from: message.getFrom(),
+    to: message.getTo(),
+    body: message.getPlainBody(),
+    labels: thread.getLabels().map(l => l.getName()),
+    attachments: message.getAttachments().length,
+    isUnread: message.isUnread(),
+    isDraft: message.isDraft()
+  };
+  
+  // Find and execute the action
+  const actions = ContextualActions.getAvailableActions(context);
+  const action = actions.find(a => a.id === actionId);
+  
+  if (action) {
+    return action.handler(context);
+  }
+  
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification()
+      .setText('❌ Action not found'))
+    .build();
+}
+
+// =============================================================================
+// 🎛️ UI IMPROVEMENTS HANDLERS
+// Enhanced interface features and controls
+// =============================================================================
+
+function toggleSectionState(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.toggleSectionState(e);
+}
+
+function applyLabelToThread(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   try {
-    const props = PropertiesService.getUserProperties();
-    const isProcessing = props.getProperty('ANALYSIS_RUNNING') === 'true';
+    const threadId = e.parameters.threadId;
+    const labelName = e.parameters.labelName;
     
-    if (!isProcessing) {
-      return UI.showNotification('No processing to cancel');
+    if (!threadId || !labelName) {
+      return CardService.newActionResponseBuilder()
+        .setNotification(CardService.newNotification()
+          .setText('❌ Missing thread or label information'))
+        .build();
     }
     
-    // Force stop processing
-    props.setProperty('ANALYSIS_RUNNING', 'false');
-    props.setProperty('ANALYSIS_CANCELLED', 'true');
-    
-    AppLogger.info('🛑 PROCESSING CANCELLED BY USER', {
-      executionId: AppLogger.executionId,
-      cancelledAt: new Date().toISOString()
-    });
-    
-    // Clear real-time stats
-    props.deleteProperty('CURRENT_SCANNED');
-    props.deleteProperty('CURRENT_SUPPORTS');
-    props.deleteProperty('CURRENT_DRAFTED');
-    props.deleteProperty('CURRENT_SENT');
-    props.deleteProperty('CURRENT_ERRORS');
+    const thread = GmailApp.getThreadById(threadId);
+    const label = GmailService.getOrCreateLabel(labelName);
+    thread.addLabel(label);
     
     return CardService.newActionResponseBuilder()
-      .setNotification(
-        CardService.newNotification()
-          .setText('Processing cancelled successfully')
-      )
-      .setNavigation(CardService.newNavigation().updateCard(UI.buildLiveLogView()))
+      .setNotification(CardService.newNotification()
+        .setText(`✅ Applied label: ${labelName}`))
       .build();
       
-  } catch (err) {
-    AppLogger.error('Error cancelling processing', { error: Utils.handleError(err) });
-    return UI.showNotification('Error cancelling: ' + Utils.handleError(err));
+  } catch (error) {
+    return CardService.newActionResponseBuilder()
+      .setNotification(CardService.newNotification()
+        .setText('❌ ' + Utils.logAndHandleError(error, 'Apply label')))
+      .build();
   }
 }
 
-function onGmailMessage(_e: any): GoogleAppsScript.Card_Service.Card {
-  // For now, just show the homepage
-  // In the future, this could show context-specific actions
-  return onHomepage();
+function updateLogFilter(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.updateLogFilter(e);
+}
+
+function refreshLiveLogOverlay(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.refreshLiveLogOverlay();
+}
+
+function closeLiveLogOverlay(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.closeLiveLogOverlay();
+}
+
+function clearLogs(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.clearLogs();
+}
+
+function resetStatistics(): GoogleAppsScript.Card_Service.ActionResponse {
+  return UIImprovements.resetStatistics();
+}
+
+// =============================================================================
+// 📝 DOCS PROMPT EDITOR HANDLERS
+// Advanced prompt management via Google Docs
+// =============================================================================
+
+function showPromptEditor(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.showPromptEditor();
+}
+
+function createPromptEditorCard(): GoogleAppsScript.Card_Service.Card {
+  return DocsPromptHandlers.createPromptEditorCard();
+}
+
+function createPromptDocument(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.createPromptDocument();
+}
+
+function compilePrompts(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.compilePrompts();
+}
+
+/**
+ * Refresh prompt document
+ */
+function refreshPromptDocument(): GoogleAppsScript.Card_Service.ActionResponse {
+  return DocsPromptHandlers.refreshPromptDocument();
+}
+
+// =============================================================================
+// 🏭 FACTORY RESET HANDLERS
+// Complete system reset functionality
+// =============================================================================
+
+function showFactoryResetConfirmation(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return FactoryResetHandlers.showFactoryResetConfirmation(e);
+}
+
+function executeFactoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return FactoryResetHandlers.executeFactoryReset(e);
+}
+
+function closeAddOn(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return FactoryResetHandlers.closeAddOn(e);
 }

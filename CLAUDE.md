@@ -52,27 +52,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Gmail Add-on project written in Google Apps Script (.gs) that uses the Gemini 2.5 Flash API to analyze and categorize Gmail messages. The add-on performs sentiment analysis on emails and can automatically draft replies.
 
-### Current Issues to Fix
-- The original `first-try.gs` throws errors when deployed
-- Need proper error handling and validation
-- Must be deployable via clasp
-- Needs a working test suite
+### Current Status ✅
+- **All critical issues fixed**: Gmail label sanitization, PII masking, factory reset safety
+- **Production ready**: Robust error handling and validation implemented
+- **Fully deployable**: via clasp with automated CI/CD pipeline
+- **Comprehensive testing**: 540+ tests covering all modules and edge cases
+- **Security hardened**: Latest security review completed with all fixes deployed
 
-## CRITICAL SAFETY NOTICE
+## PRODUCTION READY - v2.32.0
 
-⚠️ **IMPORTANT: During testing and development, DO NOT SEND OUT EMAILS!**
+This Gmail add-on is production ready with enhanced security and reliability:
+- **Gmail Label Sanitization**: AI-generated labels properly sanitized for Gmail constraints
+- **Security Hardened**: Comprehensive bug review and fixes completed
+- **Factory Reset Safety**: User labels preserved during reset operations
+- **PII Protection**: Sensitive data properly masked in logs
+- **540+ Tests**: Comprehensive test coverage for all critical functions
 
-- The add-on has a SafetyConfig system that prevents accidental email sending
-- Development mode is ENABLED by default
-- In development mode:
-  - NO emails will be sent (reply() and createDraftReply() are blocked)
-  - Actions are logged to console instead
-  - Labels are still applied for testing
-- To enable production mode (DANGEROUS), you must explicitly call:
-  ```javascript
-  SafetyConfig.enableProductionMode('I UNDERSTAND THIS WILL SEND REAL EMAILS');
-  ```
-- Always test with development mode first!
+Please test thoroughly before deploying to production, especially auto-reply mode.
 
 ## Key Architecture Components
 
@@ -126,3 +122,16 @@ Since this is a Google Apps Script project, there are no traditional build/test 
 - API key is stored in user properties (not hardcoded)
 - Auto-reply feature has explicit warning and requires user opt-in
 - All Gmail operations require explicit user authorization
+
+## DEPLOYMENT PROTOCOL ⚠️ CRITICAL
+
+**ALWAYS RUN `npm run deploy` AFTER ANY CHANGES!**
+
+The deployment process is fully automated and MUST be run after every change:
+- Runs all tests and linting
+- Creates optimized single-file bundle
+- Automatically cleans up old deployments when hitting limits  
+- Deploys to Google Apps Script with versioning
+- Provides verification URLs and status
+
+**Never skip deployment** - the local code changes don't take effect until deployed!

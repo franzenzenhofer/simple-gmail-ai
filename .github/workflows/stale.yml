@@ -1,0 +1,84 @@
+name: Close Stale Issues and PRs
+
+on:
+  schedule:
+    # Run daily at 1:00 AM UTC
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    # Allow manual triggering for testing
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # Issues configuration
+          stale-issue-message: |
+            👋 This issue has been automatically marked as stale because it has not had recent activity. 
+            
+            It will be closed in 7 days if no further activity occurs. 
+            
+            If this issue is still relevant, please:
+            - Add a comment with more context
+            - Add the `keep-open` label to prevent auto-closure
+            
+            Thank you for your contributions! 🙏
+          
+          close-issue-message: |
+            🔒 This issue has been automatically closed due to inactivity. 
+            
+            If you believe this issue is still relevant, please:
+            - Create a new issue with updated context
+            - Reference this closed issue
+            
+            Thank you for understanding!
+          
+          # PRs configuration
+          stale-pr-message: |
+            👋 This pull request has been automatically marked as stale because it has not had recent activity.
+            
+            It will be closed in 14 days if no further activity occurs.
+            
+            If this PR is still relevant, please:
+            - Rebase against the latest main branch
+            - Address any review comments
+            - Add the `keep-open` label to prevent auto-closure
+            
+            Thank you for your contributions! 🙏
+          
+          close-pr-message: |
+            🔒 This pull request has been automatically closed due to inactivity.
+            
+            If you'd like to continue working on this:
+            - Create a new PR with your changes
+            - Reference this closed PR
+            - Ensure it's rebased against the latest main branch
+            
+            Thank you for understanding!
+          
+          # Timing configuration
+          days-before-issue-stale: 30      # Mark issues stale after 30 days
+          days-before-pr-stale: 21         # Mark PRs stale after 21 days
+          days-before-issue-close: 7       # Close stale issues after 7 days
+          days-before-pr-close: 14         # Close stale PRs after 14 days
+          
+          # Label configuration
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          exempt-issue-labels: 'keep-open,pinned,security,bug'
+          exempt-pr-labels: 'keep-open,work-in-progress,needs-review'
+          
+          # Activity configuration
+          exempt-all-assignees: true       # Don't mark as stale if assigned
+          exempt-draft-pr: true            # Don't mark draft PRs as stale
+          
+          # Limits
+          operations-per-run: 30           # Process up to 30 items per run
+          
+          # Debug
+          debug-only: false                # Set to true for dry run

@@ -9,6 +9,162 @@ const fs = require('fs');
 const path = require('path');
 const acorn = require('acorn');
 
+/**
+ * Analyze module dependencies by examining namespace references
+ */
+function analyzeDependencies(modulesDir) {
+  const dependencies = {};
+  
+  // Only analyze core module files (exclude test files and optional modules)
+  const coreModules = [
+    'config',
+    'logger', 
+    'execution-time',
+    'utils',
+    'json-validator',
+    'ai-schemas',
+    'error-taxonomy',
+    'structured-ai',
+    'batch-processor',
+    'continuation-triggers',
+    'continuation-handlers',
+    'function-calling',
+    'dark-mode',
+    'test-mode',
+    'contextual-actions',
+    'welcome-flow',
+    'ui-improvements',
+    'overlay',
+    'guardrails',
+    'label-cache',
+    'history-delta',
+    'lock-manager',
+    'factory-reset',
+    'ai',
+    'draft-tracker',
+    'redaction',
+    'prompt-sanitizer',
+    'gmail',
+    'ui',
+    'error-handling',
+    'entry-points', 
+    'navigation-handlers',
+    'action-handlers',
+    'processing-handlers',
+    'universal-actions',
+    'factory-reset-handlers',
+    'docs-prompt-editor',
+    'docs-prompt-handlers',
+    'deployment-info'
+  ];
+  
+  // Map of namespace names to module files
+  const namespaceToModule = {
+    'Config': 'config',
+    'AppLogger': 'logger', 
+    'ExecutionTime': 'execution-time',
+    'Utils': 'utils',
+    'JsonValidator': 'json-validator',
+    'AISchemas': 'ai-schemas',
+    'ErrorTaxonomy': 'error-taxonomy',
+    'StructuredAI': 'structured-ai',
+    'BatchProcessor': 'batch-processor',
+    'ContinuationTriggers': 'continuation-triggers',
+    'ContinuationHandlers': 'continuation-handlers',
+    'FunctionCalling': 'function-calling',
+    'DarkMode': 'dark-mode',
+    'TestMode': 'test-mode',
+    'ContextualActions': 'contextual-actions',
+    'WelcomeFlow': 'welcome-flow',
+    'UIImprovements': 'ui-improvements',
+    'ProcessingOverlay': 'overlay',
+    'Guardrails': 'guardrails',
+    'LabelCache': 'label-cache',
+    'HistoryDelta': 'history-delta',
+    'LockManager': 'lock-manager',
+    'FactoryReset': 'factory-reset',
+    'AI': 'ai',
+    'DraftTracker': 'draft-tracker',
+    'Redaction': 'redaction',
+    'PromptSanitizer': 'prompt-sanitizer',
+    'GmailService': 'gmail',
+    'UI': 'ui',
+    'ErrorHandling': 'error-handling',
+    'EntryPoints': 'entry-points', 
+    'NavigationHandlers': 'navigation-handlers',
+    'ActionHandlers': 'action-handlers',
+    'ProcessingHandlers': 'processing-handlers',
+    'UniversalActions': 'universal-actions',
+    'FactoryResetHandlers': 'factory-reset-handlers',
+    'DocsPromptEditor': 'docs-prompt-editor',
+    'DocsPromptHandlers': 'docs-prompt-handlers',
+    'DeploymentInfo': 'deployment-info',
+    'GeminiModel': 'config',
+    'LIMITS': 'execution-time'
+  };
+  
+  coreModules.forEach(moduleName => {
+    const filePath = path.join(modulesDir, `${moduleName}.ts`);
+    if (!fs.existsSync(filePath)) {
+      dependencies[moduleName] = []; // Module might not exist, that's ok
+      return;
+    }
+    
+    const content = fs.readFileSync(filePath, 'utf8');
+    const deps = [];
+    
+    // Find all namespace references (e.g., Config.VERSION, AppLogger.info, etc.)
+    Object.keys(namespaceToModule).forEach(namespace => {
+      const pattern = new RegExp(`\\b${namespace}\\.`, 'g');
+      if (pattern.test(content) && namespaceToModule[namespace] !== moduleName) {
+        deps.push(namespaceToModule[namespace]);
+      }
+    });
+    
+    dependencies[moduleName] = [...new Set(deps)]; // Remove duplicates
+  });
+  
+  return dependencies;
+}
+
+/**
+ * Topological sort for dependency resolution
+ */
+function topologicalSort(dependencies) {
+  const sorted = [];
+  const visited = new Set();
+  const visiting = new Set();
+  
+  function visit(node) {
+    if (visiting.has(node)) {
+      throw new Error(`Circular dependency detected involving: ${node}`);
+    }
+    if (visited.has(node)) return;
+    
+    visiting.add(node);
+    
+    const deps = dependencies[node] || [];
+    deps.forEach(dep => {
+      if (dependencies[dep] !== undefined) { // Only visit if dep exists in our modules
+        visit(dep);
+      }
+    });
+    
+    visiting.delete(node);
+    visited.add(node);
+    sorted.push(node);
+  }
+  
+  // Visit all modules
+  Object.keys(dependencies).forEach(module => {
+    if (!visited.has(module)) {
+      visit(module);
+    }
+  });
+  
+  return sorted;
+}
+
 function readModuleFile(modulePath) {
   try {
     const content = fs.readFileSync(modulePath, 'utf8');
@@ -23,6 +179,7 @@ function readModuleFile(modulePath) {
   }
 }
 
+
 function createBundle() {
   const distDir = path.join(__dirname, 'dist');
   const srcDir = path.join(distDir, 'src');
@@ -34,7 +191,8 @@ function createBundle() {
   // Check if compiled files exist
   if (!fs.existsSync(codeFile)) {
     console.error('❌ Code.js not found. Run npm run build first.');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   
   // Read package.json to get version
@@ -52,16 +210,34 @@ function createBundle() {
   
   console.log('🔨 Creating modular bundle...');
   
-  // Define module order (dependencies first)
-  const moduleOrder = [
-    'config',
-    'logger',
-    'properties',
-    'ai',
-    'gmail',
-    'utils',
-    'ui'
-  ];
+  // Auto-resolve module dependencies
+  const srcModulesDir = path.join(__dirname, 'src', 'modules');
+  const dependencies = analyzeDependencies(srcModulesDir);
+  const moduleOrder = topologicalSort(dependencies);
+  
+  console.log('🔍 Dependency analysis:');
+  Object.keys(dependencies).forEach(module => {
+    if (dependencies[module].length > 0) {
+      console.log(`   ${module} → ${dependencies[module].join(', ')}`);
+    }
+  });
+  console.log('📋 Resolved order:', moduleOrder.join(' → '));
+  
+  // Validate all required modules exist
+  const missingModules = [];
+  moduleOrder.forEach(moduleName => {
+    const jsPath = path.join(modulesDir, `${moduleName}.js`);
+    if (!fs.existsSync(jsPath)) {
+      missingModules.push(moduleName);
+    }
+  });
+  
+  if (missingModules.length > 0) {
+    console.error(`❌ Missing required modules: ${missingModules.join(', ')}`);
+    console.error('Run npm run build first to compile TypeScript modules');
+    process.exitCode = 1;
+    return;
+  }
   
   // Read and combine all modules
   let modulesContent = '';
@@ -130,29 +306,17 @@ function createBundle() {
           
           console.log(`✅ Included module: ${moduleName} (${namespaceName})`);
         } else {
-          console.warn(`⚠️  Could not parse namespace pattern in module: ${moduleName}`);
+          console.error(`❌ CRITICAL: Could not parse namespace pattern in module: ${moduleName}`);
+          console.error('AST parsing failed - check TypeScript compilation output');
+          process.exitCode = 1; // FAIL FAST - NO FALLBACKS
+          return;
         }
         
       } catch (error) {
-        console.error(`❌ Failed to parse module ${moduleName}:`, error.message);
-        
-        // Fallback to regex if AST parsing fails
-        const namespaceMatch = moduleContent.match(/var\s+(\w+);\s*\(function\s*\(\1\)\s*\{([\s\S]*?)\}\)\(\1\s*\|\|\s*\(\1\s*=\s*\{\}\)\);?/);
-        
-        if (namespaceMatch) {
-          const namespaceName = namespaceMatch[1];
-          let innerContent = namespaceMatch[2];
-          
-          innerContent = innerContent
-            .replace(/Object\.defineProperty\(exports[^;]*;/g, '')
-            .replace(/exports\.[^=]*=[^;]*;/g, '')
-            .trim();
-          
-          modulesContent += `\n// ===== ${namespaceName.toUpperCase()} MODULE =====\n`;
-          modulesContent += `var ${namespaceName};\n(function (${namespaceName}) {\n${innerContent}\n})(${namespaceName} || (${namespaceName} = {}));\n`;
-          
-          console.log(`✅ Included module: ${moduleName} (${namespaceName}) [via regex fallback]`);
-        }
+        console.error(`❌ CRITICAL: Failed to parse module ${moduleName}:`, error.message);
+        console.error('AST parsing failed - fix the root cause');
+        process.exitCode = 1; // FAIL FAST - NO FALLBACKS
+        return;
       }
     }
   });
@@ -170,10 +334,10 @@ function createBundle() {
     .replace(/const\s+([^=]+)\s*=\s*require\([^)]+\);?/g, '')
     .trim();
   
-  // Replace version placeholders
-  const finalContent = (modulesContent + '\n\n' + mainContent)
-    .replace(/__VERSION__/g, appVersion)
-    .replace(/__DEPLOY_TIME__/g, deployTime);
+  // Replace version placeholders using robust injection
+  const { injectVersionInfo } = require('./inject-version.js');
+  const contentToInject = modulesContent + '\n\n' + mainContent;
+  const finalContent = injectVersionInfo(contentToInject, appVersion, deployTime);
   
   // Add header
   const header = `/**
@@ -189,14 +353,39 @@ function createBundle() {
   
   const bundledContent = header + finalContent;
   
+  // Validate bundle content before writing
+  if (bundledContent.length < 10000) { // Less than 10KB indicates a problem
+    console.error('❌ Bundle too small - likely missing content');
+    process.exitCode = 1;
+    return;
+  }
+  
+  // Check for critical functions
+  const requiredFunctions = ['onHomepage', 'runAnalysis'];
+  const missingFunctions = requiredFunctions.filter(fn => !bundledContent.includes(`function ${fn}(`));
+  
+  if (missingFunctions.length > 0) {
+    console.error(`❌ Bundle missing required functions: ${missingFunctions.join(', ')}`);
+    process.exitCode = 1;
+    return;
+  }
+  
+  // Check for syntax errors by parsing the final bundle
+  try {
+    acorn.parse(bundledContent, { ecmaVersion: 2022 });
+    console.log('✅ Bundle syntax validation passed');
+  } catch (syntaxError) {
+    console.error('❌ Bundle has syntax errors:', syntaxError.message);
+    console.error('Position:', syntaxError.pos);
+    process.exitCode = 1;
+    return;
+  }
+  
   // Write the bundled file
   fs.writeFileSync(bundleFile, bundledContent);
   
-  // Clean up the src directory to ensure single-file deployment
-  if (fs.existsSync(srcDir)) {
-    fs.rmSync(srcDir, { recursive: true, force: true });
-    console.log('🧹 Cleaned up intermediate src directory');
-  }
+  // Note: Keep intermediate src/ directory for incremental builds
+  // The dist/ directory cleanup happens via npm run clean when needed
   
   console.log(`✅ Modular bundle created: ${bundleFile}`);
   console.log(`📦 Size: ${Math.round(bundledContent.length / 1024)}KB`);
