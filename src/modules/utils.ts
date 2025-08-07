@@ -98,6 +98,73 @@ namespace Utils {
   }
 
   /**
+   * Map common AI label variants to correct system labels
+   * This prevents creation of "ai-" labels from AI responses
+   */
+  function mapAILabelVariants(labelName: string): string {
+    const normalized = labelName.toLowerCase().trim();
+    
+    // First, check if it starts with "ai" followed by any non-letter character and contains "process"
+    if (normalized.match(/^ai[^a-z].*process/)) {
+      return Config.LABELS.AI_PROCESSED; // Returns 'ai✓'
+    }
+    
+    // Check if it starts with "ai" followed by any non-letter character and contains "error"
+    if (normalized.match(/^ai[^a-z].*error/)) {
+      return Config.LABELS.AI_ERROR; // Returns 'aiX'
+    }
+    
+    // Map exact matches for common variants
+    if (normalized === 'ai_processed' || 
+        normalized === 'ai processed' || 
+        normalized === 'ai:processed' ||
+        normalized === 'ai-processed' ||
+        normalized === 'aiprocessed' ||
+        normalized === 'processed') {
+      return Config.LABELS.AI_PROCESSED; // Returns 'ai✓'
+    }
+    
+    // Map common AI error label variants
+    if (normalized === 'ai_error' || 
+        normalized === 'ai error' || 
+        normalized === 'ai:error' ||
+        normalized === 'ai-error' ||
+        normalized === 'aierror' ||
+        normalized === 'error') {
+      return Config.LABELS.AI_ERROR; // Returns 'aiX'
+    }
+    
+    // Return original label if not an AI variant
+    return labelName;
+  }
+  
+  /**
+   * Check if a label would become "ai-" after sanitization
+   * and prevent it by prepending "Label_"
+   */
+  function preventAiDashLabel(labelName: string): string {
+    // First apply mapping to catch AI variants
+    const mapped = mapAILabelVariants(labelName);
+    if (mapped === Config.LABELS.AI_PROCESSED || mapped === Config.LABELS.AI_ERROR) {
+      return mapped;
+    }
+    
+    // Check if this would create "ai-" after sanitization
+    const testSanitized = mapped.trim().toLowerCase();
+    if (testSanitized.startsWith('ai') && testSanitized.length > 2) {
+      // Check if the third character would be replaced with a dash
+      const thirdChar = testSanitized[2];
+      // If it's not alphanumeric, underscore, space, dash, period, slash, or our special chars
+      if (thirdChar && !/[\w\s\-._/✓✗]/.test(thirdChar)) {
+        // This would create "ai-something", so prepend to avoid it
+        return 'Label_' + mapped;
+      }
+    }
+    
+    return mapped;
+  }
+
+  /**
    * Sanitize Gmail label name to meet Gmail's constraints
    * - Max 40 characters (Gmail's limit)
    * - No leading/trailing spaces
@@ -107,8 +174,16 @@ namespace Utils {
   export function sanitizeGmailLabel(labelName: string): string {
     if (!labelName) return 'Untitled';
     
+    // Apply AI dash prevention
+    const safeLabelName = preventAiDashLabel(labelName);
+    
+    // If it was mapped to a system label, return it as-is (don't sanitize system labels)
+    if (safeLabelName === Config.LABELS.AI_PROCESSED || safeLabelName === Config.LABELS.AI_ERROR) {
+      return safeLabelName;
+    }
+    
     // Trim whitespace
-    let sanitized = labelName.trim();
+    let sanitized = safeLabelName.trim();
     
     // Handle empty after trim
     if (!sanitized) return 'Untitled';
