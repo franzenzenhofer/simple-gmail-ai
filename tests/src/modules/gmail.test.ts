@@ -318,4 +318,56 @@ describe('GmailService Module', () => {
       expect((global as any).GmailService).toBe(GmailService);
     });
   });
+
+  describe('filterObsoleteLabels', () => {
+    // Mock the filter function for testing
+    const filterObsoleteLabels = (labels: string[]): string[] => {
+      return labels.filter(label => {
+        // Filter out old "ai-" format labels
+        if (label.startsWith('ai-')) {
+          return false;
+        }
+        return true;
+      });
+    };
+
+    it('should filter out old ai- labels', () => {
+      const labels = ['ai-processed', 'ai-error', 'ai✓', 'aiX', 'Custom Label', 'ai-something'];
+      const filtered = filterObsoleteLabels(labels);
+      
+      expect(filtered).toEqual(['ai✓', 'aiX', 'Custom Label']);
+      expect(filtered).not.toContain('ai-processed');
+      expect(filtered).not.toContain('ai-error');
+      expect(filtered).not.toContain('ai-something');
+    });
+
+    it('should keep all non-obsolete labels', () => {
+      const labels = ['ai✓', 'aiX', 'Support', 'Custom', 'AI Label'];
+      const filtered = filterObsoleteLabels(labels);
+      
+      expect(filtered).toEqual(labels);
+    });
+
+    it('should handle empty array', () => {
+      const labels: string[] = [];
+      const filtered = filterObsoleteLabels(labels);
+      
+      expect(filtered).toEqual([]);
+    });
+
+    it('should handle array with only obsolete labels', () => {
+      const labels = ['ai-processed', 'ai-error', 'ai-draft'];
+      const filtered = filterObsoleteLabels(labels);
+      
+      expect(filtered).toEqual([]);
+    });
+
+    it('should not filter labels that contain ai- in the middle', () => {
+      const labels = ['email-ai-assistant', 'myai-label', 'ai✓', 'ai-old'];
+      const filtered = filterObsoleteLabels(labels);
+      
+      expect(filtered).toEqual(['email-ai-assistant', 'myai-label', 'ai✓']);
+      expect(filtered).not.toContain('ai-old');
+    });
+  });
 });

@@ -8,6 +8,30 @@ namespace GmailService {
   const threadLabelCache = new Map<string, string[]>();
   
   /**
+   * Filter out obsolete labels from previous versions
+   * Removes old "ai-" labels that are no longer used
+   */
+  function filterObsoleteLabels(labels: string[]): string[] {
+    return labels.filter(label => {
+      // Keep all labels EXCEPT old "ai-" format
+      // Old format: "ai-processed", "ai-error", etc.
+      // New format: "ai✓", "aiX"
+      
+      // If it starts with "ai-" it's an old label we want to filter out
+      if (label.startsWith('ai-')) {
+        AppLogger.warn('🚫 Filtering out obsolete label', { 
+          obsoleteLabel: label,
+          reason: 'Legacy ai- format no longer used'
+        });
+        return false;
+      }
+      
+      // Keep all other labels including new "ai✓" and "aiX"
+      return true;
+    });
+  }
+  
+  /**
    * Get thread labels with caching
    */
   function getThreadLabelsOptimized(thread: GoogleAppsScript.Gmail.GmailThread): string[] {
@@ -18,11 +42,24 @@ namespace GmailService {
       return threadLabelCache.get(threadId)!;
     }
     
-    // Fetch labels and cache them
-    const labels = thread.getLabels().map(label => label.getName());
-    threadLabelCache.set(threadId, labels);
+    // Fetch labels and filter out obsolete ones
+    const allLabels = thread.getLabels().map(label => label.getName());
+    const filteredLabels = filterObsoleteLabels(allLabels);
     
-    return labels;
+    // Cache the filtered labels
+    threadLabelCache.set(threadId, filteredLabels);
+    
+    // Log if we filtered any labels
+    if (allLabels.length !== filteredLabels.length) {
+      AppLogger.info('🏷️ Filtered obsolete labels from thread', {
+        threadId: threadId,
+        originalCount: allLabels.length,
+        filteredCount: filteredLabels.length,
+        removed: allLabels.filter(l => !filteredLabels.includes(l))
+      });
+    }
+    
+    return filteredLabels;
   }
   
   /**
@@ -623,6 +660,120 @@ namespace GmailService {
     };
   }
 
+  /**
+   * Clean up obsolete labels from all threads in the user's mailbox
+   * This is a one-time migration to remove old "ai-" labels
+   */
+  export function cleanupObsoleteLabels(): { 
+    threadsProcessed: number; 
+    labelsRemoved: number; 
+    errors: number;
+    removedLabels: string[];
+  } {
+    const stats = {
+      threadsProcessed: 0,
+      labelsRemoved: 0,
+      errors: 0,
+      removedLabels: new Set<string>()
+    };
+    
+    try {
+      AppLogger.info('🧹 Starting obsolete label cleanup');
+      
+      // Get all Gmail labels to find obsolete ones
+      const allLabels = GmailApp.getUserLabels();
+      const obsoleteLabels = allLabels.filter(label => label.getName().startsWith('ai-'));
+      
+      if (obsoleteLabels.length === 0) {
+        AppLogger.info('✅ No obsolete labels found');
+        return {
+          threadsProcessed: 0,
+          labelsRemoved: 0,
+          errors: 0,
+          removedLabels: []
+        };
+      }
+      
+      AppLogger.info(`Found ${obsoleteLabels.length} obsolete labels to clean up`, {
+        labels: obsoleteLabels.map(l => l.getName())
+      });
+      
+      // Process each obsolete label
+      obsoleteLabels.forEach(label => {
+        try {
+          const labelName = label.getName();
+          stats.removedLabels.add(labelName);
+          
+          // Get all threads with this label
+          const threads = label.getThreads();
+          stats.threadsProcessed += threads.length;
+          
+          if (threads.length > 0) {
+            AppLogger.info(`Removing label "${labelName}" from ${threads.length} threads`);
+            
+            // Remove label from all threads in batches
+            const batchSize = 100;
+            for (let i = 0; i < threads.length; i += batchSize) {
+              const batch = threads.slice(i, i + batchSize);
+              try {
+                // Remove label from batch of threads
+                batch.forEach(thread => {
+                  thread.removeLabel(label);
+                  // Invalidate cache for this thread
+                  invalidateThreadLabelCache(thread.getId());
+                });
+                stats.labelsRemoved += batch.length;
+              } catch (batchError) {
+                AppLogger.error('Failed to remove label from batch', {
+                  labelName,
+                  batchStart: i,
+                  error: String(batchError)
+                });
+                stats.errors += batch.length;
+              }
+            }
+          }
+          
+          // Delete the label itself
+          try {
+            GmailApp.deleteLabel(label);
+            AppLogger.info(`Deleted obsolete label: ${labelName}`);
+          } catch (deleteError) {
+            AppLogger.warn(`Could not delete label "${labelName}"`, {
+              error: String(deleteError)
+            });
+          }
+          
+        } catch (error) {
+          stats.errors++;
+          AppLogger.error('Failed to process obsolete label', {
+            label: label.getName(),
+            error: String(error)
+          });
+        }
+      });
+      
+      AppLogger.info('🎉 Obsolete label cleanup complete', {
+        stats: {
+          threadsProcessed: stats.threadsProcessed,
+          labelsRemoved: stats.labelsRemoved,
+          errors: stats.errors,
+          deletedLabels: Array.from(stats.removedLabels)
+        }
+      });
+      
+    } catch (error) {
+      AppLogger.error('Label cleanup failed', { error: String(error) });
+    }
+    
+    return {
+      threadsProcessed: stats.threadsProcessed,
+      labelsRemoved: stats.labelsRemoved,
+      errors: stats.errors,
+      removedLabels: Array.from(stats.removedLabels)
+    };
+  }
+  
   export function processThreads(
     threads: GoogleAppsScript.Gmail.GmailThread[],
     apiKey: string,
@@ -757,7 +908,7 @@ namespace GmailService {
       const threadData = threadMap.get(email.id);
       if (threadData) {
         const allLabels = getThreadLabelsOptimized(threadData.thread);
-        const threadLabels = allLabels; // Use all labels directly - no ai- filtering needed
+        const threadLabels = allLabels; // Use all labels directly - no filtering needed
         const activePrompt = getClassificationPrompt(classificationPrompt, threadLabels);
         
         // Group by prompt
@@ -1257,7 +1408,7 @@ namespace GmailService {
       
       // Get thread labels for prompt selection
       const allLabels = getThreadLabelsOptimized(thread);
-      const threadLabels = allLabels; // Use all labels directly - no ai- filtering needed
+      const threadLabels = allLabels; // Use all labels directly - no filtering needed
       const activeClassificationPrompt = getClassificationPrompt(classificationPrompt, threadLabels);
       
       // Get label options from docs configuration
